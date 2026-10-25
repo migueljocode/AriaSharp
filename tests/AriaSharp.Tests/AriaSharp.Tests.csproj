@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <RootNamespace>AriaSharp.Tests</RootNamespace>
+    <AssemblyName>AriaSharp.Tests</AssemblyName>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <NoWarn>$(NoWarn);CA1707;CA1310</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="coverlet.collector" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\AriaSharp.Models\AriaSharp.Models.csproj" />
+    <ProjectReference Include="..\..\src\AriaSharp.Services\AriaSharp.Services.csproj" />
+    <ProjectReference Include="..\..\src\AriaSharp.Console\AriaSharp.Console.csproj" />
+  </ItemGroup>
+</Project>
