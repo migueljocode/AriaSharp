@@ -44,18 +44,16 @@ public sealed class Aria2Locator : IAria2Locator
     private static string? FindInPath(string command)
     {
         var pathVar = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
-        var extensions = Environment.OSVersion.Platform == PlatformID.Win32NT
-            ? new[] { ".exe", ".cmd", ".bat" }
+        var extensions = OperatingSystem.IsWindows()
+            ? new[] { ".exe", ".cmd", ".bat", string.Empty }
             : new[] { string.Empty };
         foreach (var dir in pathVar.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
         {
             foreach (var ext in extensions)
             {
-                var full = Path.Combine(dir, command + ext);
+                var full = Path.Join(dir, command + ext);
                 if (File.Exists(full))
-                {
                     return full;
-                }
             }
         }
         return null;
