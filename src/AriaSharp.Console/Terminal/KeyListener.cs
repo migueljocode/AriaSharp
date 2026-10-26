@@ -1,27 +1,21 @@
 namespace AriaSharp.App;
 
-/// <summary>
-/// Polls Console.KeyAvailable for cancel keys (q / Q / Esc).
-/// Calls CancelAsync once; safe to run as a background Task.
-/// </summary>
 internal static class KeyListener
 {
     public static async Task WatchCancelAsync(CancellationTokenSource cts, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(cts);
-        if (System.Console.IsInputRedirected)
-            return;
-
         try
         {
-            while (!ct.IsCancellationRequested && !cts.IsCancellationRequested)
+            while (!ct.IsCancellationRequested)
             {
                 if (System.Console.KeyAvailable)
                 {
                     var key = System.Console.ReadKey(intercept: true);
                     if (key.Key is ConsoleKey.Q or ConsoleKey.Escape)
                     {
-                        await cts.CancelAsync().ConfigureAwait(false);
+                        try { await cts.CancelAsync().ConfigureAwait(false); }
+                        catch (ObjectDisposedException) { }
                         return;
                     }
                 }
@@ -31,5 +25,34 @@ internal static class KeyListener
         catch (OperationCanceledException) { }
         catch (InvalidOperationException) { }
         catch (IOException) { }
+    }
+
+    /// <summary>
+    /// Single key: R/Y = retry, Q/Esc/N = quit. No Enter required.
+    /// </summary>
+    public static bool WaitRetryOrQuit()
+    {
+        try
+        {
+            while (true)
+            {
+                if (!System.Console.KeyAvailable)
+                {
+                    Thread.Sleep(30);
+                    continue;
+                }
+                var key = System.Console.ReadKey(intercept: true);
+                if (key.Key is ConsoleKey.Q or ConsoleKey.Escape or ConsoleKey.N)
+                    return false;
+                if (key.Key is ConsoleKey.R or ConsoleKey.Y)
+                    return true;
+                var c = char.ToLowerInvariant(key.KeyChar);
+                if (c is 'q' or 'n') return false;
+                if (c is 'r' or 'y') return true;
+            }
+        }
+        catch (InvalidOperationException) { }
+        catch (IOException) { }
+        return false;
     }
 }

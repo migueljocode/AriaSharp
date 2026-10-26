@@ -123,31 +123,10 @@ internal static class Program
 
         while (true)
         {
-            var code = await RunDownloadAsync(settings).ConfigureAwait(false);
-            if (code != (int)ExitCode.Failure)
+            var (code, retry) = await RunDownloadAsync(settings).ConfigureAwait(false);
+            if (!retry)
                 return code;
-            if (settings.Yes || settings.Plain || System.Console.IsInputRedirected)
-                return code;
-            if (!await PromptRetryAsync().ConfigureAwait(false))
-                return code;
-            // retry: same inputs
-        }
-    }
-
-    private static async Task<bool> PromptRetryAsync()
-    {
-        try
-        {
-            await System.Console.Out.WriteAsync(
-                "Download failed. [R]etry / [Q]uit? ").ConfigureAwait(false);
-            var line = await System.Console.In.ReadLineAsync().ConfigureAwait(false);
-            if (string.IsNullOrWhiteSpace(line)) return false;
-            var c = char.ToLowerInvariant(line.Trim()[0]);
-            return c is 'r' or 'y';
-        }
-        catch (IOException)
-        {
-            return false;
+            // User pressed R inside the TUI — full re-run with same inputs.
         }
     }
 
@@ -167,7 +146,7 @@ internal static class Program
         return (int)ExitCode.Ok;
     }
 
-    private static async Task<int> RunDownloadAsync(AppSettings settings)
+    private static async Task<(int Code, bool Retry)> RunDownloadAsync(AppSettings settings)
     {
         using var cts = new CancellationTokenSource();
         ConsoleCancelEventHandler onCancel = (_, e) =>
@@ -208,7 +187,7 @@ internal static class Program
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 await System.Console.Error.WriteLineAsync($"Error: could not write input file ({ex.Message})").ConfigureAwait(false);
-                return (int)ExitCode.Failure;
+                return ((int)ExitCode.Failure, false);
             }
 
             string aria2Path;
@@ -234,20 +213,20 @@ internal static class Program
                         catch (FileNotFoundException retryEx)
                         {
                             await System.Console.Error.WriteLineAsync($"Error: install reported success but aria2c still missing ({retryEx.Message})").ConfigureAwait(false);
-                            return (int)ExitCode.Failure;
+                            return ((int)ExitCode.Failure, false);
                         }
                     }
                     else
                     {
                         await System.Console.Error.WriteLineAsync($"Error: {ex.Message}").ConfigureAwait(false);
-                        return (int)ExitCode.Failure;
+                        return ((int)ExitCode.Failure, false);
                     }
                 }
                 else
                 {
                     await System.Console.Error.WriteLineAsync($"Error: {ex.Message}").ConfigureAwait(false);
                     await System.Console.Error.WriteLineAsync("Hint: pass -y / --install-deps / --install-aria2 to install, or --aria2-path.").ConfigureAwait(false);
-                    return (int)ExitCode.Failure;
+                    return ((int)ExitCode.Failure, false);
                 }
             }
 
@@ -289,7 +268,7 @@ internal static class Program
             catch (Exception ex) when (ex is InvalidOperationException or TimeoutException or HttpRequestException or IOException)
             {
                 await System.Console.Error.WriteLineAsync($"Error: failed to start aria2 ({ex.Message})").ConfigureAwait(false);
-                return (int)ExitCode.Failure;
+                return ((int)ExitCode.Failure, false);
             }
 
             var useDashboard = !settings.Plain && !settings.Inline && !settings.NoColor && !settings.Ascii
@@ -300,12 +279,13 @@ internal static class Program
             RunOutcome outcome;
             SessionState finalState;
             TimeSpan elapsed;
+            var dashboardRetry = false;
 
             if (useDashboard)
             {
                 Theme.Enabled = true;
-                (outcome, finalState, elapsed) = await RunWithDashboardAsync(
-                    engine, settings, cts.Token).ConfigureAwait(false);
+                (outcome, finalState, elapsed, dashboardRetry) = await RunWithDashboardAsync(
+                    engine, settings, Path.GetFullPath(outputDir), Path.GetFullPath(sessionPath), cts.Token).ConfigureAwait(false);
             }
             else
             {
@@ -340,7 +320,7 @@ internal static class Program
                     if (useInline) InlineView.EndProgress(System.Console.Error);
                     else PlainView.EndProgress(System.Console.Error, interactive);
                     await System.Console.Error.WriteLineAsync($"Error: {ex.Message}").ConfigureAwait(false);
-                    return (int)ExitCode.Failure;
+                    return ((int)ExitCode.Failure, false);
                 }
                 if (useInline) InlineView.EndProgress(System.Console.Error);
                 else PlainView.EndProgress(System.Console.Error, interactive);
@@ -348,24 +328,37 @@ internal static class Program
                 elapsed = session.Elapsed;
             }
 
-            var summary = SummaryView.Render(
-                finalState,
-                outcome,
-                elapsed,
-                Path.GetFullPath(outputDir),
-                Path.GetFullPath(sessionPath));
-            await System.Console.Out.WriteAsync(summary).ConfigureAwait(false);
+            var outDir = Path.GetFullPath(outputDir);
+            var sess = Path.GetFullPath(sessionPath);
+            var color = !settings.NoColor && !settings.Ascii && !settings.Plain
+                && !System.Console.IsOutputRedirected;
+            var canPrompt = outcome.Kind == RunOutcomeKind.Failed
+                && !settings.Yes
+                && !settings.Plain
+                && !System.Console.IsInputRedirected
+                && !System.Console.IsOutputRedirected;
 
-            if (outcome.Kind == RunOutcomeKind.Failed && !string.IsNullOrEmpty(outcome.Message))
-                await System.Console.Error.WriteLineAsync($"Error: {outcome.Message}").ConfigureAwait(false);
+            // Dashboard already rendered summary + prompt inside alt screen.
+            if (!useDashboard)
+                SummaryView.Write(finalState, outcome, elapsed, outDir, sess, color, showRetryPrompt: canPrompt);
 
-            return outcome.Kind switch
+            var retry = false;
+            if (canPrompt)
+            {
+                if (useDashboard)
+                    retry = dashboardRetry;
+                else
+                    retry = KeyListener.WaitRetryOrQuit();
+            }
+
+            var code = outcome.Kind switch
             {
                 RunOutcomeKind.Completed => (int)ExitCode.Ok,
                 RunOutcomeKind.Interrupted => (int)ExitCode.Interrupted,
                 RunOutcomeKind.Empty => (int)ExitCode.Ok,
                 _ => (int)ExitCode.Failure,
             };
+            return (code, retry);
         }
         finally
         {
@@ -379,9 +372,11 @@ internal static class Program
         }
     }
 
-    private static async Task<(RunOutcome Outcome, SessionState State, TimeSpan Elapsed)> RunWithDashboardAsync(
+    private static async Task<(RunOutcome Outcome, SessionState State, TimeSpan Elapsed, bool Retry)> RunWithDashboardAsync(
         Aria2Engine engine,
         AppSettings settings,
+        string outputDir,
+        string sessionPath,
         CancellationToken ct)
     {
         RunOutcome outcome = RunOutcome.Interrupted();
@@ -405,6 +400,7 @@ internal static class Program
 
         var guard = ScreenGuard.TryEnter();
         var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var retry = false;
         try
         {
             var keyTask = KeyListener.WatchCancelAsync(linked, linked.Token);
@@ -434,12 +430,40 @@ internal static class Program
                             catch (IOException) { }
                             outcome = RunOutcome.Interrupted("Cancelled.");
                         }
+                        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or IOException)
+                        {
+                            outcome = RunOutcome.Failed(ex.Message);
+                        }
+
+                        // Still inside Live + alt screen: show summary / retry prompt
+                        var state = session?.State ?? empty;
+                        var elapsed = session?.Elapsed ?? TimeSpan.Zero;
+                        var offer = outcome.Kind == RunOutcomeKind.Failed
+                            && !settings.Yes
+                            && !settings.Plain;
+                        try
+                        {
+                            ctx.UpdateTarget(SummaryView.Build(
+                                state, outcome, elapsed, outputDir, sessionPath, showRetryPrompt: offer));
+                        }
+                        catch (InvalidOperationException) { }
+                        catch (IOException) { }
+
+                        if (offer)
+                        {
+                            // stop cancel watcher from eating R key
+                            try { await linked.CancelAsync().ConfigureAwait(false); } catch (ObjectDisposedException) { }
+                            retry = KeyListener.WaitRetryOrQuit();
+                        }
                     }).ConfigureAwait(false);
             }
             finally
             {
                 if (!linked.IsCancellationRequested)
-                    await linked.CancelAsync().ConfigureAwait(false);
+                {
+                    try { await linked.CancelAsync().ConfigureAwait(false); }
+                    catch (ObjectDisposedException) { }
+                }
                 try { await keyTask.ConfigureAwait(false); }
                 catch (OperationCanceledException) { }
             }
@@ -450,6 +474,6 @@ internal static class Program
             guard?.Dispose();
         }
 
-        return (outcome, session?.State ?? empty, session?.Elapsed ?? TimeSpan.Zero);
+        return (outcome, session?.State ?? empty, session?.Elapsed ?? TimeSpan.Zero, retry);
     }
 }
