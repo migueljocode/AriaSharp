@@ -1,19 +1,20 @@
 # PROGRESS.md
 
 ## Milestone
-Live plain progress + M2 complete.
+WebSocket notifications + live plain progress + M2.
 
 ## Done
-- End-to-end Aria2Engine + DownloadSession
-- Failed/empty/completed classification + SummaryView
-- **Live progress line** via ProgressTick → PlainView.WriteProgress (CR when interactive, newline when redirected)
-- PlainViewTests + DownloadSessionTests
-- **Verified:** 114 tests; example.com shows progress ticks then Summary exit 0
+- Aria2Engine end-to-end + DownloadSession classification + SummaryView
+- Live plain progress (ProgressTick → PlainView)
+- **Aria2NotificationListener**: ClientWebSocket on ws://127.0.0.1:port/jsonrpc
+  maps onDownloadStart/Pause/Stop/Complete/Error + onBtDownloadComplete → EngineEvent channel
+  best-effort (HTTP poll remains source of truth if WS fails)
+- NotificationTests (TryMap) — **122 tests green**
+- Smoke: example.com exit 0
 
 ## Next
-- WebSocket notifications (onDownloadComplete/Error)
-- Full-screen purple dashboard (M4)
-- Optional: throttle progress when redirected
+- Full-screen purple dashboard (M4) consuming Events + snapshots
+- Optional: surface notification events in verbose/plain output
 
 ## Blocked
 - (none)

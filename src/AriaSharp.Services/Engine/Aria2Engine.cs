@@ -24,6 +24,7 @@ public sealed class Aria2Engine : IAria2Engine
 
     private Aria2Process? _process;
     private Aria2RpcClient? _rpc;
+    private Aria2NotificationListener? _notifications;
     private string _version = string.Empty;
     private bool _disposed;
 
@@ -55,6 +56,18 @@ public sealed class Aria2Engine : IAria2Engine
         _rpc = new Aria2RpcClient(http, settings.Secret);
 
         await WaitForRpcAsync(ct).ConfigureAwait(false);
+
+        _notifications = new Aria2NotificationListener(settings.Port, _channel.Writer);
+        try
+        {
+            await _notifications.StartAsync(ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is System.Net.WebSockets.WebSocketException or HttpRequestException or IOException or TimeoutException)
+        {
+            // Notifications are best-effort; HTTP polling still works.
+            await _notifications.DisposeAsync().ConfigureAwait(false);
+            _notifications = null;
+        }
     }
 
     public async Task<EngineSnapshot> GetSnapshotAsync(CancellationToken ct)
@@ -188,6 +201,8 @@ public sealed class Aria2Engine : IAria2Engine
         }
         finally
         {
+            if (_notifications is not null)
+                await _notifications.DisposeAsync().ConfigureAwait(false);
             if (_process is not null)
                 await _process.DisposeAsync().ConfigureAwait(false);
             if (_rpc is not null)
