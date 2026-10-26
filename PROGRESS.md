@@ -1,20 +1,18 @@
 # PROGRESS.md
 
 ## Milestone
-Installer path + CLI letter restore (dneat parity).
+Help pager (less-style).
 
 ## Done
-- **-y / --install-deps** (Brief §11 / dneat); `--yes` long-only
-- Standalone `ariasharp -y` / `--install-deps` **before** inputs check
-- ProcessRunner drains stdout/stderr (no pipe hang)
-- Package-manager install (apt/dnf/pacman/brew/winget), not source make
-- Aria2Locator: absolute paths checked directly (no Path.Join bug)
-- **Verified:** 143 tests; `-y` and `--install-deps` exit 0
+- HelpPager: alternate screen, j/k, space/b, g/G, /search, n/N, q/Esc
+- Status line with position %; wrap on width; ScreenGuard restore
+- --no-pager / redirected / non-TTY → full dump
+- HelpView routes through HelpDocument + pager
+- **Verified:** 147 tests; --help --no-pager prints full text
 
 ## Next
-- Help pager (alternate screen + less keys)
-- Split Program / Setup further
 - CI green on PR #1
+- Optional: Spectre colour inside pager pages
 
 ## Blocked
 - (none)
