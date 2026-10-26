@@ -329,6 +329,7 @@ public sealed class Aria2Engine : IAria2Engine
                 TotalLength = ReadLong(el, "totalLength"),
                 DownloadSpeed = ReadLong(el, "downloadSpeed"),
                 Connections = (int)ReadLong(el, "connections"),
+                ErrorCode = (int)ReadLong(el, "errorCode"),
                 ErrorMessage = string.IsNullOrEmpty(ReadString(el, "errorMessage"))
                     ? null
                     : ReadString(el, "errorMessage"),

@@ -13,6 +13,7 @@ public sealed class DownloadItem
     public long TotalLength { get; init; }
     public long DownloadSpeed { get; init; }
     public int Connections { get; init; }
+    public int ErrorCode { get; init; }
     public string? ErrorMessage { get; init; }
     public Uri? Uri { get; init; }
     public bool IsSelected { get; set; }

@@ -182,6 +182,17 @@ internal static class Program
                 return (int)ExitCode.Failure;
             }
 
+            var summary = SummaryView.Render(
+                session.State,
+                outcome,
+                session.Elapsed,
+                Path.GetFullPath(outputDir),
+                Path.GetFullPath(sessionPath));
+            await System.Console.Out.WriteAsync(summary).ConfigureAwait(false);
+
+            if (outcome.Kind == RunOutcomeKind.Failed && !string.IsNullOrEmpty(outcome.Message))
+                await System.Console.Error.WriteLineAsync($"Error: {outcome.Message}").ConfigureAwait(false);
+
             return outcome.Kind switch
             {
                 RunOutcomeKind.Completed => (int)ExitCode.Ok,
