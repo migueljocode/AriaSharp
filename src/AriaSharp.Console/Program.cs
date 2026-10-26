@@ -4,7 +4,7 @@ using AriaSharp.Services;
 
 namespace AriaSharp.App;
 
-public static class Program
+internal static class Program
 {
     public static async Task<int> Main(string[] args)
     {
@@ -22,7 +22,7 @@ public static class Program
         if (settings.Help)
         {
             var sb = new StringBuilder();
-            HelpDocument.Render(sb, 80);
+            HelpContent.Render(sb, 80);
             await System.Console.Out.WriteLineAsync(sb.ToString()).ConfigureAwait(false);
             return (int)Models.ExitCode.Ok;
         }

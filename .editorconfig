@@ -8,5 +8,6 @@ indent_size = 2
 trim_trailing_whitespace = true
 [*.cs]
 indent_size = 4
+dotnet_diagnostic.IDE0130.severity = none
 [*.json]
 indent_size = 2

@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="AriaSharp.Models/AriaSharp.Models.csproj" />
+  <Project Path="AriaSharp.Services/AriaSharp.Services.csproj" />
+  <Project Path="AriaSharp.Console/AriaSharp.Console.csproj" />
+  <Folder Name="/tests/">
+    <Project Path="../tests/AriaSharp.Tests/AriaSharp.Tests.csproj" />
+  </Folder>
+</Solution>

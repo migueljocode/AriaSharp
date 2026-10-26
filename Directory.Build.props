@@ -7,17 +7,18 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <AnalysisLevel>latest-all</AnalysisLevel>
     <!-- No warnings are suppressed by default. IL2026/IL3050 (AOT/trimming) are never suppressed per section 3 rule 4. -->
-    <!-- CA1724: SessionState has no conflict with System.Web.SessionState in this .NET 10 app (no System.Web reference). -->
-    <!-- CA1031: defensive exception swallowing in process/session cleanup paths. -->
-    <!-- CA1062: internal rendering helpers assume non-null StringBuilder/state (programming error otherwise). -->
-    <!-- CA1515: Console helper types are implementation details of the exe, not a public API. -->
-    <!-- CA1822: interface-delegate overloads (LoadAsync/SaveAsync with optional path) don't use instance data but can't be static. -->
-    <!-- CA2007: await using implicit dispose cannot carry ConfigureAwait. -->
-    <NoWarn>CA1724;CA1031;CA1062;CA1515;CA1822;CA2007</NoWarn>
+    <!-- CA1724: SessionState is a mandated type name (Brief §6); System.Web.SessionState does not exist in .NET 10. -->
+    <!-- CA1822: ISettingsStore.LoadAsync/SaveAsync are interface members and must be instance methods. -->
+    <NoWarn>CA1724;CA1822</NoWarn>
     <RepositoryUrl>https://github.com/migueljocode/AriaSharp</RepositoryUrl>
     <Copyright>Copyright (c) AriaSharp contributors</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
+  <ItemGroup>
+    <Using Include="System.Globalization" />
+    <Using Include="System.Text" />
+    <Using Include="AriaSharp.Models" />
+  </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <DebugType>embedded</DebugType>
     <Optimize>true</Optimize>

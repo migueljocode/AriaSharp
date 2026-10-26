@@ -11,5 +11,9 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\AriaSharp.Services\AriaSharp.Services.csproj" />
+    <PackageReference Include="Spectre.Console" />
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>AriaSharp.Tests</_Parameter1>
+    </AssemblyAttribute>
   </ItemGroup>
 </Project>

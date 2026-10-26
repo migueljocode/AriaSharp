@@ -13,6 +13,13 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+          - os: macos-latest
+            rid: osx-arm64
+          - os: windows-latest
+            rid: win-x64
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -22,19 +29,42 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
+      - name: Install aria2 (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq aria2
+
+      - name: Install aria2 (macOS)
+        if: runner.os == 'macOS'
+        run: brew install aria2
+
+      - name: Install aria2 (Windows)
+        if: runner.os == 'Windows'
+        run: winget install aria2.aria2 || true
+
       - name: Restore dependencies
-        run: dotnet restore AriaSharp.slnx
+        run: dotnet restore src/AriaSharp.slnx
 
       - name: Build solution
-        run: dotnet build AriaSharp.slnx --configuration Release --no-restore
+        run: dotnet build src/AriaSharp.slnx -c Release --no-restore
 
-      - name: Run unit tests
-        run: dotnet test tests/AriaSharp.Tests/AriaSharp.Tests.csproj --configuration Release --verbosity normal
+      - name: Run tests
+        run: dotnet test src/AriaSharp.slnx -c Release
 
-      - name: Publish AOT (linux-x64)
-        if: matrix.os == 'ubuntu-latest'
-        run: dotnet publish src/AriaSharp.Console/AriaSharp.Console.csproj -c Release -r linux-x64 --self-contained true
+      - name: Publish AOT
+        run: dotnet publish src/AriaSharp.Console/AriaSharp.Console.csproj -c Release -r ${{ matrix.rid }}
 
       - name: Smoke test --version
-        if: matrix.os == 'ubuntu-latest'
-        run: src/AriaSharp.Console/bin/Release/net10.0/linux-x64/publish/ariasharp --version
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            ./src/AriaSharp.Console/bin/Release/net10.0/${{ matrix.rid }}/publish/ariasharp.exe --version
+          else
+            ./src/AriaSharp.Console/bin/Release/net10.0/${{ matrix.rid }}/publish/ariasharp --version
+          fi
+
+      - name: Smoke test --help
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            ./src/AriaSharp.Console/bin/Release/net10.0/${{ matrix.rid }}/publish/ariasharp.exe --help
+          else
+            ./src/AriaSharp.Console/bin/Release/net10.0/${{ matrix.rid }}/publish/ariasharp --help
+          fi
