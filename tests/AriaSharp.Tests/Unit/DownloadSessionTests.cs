@@ -29,6 +29,23 @@ public class DownloadSessionTests
     }
 
     [Fact]
+    public async Task RunAsync_AllPaused_KeepsRunningUntilCancelled()
+    {
+        var engine = new ScriptedEngine(Enumerable.Repeat(Snapshot(paused: [Item("a", DownloadState.Paused, 10, 100)]), 50));
+        try
+        {
+            var session = new DownloadSession(engine, new ProgressCalculator(), new AppSettings { RefreshIntervalMs = 100 });
+            using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(600));
+            var outcome = await session.RunAsync(cts.Token).ConfigureAwait(true);
+            Assert.Equal(RunOutcomeKind.Interrupted, outcome.Kind);
+        }
+        finally
+        {
+            await engine.DisposeAsync().ConfigureAwait(true);
+        }
+    }
+
+    [Fact]
     public async Task RunAsync_IdleWithFailed_ReturnsFailed()
     {
         var engine = new ScriptedEngine(
@@ -81,6 +98,7 @@ public class DownloadSessionTests
 
     private static EngineSnapshot Snapshot(
         IReadOnlyList<DownloadItem>? active = null,
+        IReadOnlyList<DownloadItem>? paused = null,
         IReadOnlyList<DownloadItem>? complete = null,
         IReadOnlyList<DownloadItem>? failed = null) => new()
     {
@@ -88,7 +106,7 @@ public class DownloadSessionTests
         Active = active ?? [],
         Waiting = [],
         Stopped = [],
-        Paused = [],
+        Paused = paused ?? [],
         Complete = complete ?? [],
         Failed = failed ?? [],
         Skipped = [],

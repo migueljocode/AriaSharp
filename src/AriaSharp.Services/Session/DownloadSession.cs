@@ -69,7 +69,7 @@ public sealed class DownloadSession : IDownloadSession
 
                 _onTick?.Invoke(_state, _watch.Elapsed);
 
-                if (_state.NumActive == 0 && _state.NumWaiting == 0)
+                if (_state is { NumActive: 0, NumWaiting: 0, NumPaused: 0 })
                 {
                     idleCount++;
                     if (idleCount >= idleRequired)
