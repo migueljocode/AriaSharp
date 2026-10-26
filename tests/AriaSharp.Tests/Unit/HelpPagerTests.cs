@@ -36,7 +36,24 @@ public class HelpPagerTests
     [Fact]
     public void Show_NoPager_WritesFullDocument()
     {
-        // Redirection is the normal test host; Show must not throw.
         HelpPager.Show("line1\nline2\n", noPager: true);
+    }
+
+    [Fact]
+    public void RenderAnsi_ContainsColorsAndSections()
+    {
+        var ansi = HelpView.RenderAnsi(new Models.AppSettings(), width: 100);
+        Assert.False(string.IsNullOrWhiteSpace(ansi));
+        Assert.Contains("\u001b[", ansi, StringComparison.Ordinal);
+        Assert.Contains("USAGE", ansi, StringComparison.Ordinal);
+        Assert.Contains("EXIT CODES", ansi, StringComparison.Ordinal);
+        Assert.Contains("KEYS", ansi, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SplitAnsiLines_PreservesRows()
+    {
+        var lines = HelpPager.SplitAnsiLines("a\nb\nc");
+        Assert.Equal(3, lines.Count);
     }
 }
