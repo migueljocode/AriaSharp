@@ -58,7 +58,7 @@ internal static class HelpView
             "USAGE",
             new Markup(
                 $"[white]ariasharp[/] [{Theme.Muted}][[OPTIONS]][/] [{Theme.PurpleBright}]<url>...[/]\n" +
-                $"[{Theme.Muted}]-i/--input[/] is repeatable · stdin and list files accepted")));
+                $"[{Theme.Muted}]-i/--input[/] is repeatable · stdin · clipboard · list files accepted")));
 
         foreach (var category in OptionTable.Categories)
         {

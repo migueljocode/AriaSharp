@@ -21,7 +21,7 @@ internal static class HelpDocument
         sb.AppendLine("  ariasharp [OPTIONS] <url>...");
         sb.AppendLine("  -i/--input is repeatable; -i url1 -i url2");
         sb.AppendLine("  a URL, magnet link, session file or an HTTP(S)/FTP(S)/SFTP list file");
-        sb.AppendLine("  may be given as a positional argument or via stdin.");
+        sb.AppendLine("  may be given as a positional argument, via stdin, or from the clipboard when interactive.");
         sb.AppendLine();
 
         foreach (var category in OptionTable.Categories)

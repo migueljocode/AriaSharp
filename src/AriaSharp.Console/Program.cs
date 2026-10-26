@@ -87,9 +87,32 @@ internal static class Program
             return await RunInstallOnlyAsync(settings).ConfigureAwait(false);
         }
 
+        // CLI → stdin (pipe) → clipboard (interactive)
         if (settings.Inputs.Count == 0)
         {
-            await System.Console.Out.WriteLineAsync("No inputs provided. Use --help for usage.").ConfigureAwait(false);
+            var resolved = await InputResolver.ResolveAsync(
+                    settings.Inputs,
+                    new UrlExtractor(),
+                    new ClipboardReader(),
+                    CancellationToken.None)
+                .ConfigureAwait(false);
+            if (resolved.Count > 0)
+            {
+                settings.Inputs = resolved.ToList();
+                if (settings.Verbose)
+                {
+                    await System.Console.Error.WriteLineAsync(
+                            $"Using {resolved.Count} input(s) from stdin/clipboard.")
+                        .ConfigureAwait(false);
+                }
+            }
+        }
+
+        if (settings.Inputs.Count == 0)
+        {
+            await System.Console.Out.WriteLineAsync(
+                    "No inputs provided (CLI, stdin, or clipboard). Use --help for usage.")
+                .ConfigureAwait(false);
             return (int)ExitCode.UsageError;
         }
 
