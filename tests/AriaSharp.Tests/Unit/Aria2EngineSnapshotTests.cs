@@ -5,6 +5,9 @@ namespace AriaSharp.Tests;
 
 public class Aria2EngineSnapshotTests
 {
+    private static readonly string[] ExpectedWaiting = ["a"];
+    private static readonly string[] ExpectedPaused = ["b", "c"];
+
     [Fact]
     public void SplitPaused_MovesPausedOutOfWaiting()
     {
@@ -17,7 +20,7 @@ public class Aria2EngineSnapshotTests
 
         var (waiting, paused) = Aria2Engine.SplitPaused([.. queue]);
 
-        Assert.Equal(new[] { "a" }, waiting.Select(i => i.Gid));
-        Assert.Equal(new[] { "b", "c" }, paused.Select(i => i.Gid));
+        Assert.Equal(ExpectedWaiting, waiting.Select(i => i.Gid));
+        Assert.Equal(ExpectedPaused, paused.Select(i => i.Gid));
     }
 }
