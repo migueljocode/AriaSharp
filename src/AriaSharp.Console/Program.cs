@@ -170,12 +170,22 @@ internal static class Program
     private static async Task<int> RunDownloadAsync(AppSettings settings)
     {
         using var cts = new CancellationTokenSource();
-        Console.CancelKeyPress += (_, e) =>
+        ConsoleCancelEventHandler onCancel = (_, e) =>
         {
-            e.Cancel = true;
-            cts.Cancel();
+            e.Cancel = true; // keep process alive for graceful shutdown
+            try
+            {
+                if (!cts.IsCancellationRequested)
+                    cts.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // handler can fire after RunDownloadAsync returns
+            }
         };
-
+        Console.CancelKeyPress += onCancel;
+        try
+        {
         var outputDir = string.IsNullOrWhiteSpace(settings.OutputDir)
             ? AppDefaults.OutputDirDefault
             : settings.OutputDir;
@@ -361,6 +371,11 @@ internal static class Program
         {
             await engine.DisposeAsync().ConfigureAwait(false);
             await workspace.DisposeAsync().ConfigureAwait(false);
+        }
+        }
+        finally
+        {
+            Console.CancelKeyPress -= onCancel;
         }
     }
 
