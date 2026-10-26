@@ -87,19 +87,20 @@ public class ArgParserTests
     }
 
     [Fact]
-    public void Yes_ShortY_MapsToYes_NotInstallDeps()
+    public void Yes_LongOnly()
     {
-        var settings = ArgParser.Parse(["-y"]);
+        var settings = ArgParser.Parse(["--yes"]);
         Assert.True(settings.Yes == true);
         Assert.Null(settings.InstallDeps);
-        settings = ArgParser.Parse(["--yes"]);
-        Assert.True(settings.Yes == true);
     }
 
     [Fact]
-    public void InstallDeps_LongOnly_NoInstall_ShortN()
+    public void InstallDeps_ShortY_AndNoInstall_ShortN()
     {
-        var settings = ArgParser.Parse(["--install-deps"]);
+        // dneat / Brief: -y == --install-deps
+        var settings = ArgParser.Parse(["-y"]);
+        Assert.True(settings.InstallDeps == true);
+        settings = ArgParser.Parse(["--install-deps"]);
         Assert.True(settings.InstallDeps == true);
         settings = ArgParser.Parse(["-n"]);
         Assert.True(settings.NoInstall == true);
@@ -216,7 +217,7 @@ public class ArgParserTests
     {
         // Every short letter currently claimed by OptionTable
         var settings = ArgParser.Parse(["-y", "-n", "-f", "-k", "-v", "-h"]);
-        Assert.True(settings.Yes == true);
+        Assert.True(settings.InstallDeps == true);
         Assert.True(settings.NoInstall == true);
         Assert.True(settings.Force == true);
         Assert.True(settings.KeepListFiles == true);

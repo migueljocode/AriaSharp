@@ -1,6 +1,3 @@
-using System.IO;
-using System.Threading.Tasks;
-
 using AriaSharp.Models;
 
 namespace AriaSharp.Services;
@@ -9,36 +6,40 @@ public sealed class Aria2Locator : IAria2Locator
 {
     private readonly string? _explicitPath;
 
-    public Aria2Locator(string? explicitPath = null)
-    {
-        _explicitPath = explicitPath;
-    }
+    public Aria2Locator(string? explicitPath = null) => _explicitPath = explicitPath;
 
     public Task<string> LocateAsync(CancellationToken ct)
     {
         if (!string.IsNullOrEmpty(_explicitPath))
         {
             if (File.Exists(_explicitPath))
-            {
-                return Task.FromResult(_explicitPath!);
-            }
+                return Task.FromResult(_explicitPath);
             throw new FileNotFoundException("aria2 not found at the explicit path.", _explicitPath);
         }
-        var candidates = new[]
+
+        // Bare names: search PATH
+        foreach (var name in new[] { "aria2c", "aria2" })
         {
-            "aria2c", "aria2",
-            "/usr/bin/aria2c", "/usr/local/bin/aria2c",
-            "/opt/homebrew/bin/aria2c", "/usr/local/aria2/bin/aria2c",
-        };
-        foreach (var c in candidates)
-        {
-            var path = FindInPath(c);
-            if (!string.IsNullOrEmpty(path) && File.Exists(path))
-            {
-                return Task.FromResult(path!);
-            }
+            var found = FindInPath(name);
+            if (!string.IsNullOrEmpty(found))
+                return Task.FromResult(found);
         }
-        throw new FileNotFoundException("aria2c was not found in PATH or known locations. Use --aria2-path or run the installer.");
+
+        // Absolute fallbacks (do not Path.Join these with PATH dirs)
+        foreach (var absolute in new[]
+                 {
+                     "/usr/bin/aria2c",
+                     "/usr/local/bin/aria2c",
+                     "/opt/homebrew/bin/aria2c",
+                     "/usr/local/aria2/bin/aria2c",
+                 })
+        {
+            if (File.Exists(absolute))
+                return Task.FromResult(absolute);
+        }
+
+        throw new FileNotFoundException(
+            "aria2c was not found in PATH or known locations. Use --aria2-path or -y / --install-deps.");
     }
 
     private static string? FindInPath(string command)
@@ -47,6 +48,7 @@ public sealed class Aria2Locator : IAria2Locator
         var extensions = OperatingSystem.IsWindows()
             ? new[] { ".exe", ".cmd", ".bat", string.Empty }
             : new[] { string.Empty };
+
         foreach (var dir in pathVar.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
         {
             foreach (var ext in extensions)

@@ -79,6 +79,14 @@ internal static class Program
             return (int)ExitCode.Ok;
         }
 
+        // Standalone install: -y / --install-deps / --install-aria2 with no URLs
+        var wantsInstall = !settings.NoInstall
+            && (settings.InstallDeps || settings.InstallAria2);
+        if (wantsInstall && settings.Inputs.Count == 0)
+        {
+            return await RunInstallOnlyAsync(settings).ConfigureAwait(false);
+        }
+
         if (settings.Inputs.Count == 0)
         {
             await System.Console.Out.WriteLineAsync("No inputs provided. Use --help for usage.").ConfigureAwait(false);
@@ -86,6 +94,22 @@ internal static class Program
         }
 
         return await RunDownloadAsync(settings).ConfigureAwait(false);
+    }
+
+    private static async Task<int> RunInstallOnlyAsync(AppSettings settings)
+    {
+        await System.Console.Out.WriteLineAsync("Installing prerequisites…").ConfigureAwait(false);
+        var installAria2 = settings.InstallDeps || settings.InstallAria2;
+        var (ok, message) = await PrerequisiteInstaller.InstallDepsAsync(installAria2, CancellationToken.None)
+            .ConfigureAwait(false);
+        await System.Console.Out.WriteLineAsync(message).ConfigureAwait(false);
+        if (!ok)
+        {
+            await System.Console.Error.WriteLineAsync("Error: one or more required packages failed to install.").ConfigureAwait(false);
+            return (int)ExitCode.Failure;
+        }
+        await System.Console.Out.WriteLineAsync("Done.").ConfigureAwait(false);
+        return (int)ExitCode.Ok;
     }
 
     private static async Task<int> RunDownloadAsync(AppSettings settings)

@@ -58,7 +58,7 @@ internal static class OptionTable
             new Option("session",   OptionKind.String,  "Input & Output", "Resume session file path (default: <output>/resume.session).",                    apply: (o, v) => o.SessionFile = v,                                                shortName: 's'),
             new Option("keep-list", OptionKind.Flag,    "Input & Output", "Keep list files after the run instead of prompting.",                                apply: (o, _) => o.KeepListFiles = true,                                             shortName: 'k'),
             new Option("resume",    OptionKind.Flag,    "Input & Output", "Resume from the session file without prompting.",                                  apply: (o, _) => o.Resume = true),
-            new Option("yes",       OptionKind.Flag,    "Input & Output", "Assume yes to every prompt (non-interactive).",                                 apply: (o, _) => o.Yes = true, shortName: 'y'),
+            new Option("yes",       OptionKind.Flag,    "Input & Output", "Assume yes to every prompt (non-interactive).",                                 apply: (o, _) => o.Yes = true),
 
             // ── TRANSFER
             new Option("jobs",           OptionKind.Integer, "Transfer", "Maximum concurrent downloads.",                     min: 1, max: 16, valueName: "<n>", defaultValue: "1", apply: (o, v) => o.MaxConcurrentDownloads = ParseInt(v, "Jobs", 1, 16),    shortName: 'j'),
@@ -82,7 +82,7 @@ internal static class OptionTable
             new Option("verbose",     OptionKind.Flag,    "Display", "Verbose logging.",                            apply: (o, _) => o.Verbose = true,                                           shortName: 'v'),
 
             // ── SETUP
-            new Option("install-deps", OptionKind.Flag, "Setup", "Install prerequisites before downloading.", apply: (o, _) => o.InstallDeps = true),
+            new Option("install-deps", OptionKind.Flag, "Setup", "Install prerequisites (aria2 + clipboard helpers).", apply: (o, _) => o.InstallDeps = true, shortName: 'y'),
             new Option("no-install",  OptionKind.Flag, "Setup", "Never install anything (wins over --install-deps).", apply: (o, _) => o.NoInstall = true, shortName: 'n'),
             new Option("install-aria2", OptionKind.Flag, "Setup", "Install aria2 if it is missing.", apply: (o, _) => o.InstallAria2 = true),
             new Option("aria2-path",  OptionKind.String, "Setup", "Path to the aria2c binary.", valueName: "<path>", apply: (o, v) => o.Aria2Path = v),
