@@ -336,28 +336,16 @@ internal static class Program
                 && !settings.Plain
                 && !System.Console.IsInputRedirected
                 && !System.Console.IsOutputRedirected;
-            var bad = outcome.Kind is RunOutcomeKind.Failed or RunOutcomeKind.Empty;
             var canPrompt = outcome.Kind == RunOutcomeKind.Failed && canInteract;
 
-            // Always leave a durable summary in the normal buffer after alt-screen exits.
+            // One summary on the normal screen (after alt-screen is gone) — no double print, no Q-dismiss glitch.
             SummaryView.Write(
                 finalState, outcome, elapsed, outDir, sess, color,
-                showRetryPrompt: canPrompt && !useDashboard);
+                showRetryPrompt: canPrompt);
 
             var retry = false;
-            if (useDashboard)
-            {
-                retry = dashboardRetry;
-            }
-            else if (canPrompt)
-            {
+            if (canPrompt)
                 retry = KeyListener.WaitRetryOrQuit();
-            }
-            else if (bad && canInteract)
-            {
-                await System.Console.Out.WriteLineAsync("Press any key to continue…").ConfigureAwait(false);
-                KeyListener.WaitDismiss();
-            }
 
             if (outcome.Kind == RunOutcomeKind.Failed && !string.IsNullOrEmpty(outcome.Message))
                 await System.Console.Error.WriteLineAsync($"Error: {outcome.Message}").ConfigureAwait(false);
@@ -412,23 +400,34 @@ internal static class Program
         if (!ScreenGuard.EnsureMinimum(60, 12))
             ScreenGuard.ShowWarning(60, 12);
 
-        var guard = ScreenGuard.TryEnter();
+        // Defer alt-screen until we actually have downloads — avoids empty flash on bad clipboard.
+        ScreenGuard? guard = null;
         var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        var retry = false;
         try
         {
             var keyTask = KeyListener.WatchCancelAsync(linked, linked.Token);
             try
             {
                 await AnsiConsole.Live(DashboardView.Build(empty, TimeSpan.Zero))
-                    .AutoClear(false)
+                    .AutoClear(true)
                     .Overflow(VerticalOverflow.Ellipsis)
                     .Cropping(VerticalOverflowCropping.Bottom)
                     .StartAsync(async ctx =>
                     {
                         ProgressTick onTick = (state, elapsed) =>
                         {
-                            try { ctx.UpdateTarget(DashboardView.Build(state, elapsed)); }
+                            try
+                            {
+                                var hasWork = state.AllItems.Count > 0
+                                    || state.NumActive > 0
+                                    || state.NumWaiting > 0
+                                    || state.FailedItems.Count > 0
+                                    || state.CompleteItems.Count > 0;
+                                if (hasWork && guard is null)
+                                    guard = ScreenGuard.TryEnter();
+                                if (guard is not null || hasWork)
+                                    ctx.UpdateTarget(DashboardView.Build(state, elapsed));
+                            }
                             catch (InvalidOperationException) { }
                             catch (IOException) { }
                         };
@@ -448,32 +447,7 @@ internal static class Program
                         {
                             outcome = RunOutcome.Failed(ex.Message);
                         }
-
-                        // Still inside Live + alt screen: show summary and hold so it is not a flash.
-                        var state = session?.State ?? empty;
-                        var elapsed = session?.Elapsed ?? TimeSpan.Zero;
-                        var interactive = !settings.Yes && !settings.Plain;
-                        var bad = outcome.Kind is RunOutcomeKind.Failed or RunOutcomeKind.Empty;
-                        var offerRetry = outcome.Kind == RunOutcomeKind.Failed && interactive;
-                        try
-                        {
-                            ctx.UpdateTarget(SummaryView.Build(
-                                state, outcome, elapsed, outputDir, sessionPath,
-                                showRetryPrompt: offerRetry));
-                        }
-                        catch (InvalidOperationException) { }
-                        catch (IOException) { }
-
-                        if (bad && interactive)
-                        {
-                            // stop cancel watcher from eating keys
-                            try { await linked.CancelAsync().ConfigureAwait(false); }
-                            catch (ObjectDisposedException) { }
-                            if (offerRetry)
-                                retry = KeyListener.WaitRetryOrQuit();
-                            else
-                                KeyListener.WaitDismiss(); // Empty: any key to close
-                        }
+                        // Do not hold summary inside Live/alt-screen — leaves a clean buffer.
                     }).ConfigureAwait(false);
             }
             finally
@@ -493,6 +467,7 @@ internal static class Program
             guard?.Dispose();
         }
 
-        return (outcome, session?.State ?? empty, session?.Elapsed ?? TimeSpan.Zero, retry);
+        // Retry is decided on the normal screen after return (single correct summary).
+        return (outcome, session?.State ?? empty, session?.Elapsed ?? TimeSpan.Zero, false);
     }
 }
