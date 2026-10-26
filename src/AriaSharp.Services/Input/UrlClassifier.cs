@@ -20,7 +20,8 @@ public interface IUrlSanitizer { string Sanitize(string value); string MaskCrede
 
 public sealed partial class UrlExtractor : IUrlExtractor
 {
-    [GeneratedRegex(@"(?<scheme>https?|ftp|ftps|sftp|magnet):\/\/[^\s""'<>]+", RegexOptions.IgnoreCase)]
+    // magnet:? has no "//"; other schemes use ://
+    [GeneratedRegex(@"(?:(?<scheme>https?|ftp|ftps|sftp):\/\/|(?<scheme>magnet):\?)[^\s""'<>]+", RegexOptions.IgnoreCase)]
     private static partial Regex UrlPattern();
 
     private static readonly SearchValues<char> TrailingPunctuation = SearchValues.Create(",;)]}'.!?");
@@ -109,20 +110,22 @@ public sealed class UrlClassifier : IUrlClassifier
 
 public sealed partial class UrlSanitizer : IUrlSanitizer
 {
-    [GeneratedRegex(@"(?<scheme>[a-zA-Z][a-zA-Z0-9+.-]*)://(?<user>[^:@/]+):(?<pass>[^@/]+)@")]
+    // user:pass@ after scheme:// ; also covers ftp-style and rare cases with @ in path later
+    [GeneratedRegex(@"(?<scheme>[a-zA-Z][a-zA-Z0-9+.-]*)://(?<user>[^:@/\s]+):(?<pass>[^@/\s]+)@")]
     private static partial Regex CredentialPattern();
 
-    private static readonly SearchValues<char> InvalidChars = SearchValues.Create("<>&\"'");
+    // Only strip controls + Spectre markup brackets. Never touch & ' " < > — they are valid in URLs.
+    private static readonly SearchValues<char> MarkupChars = SearchValues.Create("[]");
 
     public string Sanitize(string value)
     {
         if (string.IsNullOrEmpty(value)) return string.Empty;
-        return string.Create(value.Length, value, (span, source) =>
+        return string.Create(value.Length, value, static (span, source) =>
         {
             var i = 0;
             foreach (var ch in source.AsSpan())
             {
-                if (char.IsControl(ch) || InvalidChars.Contains(ch)) span[i++] = '?';
+                if (char.IsControl(ch) || MarkupChars.Contains(ch)) span[i++] = '?';
                 else span[i++] = ch;
             }
         });
