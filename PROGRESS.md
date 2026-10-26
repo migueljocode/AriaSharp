@@ -1,7 +1,7 @@
 # PROGRESS.md
 
 ## Milestone
-S1: Solution in src/, folders, packages, CI, AGENTS.md — restructure per REBUILD prompt section S1.
+S2: Arguments — single OptionTable driving parser/help/validation/config keys, overlay-based layered settings, full coverage.
 
 ## Done (S0)
 - git clone https://github.com/migueljocode/AriaSharp, branch feat/rebuild
@@ -10,27 +10,22 @@ S1: Solution in src/, folders, packages, CI, AGENTS.md — restructure per REBUI
 - Baseline: dotnet build 0 warnings/0 errors, dotnet test 89 passed/0 failed
 - Cloned WorkWithIO/dneat to /tmp/dneat, extracted aria2 flags
 
-## Done (S1 - in progress)
-- Created src/AriaSharp.slnx with exact XML spec (4 projects under /src and /tests folder)
-- Moved AriaSharp.slnx from root to src/
-- Moved all source files into target folders with git mv (Models/Contracts, Downloads, Engine, Session, Settings, Errors, Formatting; Services/Engine, Engine/Rpc, Session, Input, IO, Config, Setup; Console/Cli, Terminal, Ui/Theme, Ui/Widgets, Ui/Views, Ui/Help)
-- Split multi-type files: Contracts.cs → Contracts/Contracts.cs + Engine/EngineSettings.cs; Engine.cs → Aria2Locator.cs + Aria2ArgsBuilder.cs + Aria2Process.cs; LogWriter.cs separated
-- Deleted replaced files: Pager.cs, ProtocolColors.cs, Widgets.cs, old SessionStore.cs, Engine.cs
-- .editorconfig: added dotnet_diagnostic.IDE0130.severity = none
-- Directory.Packages.props: pruned to Spectre.Console 0.57.2, Spectre.Console.Testing 0.57.2, xunit, xunit.runner.visualstudio, Microsoft.NET.Test.Sdk, coverlet.collector
-- Added PackageReference Spectre.Console to Console, Spectre.Console.Testing to Tests
-- Directory.Build.props: added Using for System.Globalization, System.Text, AriaSharp.Models; NoWarn reduced to CA1724;CA1822 with justifications
-- ci.yml: rewritten with ubuntu/macos/windows matrix, aria2 install per OS, AOT publish per RID, smoke tests
-- .graphifyignore and .gitignore already have graphify-out/
-- Fixed all CA errors (CA1031, CA2007, CA1062, CA1515, CA1822) by fixing code, not suppressing
-- Made all Console types internal per CA1515/AGENTS.md
-- Added InternalsVisibleTo for AriaSharp.Tests in Console csproj
-- Build: 0 warnings, 0 errors; Tests: 89 passed, 0 failed
+## Done (S2)
+- OptionTable.cs: single source of truth for all CLI options (names, shorts, kinds, ranges, categories, help, Apply). Categories static exposed for grouping.
+- ArgParser.cs: table-driven parser → SettingsOverlay; supports --opt value, --opt=value, short clusters (-fkv, -j8), -- terminator, validation with --help hint. Fixed double-advance on inline-value form.
+- AppSettings.cs: AppSettings (resolved, non-nullable defaults) + SettingsOverlay (nullable layer) + AppDefaults + AppSettingsJsonContext. Inputs/ExtraOptions non-nullable.
+- SettingsStore.cs: ISettingsStore/SettingsStore now LoadOverlayAsync/SaveOverlayAsync returning SettingsOverlay (overlay layer semantics); atomic write (tmp+File.Move); corrupt→empty overlay.
+- SettingsMerger: Merge(baseline, layers) — later layers win, null = "not set here" → falls back to baseline (defaults). Enables reset-to-default by omitting a field.
+- EnvOverlay.cs: NO_COLOR/ARIASHARP_* env vars mapped per OptionTable keys, including verbose, no-color, ascii, config, network, and generic ARIASHARP_<KEY> for all value/flag options.
+- HelpDocument.cs (renamed from HelpContent): generated entirely from OptionTable (groups, defaults, exit codes, env precedence, pager keys).
+- Program.cs: composition root wiring defaults←config←env←CLI; Help/Version/PrintConfig/PrintConfig paths; --no-install clears install bits; honest "engine not implemented yet" stub exits 1 until M2.
+- ArgParserTests: updated for SettingsOverlay (MaxConcurrentDownloads, nullable bool asserts) + Program.Main integration tests (help exits 0, no-input usage error exits 2, inputs → exit 1 "engine not implemented yet").
+- FileIoTests: updated for LoadOverlayAsync/SaveOverlayAsync returning SettingsOverlay (corrupt→null fields).
+- LayeredSettingsTests.cs (new): CLI>config>defaults precedence, null-fallback, layer-wins, bool-reset-to-false, reset-to-default-by-omit, inputs accumulation, OptionTable short-name/category sets, HelpDocument renders from OptionTable.
+- Build: 0 warnings, 0 errors (TreatWarningsAsErrors, PublishAot, CA strict). Tests: 98 passed, 0 failed.
 
 ## Next
-- Complete S1 commit
-- Verify CI green on 3 OSes
-- Proceed to S2: Arguments (OptionTable, overlay parser, layered settings)
+- Proceed to M2: DownloadSession + Engine against real aria2c (stub exits 1 honestly until then).
 
 ## Blocked
 - (none)

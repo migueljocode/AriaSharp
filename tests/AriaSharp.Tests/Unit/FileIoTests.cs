@@ -145,9 +145,9 @@ public class FileIoTests : IAsyncDisposable
         var path = Path.Join(dir, "settings.json");
         await File.WriteAllTextAsync(path, "{ not valid json }");
         var store = new SettingsStore();
-        var settings = await store.LoadAsync(CancellationToken.None, path);
-        Assert.Equal(AppDefaults.MaxConcurrentDownloads, settings.MaxConcurrentDownloads);
-        Assert.Equal(AppDefaults.Split, settings.Split);
+        var settings = await store.LoadOverlayAsync(path, CancellationToken.None);
+        Assert.Null(settings.MaxConcurrentDownloads);
+        Assert.Null(settings.Split);
     }
 
     [Fact]
@@ -156,11 +156,11 @@ public class FileIoTests : IAsyncDisposable
         var dir = MakeTempDir();
         var path = Path.Join(dir, "settings.json");
         var store = new SettingsStore();
-        await store.SaveAsync(new AppSettings { MaxConcurrentDownloads = 5 }, CancellationToken.None, path);
+        await store.SaveOverlayAsync(new SettingsOverlay { MaxConcurrentDownloads = 5 }, path, CancellationToken.None);
         Assert.True(File.Exists(path));
         Assert.Empty(Directory.GetFiles(dir, "settings-*.tmp"));
-        var loaded = await store.LoadAsync(CancellationToken.None, path);
-        Assert.Equal(5, loaded.MaxConcurrentDownloads);
+        var loaded = await store.LoadOverlayAsync(path, CancellationToken.None);
+        Assert.True(loaded.MaxConcurrentDownloads == 5);
     }
 
     [Fact]

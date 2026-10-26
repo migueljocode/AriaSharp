@@ -10,18 +10,18 @@ public class ArgParserTests
     public void Help_SetsHelpFlag()
     {
         var settings = ArgParser.Parse(["-h"]);
-        Assert.True(settings.Help);
+        Assert.True(settings.Help == true);
         settings = ArgParser.Parse(["--help"]);
-        Assert.True(settings.Help);
+        Assert.True(settings.Help == true);
     }
 
     [Fact]
     public void Version_SetsVersionFlag()
     {
         var settings = ArgParser.Parse(["-V"]);
-        Assert.True(settings.Version);
+        Assert.True(settings.Version == true);
         settings = ArgParser.Parse(["--version"]);
-        Assert.True(settings.Version);
+        Assert.True(settings.Version == true);
     }
 
     [Fact]
@@ -47,7 +47,7 @@ public class ArgParserTests
     public void Force_IsFlagNotValue()
     {
         var settings = ArgParser.Parse(["-f", "https://example.com/file"]);
-        Assert.True(settings.Force);
+        Assert.True(settings.Force == true);
         Assert.Single(settings.Inputs);
         Assert.Equal("https://example.com/file", settings.Inputs[0]);
     }
@@ -56,7 +56,7 @@ public class ArgParserTests
     public void Jobs_ValidatedRange()
     {
         var settings = ArgParser.Parse(["-j", "4"]);
-        Assert.Equal(4, settings.Jobs);
+        Assert.True(settings.MaxConcurrentDownloads == 4);
         var ex = Assert.Throws<CliException>(() => ArgParser.Parse(["-j", "0"]));
         Assert.Contains("1 to 16", ex.Message, StringComparison.Ordinal);
         ex = Assert.Throws<CliException>(() => ArgParser.Parse(["-j", "17"]));
@@ -67,7 +67,7 @@ public class ArgParserTests
     public void Connections_ValidatedRange()
     {
         var settings = ArgParser.Parse(["-c", "8"]);
-        Assert.Equal(8, settings.Connections);
+        Assert.True(settings.Connections == 8);
         var ex = Assert.Throws<CliException>(() => ArgParser.Parse(["-c", "100"]));
         Assert.Contains("1 to 16", ex.Message, StringComparison.Ordinal);
     }
@@ -90,31 +90,31 @@ public class ArgParserTests
     public void InstallDeps_NoInstall()
     {
         var settings = ArgParser.Parse(["-y"]);
-        Assert.True(settings.InstallDeps);
+        Assert.True(settings.InstallDeps == true);
         settings = ArgParser.Parse(["-n"]);
-        Assert.True(settings.NoInstall);
+        Assert.True(settings.NoInstall == true);
     }
 
     [Fact]
     public void Verbose_Set()
     {
         var settings = ArgParser.Parse(["-v"]);
-        Assert.True(settings.Verbose);
+        Assert.True(settings.Verbose == true);
     }
 
     [Fact]
     public void LongOpt_EqualsForm()
     {
         var settings = ArgParser.Parse(["--jobs=5", "--connections=4"]);
-        Assert.Equal(5, settings.Jobs);
-        Assert.Equal(4, settings.Connections);
+        Assert.True(settings.MaxConcurrentDownloads == 5);
+        Assert.True(settings.Connections == 4);
     }
 
     [Fact]
     public void LongOpt_SpaceForm()
     {
         var settings = ArgParser.Parse(["--jobs", "5"]);
-        Assert.Equal(5, settings.Jobs);
+        Assert.True(settings.MaxConcurrentDownloads == 5);
     }
 
     [Fact]
@@ -124,7 +124,7 @@ public class ArgParserTests
         Assert.Equal(2, settings.Inputs.Count);
         Assert.Equal("https://example.com/file", settings.Inputs[0]);
         Assert.Equal("-h", settings.Inputs[1]);
-        Assert.False(settings.Help);
+        Assert.True(settings.Help == null || settings.Help == false);
     }
 
     [Fact]
@@ -148,23 +148,23 @@ public class ArgParserTests
     public void ShortCluster_Flags()
     {
         var settings = ArgParser.Parse(["-fkv"]);
-        Assert.True(settings.Force);
-        Assert.True(settings.KeepListFiles);
-        Assert.True(settings.Verbose);
+        Assert.True(settings.Force == true);
+        Assert.True(settings.KeepListFiles == true);
+        Assert.True(settings.Verbose == true);
     }
 
     [Fact]
     public void ShortCluster_WithValue()
     {
         var settings = ArgParser.Parse(["-j3"]);
-        Assert.Equal(3, settings.Jobs);
+        Assert.True(settings.MaxConcurrentDownloads == 3);
     }
 
     [Fact]
     public void NoColor_LongOnly()
     {
         var settings = ArgParser.Parse(["--no-color"]);
-        Assert.True(settings.NoColor);
+        Assert.True(settings.NoColor == true);
     }
 
     [Fact]
