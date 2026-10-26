@@ -57,8 +57,9 @@ public class UrlTests
     {
         var sanitizer = new UrlSanitizer();
         var cleaned = sanitizer.Sanitize("https://ex.com/[bad]\x01");
-        Assert.Equal("https://ex.com/?bad]?", cleaned);
+        Assert.Equal("https://ex.com/?bad??", cleaned);
         Assert.DoesNotContain("\x01", cleaned, StringComparison.Ordinal);
+        Assert.DoesNotContain("[", cleaned, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -67,6 +68,6 @@ public class UrlTests
         var sanitizer = new UrlSanitizer();
         var masked = sanitizer.MaskCredentials("https://user:secret@example.com/file");
         Assert.Equal("https://***@example.com/file", masked);
-        Assert.DoesNotContain("secret", masked);
+        Assert.DoesNotContain("secret", masked, StringComparison.Ordinal);
     }
 }

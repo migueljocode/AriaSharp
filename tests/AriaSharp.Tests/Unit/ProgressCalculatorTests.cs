@@ -13,7 +13,7 @@ public class ProgressCalculatorTests
             CompletedLength = completed,
             TotalLength = total,
             State = state,
-            Status = state.ToString().ToLowerInvariant(),
+            Status = state.ToString(),
         };
 
     private static EngineSnapshot Snapshot(
@@ -48,7 +48,7 @@ public class ProgressCalculatorTests
 
         Assert.Equal(250, state.CompletedLength);
         Assert.Equal(300, state.TotalLength);
-        Assert.Equal(1, state.CompleteItems.Count);
+        Assert.Single(state.CompleteItems);
         Assert.True(state.OverallPercent > 80);
     }
 
@@ -88,6 +88,7 @@ public class ProgressCalculatorTests
         Assert.Equal(0, state.CompletedLength);
         Assert.Equal(0, state.TotalLength);
         Assert.Equal(Confidence.Estimated, state.OverallConfidence);
-        Assert.Equal(EtaEstimate.Unknown, state.OverallEta);
+        Assert.Equal(Confidence.Unknown, state.OverallEta.Confidence);
+        Assert.Null(state.OverallEta.Seconds);
     }
 }
