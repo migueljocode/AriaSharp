@@ -36,19 +36,7 @@ public static class Program
             await System.Console.Out.WriteLineAsync("No inputs provided. Use --help for usage.").ConfigureAwait(false);
             return (int)Models.ExitCode.UsageError;
         }
-        try
-        {
-            await using var engine = new Services.Aria2Engine();
-            var store = new Services.SessionStore(settings.OutputDir ?? ".", settings.SessionFile ?? "resume.session");
-            var calculator = new Services.ProgressCalculator();
-            var session = new Services.DownloadSession(engine, store, calculator, settings);
-            await session.RunAsync(CancellationToken.None).ConfigureAwait(false);
-            return (int)Models.ExitCode.Ok;
-        }
-        catch (Exception ex)
-        {
-            await System.Console.Error.WriteLineAsync($"Error: {ex.Message}").ConfigureAwait(false);
-            return (int)Models.ExitCode.Failure;
-        }
+        await System.Console.Error.WriteLineAsync("engine not implemented yet").ConfigureAwait(false);
+        return (int)Models.ExitCode.Failure;
     }
 }

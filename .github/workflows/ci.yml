@@ -29,7 +29,7 @@ jobs:
         run: dotnet build AriaSharp.sln --configuration Release --no-restore
 
       - name: Run unit tests
-        run: dotnet test tests/AriaSharp.Tests/AriaSharp.Tests.csproj --configuration Release --no-build --verbosity normal
+        run: dotnet test tests/AriaSharp.Tests/AriaSharp.Tests.csproj --configuration Release --verbosity normal
 
       - name: Publish AOT (linux-x64)
         if: matrix.os == 'ubuntu-latest'

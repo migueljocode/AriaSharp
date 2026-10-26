@@ -180,4 +180,22 @@ public class ArgParserTests
         var exitCode = await Program.Main(Array.Empty<string>());
         Assert.Equal(2, exitCode);
     }
+
+    [Fact]
+    public async Task Program_Inputs_ReturnsNotImplemented()
+    {
+        var oldError = System.Console.Error;
+        using var sw = new System.IO.StringWriter();
+        System.Console.SetError(sw);
+        try
+        {
+            var exitCode = await Program.Main(["https://example.com/file"]);
+            Assert.Equal(1, exitCode);
+            Assert.Contains("engine not implemented yet", sw.ToString(), StringComparison.Ordinal);
+        }
+        finally
+        {
+            System.Console.SetError(oldError);
+        }
+    }
 }
