@@ -47,11 +47,15 @@ internal static class HelpView
         });
         console.Profile.Width = Math.Max(40, width);
 
-        console.Write(new FigletText("ariasharp")
-            .Color(PurpleBright)
-            .Centered());
-
-        console.Write(Align.Center(new Markup($"[{Theme.Accent}]aria2 client for .NET[/] — [{Theme.Magenta}]purple-gradient dashboard[/]")));
+        console.Write(Align.Center(new Markup(
+            $"[#BB86FC] █████╗ ██████╗ ██╗ █████╗ [/][#E040FB]███████╗██╗  ██╗ █████╗ ██████╗ ██████╗ [/]\n" +
+            $"[#BB86FC]██╔══██╗██╔══██╗██║██╔══██╗[/][#CE93D8]██╔════╝██║  ██║██╔══██╗██╔══██╗██╔══██╗[/]\n" +
+            $"[#BB86FC]███████║██████╔╝██║███████║[/][#E040FB]███████╗███████║███████║██████╔╝██████╔╝[/]\n" +
+            $"[#BB86FC]██╔══██║██╔══██╗██║██╔══██║[/][#CE93D8]╚════██║██╔══██║██╔══██║██╔══██╗██╔═══╝ [/]\n" +
+            $"[#BB86FC]██║  ██║██║  ██║██║██║  ██║[/][#E040FB]███████║██║  ██║██║  ██║██║  ██║██║     [/]\n" +
+            $"[#BB86FC]╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝[/][#CE93D8]╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     [/]")));
+        console.WriteLine();
+        console.Write(Align.Center(new Markup($"[{Theme.Accent}]aria2 client for .NET[/] — [{Theme.Magenta}]purple gradient[/]")));
         console.WriteLine();
 
         console.Write(SectionPanel(

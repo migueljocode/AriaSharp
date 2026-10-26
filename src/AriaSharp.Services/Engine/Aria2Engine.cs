@@ -96,6 +96,7 @@ public sealed class Aria2Engine : IAria2Engine
 
         var complete = new List<DownloadItem>();
         var failed = new List<DownloadItem>();
+        var skipped = new List<DownloadItem>();
         var paused = new List<DownloadItem>();
         var interrupted = new List<DownloadItem>();
         var stopped = new List<DownloadItem>();
@@ -104,11 +105,25 @@ public sealed class Aria2Engine : IAria2Engine
         {
             switch (item.State)
             {
-                case DownloadState.Complete: complete.Add(item); break;
-                case DownloadState.Failed: failed.Add(item); break;
-                case DownloadState.Paused: paused.Add(item); break;
-                case DownloadState.Interrupted: interrupted.Add(item); break;
-                default: stopped.Add(item); break;
+                case DownloadState.Complete:
+                    complete.Add(item);
+                    break;
+                case DownloadState.Failed when item.ErrorCode is 13 or 11:
+                    // 13 file already exists · 11 duplicate download → skipped, not failed
+                    skipped.Add(item);
+                    break;
+                case DownloadState.Failed:
+                    failed.Add(item);
+                    break;
+                case DownloadState.Paused:
+                    paused.Add(item);
+                    break;
+                case DownloadState.Interrupted:
+                    interrupted.Add(item);
+                    break;
+                default:
+                    stopped.Add(item);
+                    break;
             }
         }
 
@@ -130,7 +145,7 @@ public sealed class Aria2Engine : IAria2Engine
             Paused = paused,
             Complete = complete,
             Failed = failed,
-            Skipped = Array.Empty<DownloadItem>(),
+            Skipped = skipped,
             Interrupted = interrupted,
             NumActive = (int)numActive,
             NumWaiting = (int)numWaiting,
@@ -260,7 +275,29 @@ public sealed class Aria2Engine : IAria2Engine
         }
     }
 
-    private async Task WaitForRpcAsync(CancellationToken ct)
+    
+    public async Task PauseAllAsync(CancellationToken ct)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        var rpc = _rpc ?? throw new InvalidOperationException("Engine not started.");
+        await rpc.CallAsync("aria2.pauseAll", null, ct).ConfigureAwait(false);
+    }
+
+    public async Task UnpauseAllAsync(CancellationToken ct)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        var rpc = _rpc ?? throw new InvalidOperationException("Engine not started.");
+        await rpc.CallAsync("aria2.unpauseAll", null, ct).ConfigureAwait(false);
+    }
+
+    public async Task ForcePauseAllAsync(CancellationToken ct)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        var rpc = _rpc ?? throw new InvalidOperationException("Engine not started.");
+        await rpc.CallAsync("aria2.forcePauseAll", null, ct).ConfigureAwait(false);
+    }
+
+private async Task WaitForRpcAsync(CancellationToken ct)
     {
         var deadline = Environment.TickCount64 + AppDefaults.RpcReadyTimeoutMs;
         Exception? last = null;

@@ -352,6 +352,15 @@ internal static class Program
             else if (outcome.Kind == RunOutcomeKind.Empty && !string.IsNullOrEmpty(outcome.Message))
                 await System.Console.Error.WriteLineAsync($"Error: {outcome.Message}").ConfigureAwait(false);
 
+            // Drop empty resume.session (agreed: no empty session left behind)
+            try
+            {
+                if (!string.IsNullOrEmpty(sess) && File.Exists(sess) && !SessionFile.HasEntries(sess))
+                    await SessionFile.DeleteAsync(sess).ConfigureAwait(false);
+            }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+
             var code = outcome.Kind switch
             {
                 RunOutcomeKind.Completed => (int)ExitCode.Ok,
@@ -405,10 +414,33 @@ internal static class Program
         var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
         try
         {
-            var keyTask = KeyListener.WatchCancelAsync(linked, linked.Token);
+            var keyTask = KeyListener.WatchDashboardAsync(
+                linked,
+                async (action, token) =>
+                {
+                    try
+                    {
+                        switch (action)
+                        {
+                            case DashboardKeyAction.PauseAll:
+                                await engine.PauseAllAsync(token).ConfigureAwait(false);
+                                break;
+                            case DashboardKeyAction.ResumeAll:
+                                await engine.UnpauseAllAsync(token).ConfigureAwait(false);
+                                break;
+                            case DashboardKeyAction.Quit:
+                                break;
+                        }
+                    }
+                    catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or IOException or ObjectDisposedException)
+                    {
+                        // best-effort controls
+                    }
+                },
+                linked.Token);
             try
             {
-                await AnsiConsole.Live(DashboardView.Build(empty, TimeSpan.Zero))
+                await AnsiConsole.Live(DashboardView.Build(empty, TimeSpan.Zero, settings.Split))
                     .AutoClear(true)
                     .Overflow(VerticalOverflow.Ellipsis)
                     .Cropping(VerticalOverflowCropping.Bottom)
@@ -422,11 +454,12 @@ internal static class Program
                                     || state.NumActive > 0
                                     || state.NumWaiting > 0
                                     || state.FailedItems.Count > 0
-                                    || state.CompleteItems.Count > 0;
+                                    || state.CompleteItems.Count > 0
+                                    || state.SkippedItems.Count > 0;
                                 if (hasWork && guard is null)
                                     guard = ScreenGuard.TryEnter();
                                 if (guard is not null || hasWork)
-                                    ctx.UpdateTarget(DashboardView.Build(state, elapsed));
+                                    ctx.UpdateTarget(DashboardView.Build(state, elapsed, settings.Split));
                             }
                             catch (InvalidOperationException) { }
                             catch (IOException) { }
