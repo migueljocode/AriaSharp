@@ -1,34 +1,25 @@
 # PROGRESS.md
 
 ## Milestone
-M2 prep: fix remaining Brief defects in input + progress (magnet, sanitize, complete-item totals). Verified locally.
+M2 in progress: real Aria2Engine + purple Spectre help.
 
-## Done (S0 / S2)
-- S2 OptionTable-driven args, layered settings (98 tests at that point)
-- Prior main stabilize work
-
-## Done (this session)
-- UrlExtractor: magnet:? links matched
-- UrlSanitizer.Sanitize: keeps URL-valid chars; only controls + Spectre [] 
-- ProgressCalculator: complete/failed/skipped/interrupted included in totals
-- Aria2Locator: OperatingSystem.IsWindows + Path.Join
-- New UrlTests + ProgressCalculatorTests; analyzer clean
-- **Local verification (sandbox):**
-  - .NET SDK 10.0.403 installed
-  - aria2c 1.37.0 installed
-  - `dotnet build -c Release`: 0 errors, 0 warnings
-  - `dotnet test -c Release`: **109 passed**, 0 failed
+## Done
+- S2 OptionTable / layered settings
+- Input/progress fixes (magnet, sanitize, complete totals)
+- **Aria2Engine (real):** process start, owner-only conf + rpc-secret, free loopback port, JSON-RPC getVersion + system.multicall snapshot, saveSession, shutdown
+- **Aria2RpcClient:** thin AOT-safe HttpClient client (no Aria2.JsonRpcClient package)
+- **HelpView:** Figlet + purple panels (falls back to plain with --no-color/--plain/--ascii)
+- Local: .NET 10.0.403, aria2c 1.37.0, build 0/0, **109 tests green**
 
 ## Next
-- M2: real Aria2Engine (process + owner-only conf with rpc-secret, JSON-RPC multicall snapshot, saveSession, shutdown) + wire Program → DownloadSession
-- Keep honest exit-1 until engine is live
+- Wire Program → RunWorkspace → Aria2Locator → Aria2ArgsBuilder → Aria2Engine → DownloadSession
+- Integration smoke: start real aria2, getVersion, empty snapshot, shutdown
+- WebSocket notifications (later)
+- Full dashboard loop (M4)
 
 ## Blocked
-- (none for unit work)
+- (none)
 
 ## Decisions
-- Console types internal by default
-- Console namespace: AriaSharp.App
-- NoWarn: CA1724, CA1822 only
-- graphify: AST-only, graphify-out/ not committed
-- Sanitize keeps URL-valid characters
+- Thin JSON-RPC client instead of Aria2.JsonRpcClient (AOT)
+- Help is Spectre TUI by default; plain text opt-out via --no-color/--plain/--ascii
