@@ -20,13 +20,13 @@ public sealed class SessionState
     public double OverallPercent { get; init; }
     public Confidence OverallConfidence { get; init; }
     public EtaEstimate OverallEta { get; init; } = EtaEstimate.Unknown;
-    public required DownloadItem[] ActiveItems { get; init; }
-    public required DownloadItem[] WaitingItems { get; init; }
-    public required DownloadItem[] StoppedItems { get; init; }
-    public required DownloadItem[] PausedItems { get; init; }
-    public required DownloadItem[] CompleteItems { get; init; }
-    public required DownloadItem[] FailedItems { get; init; }
-    public required DownloadItem[] SkippedItems { get; init; }
-    public required DownloadItem[] InterruptedItems { get; init; }
-    public required DownloadItem[] AllItems { get; init; }
+    public required IReadOnlyList<DownloadItem> ActiveItems { get; init; }
+    public required IReadOnlyList<DownloadItem> WaitingItems { get; init; }
+    public required IReadOnlyList<DownloadItem> StoppedItems { get; init; }
+    public required IReadOnlyList<DownloadItem> PausedItems { get; init; }
+    public required IReadOnlyList<DownloadItem> CompleteItems { get; init; }
+    public required IReadOnlyList<DownloadItem> FailedItems { get; init; }
+    public required IReadOnlyList<DownloadItem> SkippedItems { get; init; }
+    public required IReadOnlyList<DownloadItem> InterruptedItems { get; init; }
+    public required IReadOnlyList<DownloadItem> AllItems { get; init; }
 }

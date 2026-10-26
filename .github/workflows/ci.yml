@@ -8,7 +8,11 @@ on:
 
 jobs:
   build-test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -24,5 +28,13 @@ jobs:
       - name: Build solution
         run: dotnet build AriaSharp.sln --configuration Release --no-restore
 
-      - name: Run tests
+      - name: Run unit tests
         run: dotnet test tests/AriaSharp.Tests/AriaSharp.Tests.csproj --configuration Release --no-build --verbosity normal
+
+      - name: Publish AOT (linux-x64)
+        if: matrix.os == 'ubuntu-latest'
+        run: dotnet publish src/AriaSharp.Console/AriaSharp.Console.csproj -c Release -r linux-x64 --self-contained false
+
+      - name: Smoke test --version
+        if: matrix.os == 'ubuntu-latest'
+        run: src/AriaSharp.Console/bin/Release/net10.0/linux-x64/publish/ariasharp --version

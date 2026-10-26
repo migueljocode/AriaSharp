@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace AriaSharp.Console;
+namespace AriaSharp.App;
 
 public static class HelpDocument
 {

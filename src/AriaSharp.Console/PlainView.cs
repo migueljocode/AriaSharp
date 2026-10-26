@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace AriaSharp.Console;
+namespace AriaSharp.App;
 
 public static class PlainView
 {
@@ -10,15 +10,15 @@ public static class PlainView
         sb.AppendLine("┌" + new string('─', w) + "┐");
         sb.AppendLine("│" + Center("PLAIN VIEW", w) + "│");
         sb.AppendLine("├" + new string('─', w) + "┤");
-        var total = state.AllItems.Length;
-        var active = state.ActiveItems.Length;
-        var waiting = state.WaitingItems.Length;
-        var stopped = state.StoppedItems.Length;
-        var paused = state.PausedItems.Length;
-        var complete = state.CompleteItems.Length;
-        var failed = state.FailedItems.Length;
-        var skipped = state.SkippedItems.Length;
-        var interrupted = state.InterruptedItems.Length;
+        var total = state.AllItems.Count;
+        var active = state.ActiveItems.Count;
+        var waiting = state.WaitingItems.Count;
+        var stopped = state.StoppedItems.Count;
+        var paused = state.PausedItems.Count;
+        var complete = state.CompleteItems.Count;
+        var failed = state.FailedItems.Count;
+        var skipped = state.SkippedItems.Count;
+        var interrupted = state.InterruptedItems.Count;
         sb.AppendLine("│" + $"  total={total} active={active} waiting={waiting} stopped={stopped} paused={paused} complete={complete} failed={failed} skipped={skipped} interrupted={interrupted}".PadRight(w) + "│");
         sb.AppendLine("│" + $"  speed={Models.FormatHelpers.FormatSpeed(state.TotalDownloadSpeed)} overall={state.OverallPercent:F1}% eta={state.OverallEta.Format()}".PadRight(w) + "│");
         sb.AppendLine("└" + new string('─', w) + "┘");

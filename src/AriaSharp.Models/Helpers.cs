@@ -50,7 +50,7 @@ public static class FormatHelpers
         if (string.IsNullOrEmpty(value)) return string.Empty;
         var schemeEnd = value.IndexOf("://", StringComparison.Ordinal);
         if (schemeEnd < 0) return value;
-        var at = value[(schemeEnd + 3)..].IndexOf('@');
+        var at = value[(schemeEnd + 3)..].IndexOf('@', StringComparison.Ordinal);
         if (at < 0) return value;
         return value[..(schemeEnd + 3)] + "***@" + value[(schemeEnd + 4 + at)..];
     }

@@ -1,8 +1,8 @@
 using System.Text;
 
-namespace AriaSharp.Console;
+namespace AriaSharp.App;
 
-public static class Pager
+internal static class Pager
 {
     public static void Show(StringBuilder sb, int width, int height, int pageSize = 20)
     {

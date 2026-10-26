@@ -1,8 +1,8 @@
 using System.Text;
 
-namespace AriaSharp.Console;
+namespace AriaSharp.App;
 
-public static class SignalHandler
+internal static class SignalHandler
 {
     public static event EventHandler? Interrupted;
     public static event EventHandler? Terminated;

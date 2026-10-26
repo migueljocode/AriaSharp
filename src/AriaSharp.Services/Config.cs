@@ -40,37 +40,34 @@ public sealed class SettingsMerger : ISettingsMerger
             SessionFile = overrideValues.SessionFile ?? baseline.SessionFile,
             ConfigFile = overrideValues.ConfigFile ?? baseline.ConfigFile,
             Aria2Path = overrideValues.Aria2Path ?? baseline.Aria2Path,
-            Aria2Opt = overrideValues.Aria2Opt ?? baseline.Aria2Opt,
             SpeedLimit = overrideValues.SpeedLimit ?? baseline.SpeedLimit,
-            Inputs = overrideValues.Inputs.Length > 0 ? overrideValues.Inputs : baseline.Inputs,
-            ExtraOptions = overrideValues.ExtraOptions.Length > 0 ? overrideValues.ExtraOptions : baseline.ExtraOptions,
+            Inputs = overrideValues.Inputs.Count > 0 ? overrideValues.Inputs : baseline.Inputs,
+            ExtraOptions = overrideValues.ExtraOptions.Count > 0 ? overrideValues.ExtraOptions : baseline.ExtraOptions,
         };
     }
 }
 
 public sealed class SettingsStore : ISettingsStore
 {
-    private static readonly JsonSerializerOptions Options = new() { PropertyNameCaseInsensitive = true, WriteIndented = true };
-    public Task<AppSettings> LoadAsync(CancellationToken ct)
+    public async Task<AppSettings> LoadAsync(CancellationToken ct)
     {
         var settings = new AppSettings();
         var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config", "ariasharp", "settings.json");
-        if (!File.Exists(path)) return Task.FromResult(settings);
+        if (!File.Exists(path)) return settings;
         try
         {
-            var json = File.ReadAllText(path, System.Text.Encoding.UTF8);
-            var loaded = JsonSerializer.Deserialize<AppSettings>(json, Options);
+            var json = await File.ReadAllTextAsync(path, System.Text.Encoding.UTF8, ct).ConfigureAwait(false);
+            var loaded = JsonSerializer.Deserialize<AppSettings>(json, AppSettingsJsonContext.Default.AppSettings);
             if (loaded != null) settings = loaded;
         }
         catch (JsonException) { }
-        return Task.FromResult(settings);
+        return settings;
     }
-    public Task SaveAsync(AppSettings settings, CancellationToken ct)
+    public async Task SaveAsync(AppSettings settings, CancellationToken ct)
     {
         var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config", "ariasharp");
         if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
         var path = Path.Combine(dir, "settings.json");
-        File.WriteAllText(path, JsonSerializer.Serialize(settings, Options), System.Text.Encoding.UTF8);
-        return Task.CompletedTask;
+        await File.WriteAllTextAsync(path, JsonSerializer.Serialize(settings, AppSettingsJsonContext.Default.AppSettings), System.Text.Encoding.UTF8, ct).ConfigureAwait(false);
     }
 }

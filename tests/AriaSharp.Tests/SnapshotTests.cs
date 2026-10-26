@@ -88,13 +88,13 @@ public class SnapshotTests
     public void EtaEstimate_AtLeast_ShowsPrefix()
     {
         var eta = EtaEstimate.AtLeast(300);
-        Assert.StartsWith(">= ", eta.Format());
+        Assert.StartsWith(">= ", eta.Format(), StringComparison.Ordinal);
     }
 
     [Fact]
     public void EtaEstimate_Estimated_ShowsTilde()
     {
         var eta = EtaEstimate.Estimated(180);
-        Assert.StartsWith("~ ", eta.Format());
+        Assert.StartsWith("~ ", eta.Format(), StringComparison.Ordinal);
     }
 }

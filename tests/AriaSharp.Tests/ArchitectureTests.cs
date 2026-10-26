@@ -28,7 +28,6 @@ public class ArchitectureTests
         var types = new[]
         {
             typeof(DownloadItem),
-            typeof(DownloadSnapshot),
             typeof(EngineSnapshot),
             typeof(SessionState),
             typeof(EtaEstimate),
@@ -47,10 +46,10 @@ public class ArchitectureTests
     [Fact]
     public void ErrorCatalog_CoversAllCodes()
     {
-        for (var code = 1; code <= 33; code++)
+        for (var code = 1; code <= 32; code++)
         {
-            Assert.NotEmpty(ErrorCatalog.TextFor(code));
-            Assert.NotEmpty(ErrorCatalog.HintFor(code));
+            Assert.False(string.IsNullOrEmpty(ErrorCatalog.TextFor(code)), $"Code {code} text is empty");
+            Assert.False(string.IsNullOrEmpty(ErrorCatalog.HintFor(code)), $"Code {code} hint is empty");
         }
     }
 }

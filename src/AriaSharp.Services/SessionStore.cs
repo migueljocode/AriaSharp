@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 
 using AriaSharp.Models;
@@ -50,7 +51,7 @@ public sealed class SessionStore : ISessionStore
     public async Task WriteConfFileAsync(string secret, CancellationToken ct)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"rpc-secret={secret}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"rpc-secret={secret}");
         await File.WriteAllTextAsync(_tempConfFile, sb.ToString(), ct).ConfigureAwait(false);
     }
     public async Task<int> CountSessionEntriesAsync(CancellationToken ct)
@@ -62,7 +63,13 @@ public sealed class SessionStore : ISessionStore
         return count;
     }
     public Task DeleteSessionAsync(CancellationToken ct) { if (File.Exists(_sessionFile)) File.Delete(_sessionFile); return Task.CompletedTask; }
-    public Task<bool> SessionHasEntriesAsync(CancellationToken ct) => Task.FromResult(File.Exists(_sessionFile) && File.ReadLines(_sessionFile).Any(l => !string.IsNullOrWhiteSpace(l)));
+    public async Task<bool> SessionHasEntriesAsync(CancellationToken ct)
+    {
+        if (!File.Exists(_sessionFile)) return false;
+        await foreach (var line in File.ReadLinesAsync(_sessionFile, ct).ConfigureAwait(false))
+            if (!string.IsNullOrWhiteSpace(line)) return true;
+        return false;
+    }
     public async Task AppendLogAsync(string message, CancellationToken ct)
     {
         try { await File.AppendAllTextAsync(_logFile, $"{DateTime.UtcNow:u} {message}{Environment.NewLine}", ct).ConfigureAwait(false); }

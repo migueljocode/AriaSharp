@@ -13,6 +13,7 @@ public sealed class ProgressCalculator : IProgressCalculator
     private int _stableTicks;
     public SessionState Compute(EngineSnapshot snapshot, long previousCompleted, long previousTotal, double previousSpeed, int ticks)
     {
+        ArgumentNullException.ThrowIfNull(snapshot);
         var activeItems = snapshot.Active;
         var waitingItems = snapshot.Waiting;
         var stoppedItems = snapshot.Stopped;
@@ -52,7 +53,7 @@ public sealed class ProgressCalculator : IProgressCalculator
         return new SessionState
         {
             Timestamp = snapshot.Timestamp,
-            NumActive = activeItems.Length, NumWaiting = waitingItems.Length, NumStopped = stoppedItems.Length, NumPaused = pausedItems.Length,
+            NumActive = activeItems.Count, NumWaiting = waitingItems.Count, NumStopped = stoppedItems.Count, NumPaused = pausedItems.Count,
             TotalDownloadSpeed = speed, TotalUploadSpeed = 0, CompletedLength = completed, TotalLength = total,
             ActiveCompleted = activeCompleted, ActiveTotal = activeTotal, WaitingTotal = waitingTotal, StoppedTotal = stoppedTotal, PausedTotal = pausedTotal,
             UnknownTotal = unknownTotal, OverallPercent = overallPercent, OverallConfidence = confidence, OverallEta = eta,

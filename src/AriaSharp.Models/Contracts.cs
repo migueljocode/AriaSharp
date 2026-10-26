@@ -22,7 +22,7 @@ public sealed class EngineSettings
     public required string TempConfFile { get; init; }
     public required string Secret { get; init; }
     public required int Port { get; init; }
-    public required string[] Args { get; init; }
+    public required IReadOnlyList<string> Args { get; init; }
 }
 
 public interface IDownloadSession
@@ -44,3 +44,4 @@ public interface ISettingsStore
     Task<AppSettings> LoadAsync(CancellationToken ct);
     Task SaveAsync(AppSettings settings, CancellationToken ct);
 }
+public interface IUrlNameGuesser { string GuessName(Uri url); }

@@ -14,19 +14,6 @@ public sealed class DownloadItem
     public long DownloadSpeed { get; init; }
     public int Connections { get; init; }
     public string? ErrorMessage { get; init; }
-    public string? Uri { get; init; }
+    public Uri? Uri { get; init; }
     public bool IsSelected { get; set; }
-}
-
-public sealed class DownloadSnapshot
-{
-    public long Timestamp { get; init; }
-    public required DownloadItem[] Active { get; init; }
-    public required DownloadItem[] Waiting { get; init; }
-    public required DownloadItem[] Stopped { get; init; }
-    public required DownloadItem[] Paused { get; init; }
-    public required DownloadItem[] Complete { get; init; }
-    public required DownloadItem[] Failed { get; init; }
-    public required DownloadItem[] Skipped { get; init; }
-    public required DownloadItem[] Interrupted { get; init; }
 }

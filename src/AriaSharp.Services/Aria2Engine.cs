@@ -15,7 +15,7 @@ public sealed class Aria2Engine : IAria2Engine
     private readonly Channel<EngineEvent> _channel;
     private string _version = string.Empty;
     private bool _disposed;
-    public Aria2Engine(HttpClient httpClient) { _httpClient = httpClient; _channel = Channel.CreateUnbounded<EngineEvent>(new UnboundedChannelOptions { SingleReader = true }); }
+    public Aria2Engine() { _httpClient = new HttpClient(); _channel = Channel.CreateUnbounded<EngineEvent>(new UnboundedChannelOptions { SingleReader = true }); }
     public ChannelReader<EngineEvent> Events => _channel.Reader;
     public Task StartAsync(EngineSettings settings, CancellationToken ct)
     {
@@ -37,5 +37,12 @@ public sealed class Aria2Engine : IAria2Engine
     public Task ShutdownAsync(CancellationToken ct) => Task.CompletedTask;
     public Task<long> AddUriAsync(string[] uris, CancellationToken ct) => Task.FromResult(0L);
     public Task<string> GetVersionAsync(CancellationToken ct) { if (string.IsNullOrEmpty(_version)) _version = "1.37.0"; return Task.FromResult(_version); }
-    public ValueTask DisposeAsync() { if (_disposed) return ValueTask.CompletedTask; _disposed = true; _channel.Writer.TryComplete(); return ValueTask.CompletedTask; }
+    public ValueTask DisposeAsync()
+    {
+        if (_disposed) return ValueTask.CompletedTask;
+        _disposed = true;
+        _channel.Writer.TryComplete();
+        _httpClient.Dispose();
+        return ValueTask.CompletedTask;
+    }
 }

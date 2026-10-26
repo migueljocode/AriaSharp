@@ -1,0 +1,183 @@
+using Xunit;
+using AriaSharp.App;
+using AriaSharp.Models;
+
+namespace AriaSharp.Tests;
+
+public class ArgParserTests
+{
+    [Fact]
+    public void Help_SetsHelpFlag()
+    {
+        var settings = ArgParser.Parse(["-h"]);
+        Assert.True(settings.Help);
+        settings = ArgParser.Parse(["--help"]);
+        Assert.True(settings.Help);
+    }
+
+    [Fact]
+    public void Version_SetsVersionFlag()
+    {
+        var settings = ArgParser.Parse(["-V"]);
+        Assert.True(settings.Version);
+        settings = ArgParser.Parse(["--version"]);
+        Assert.True(settings.Version);
+    }
+
+    [Fact]
+    public void Input_Repeatable()
+    {
+        var settings = ArgParser.Parse(["-i", "https://a/file", "--input", "https://b/file", "https://c/file"]);
+        Assert.Equal(3, settings.Inputs.Count);
+        Assert.Contains("https://a/file", settings.Inputs);
+        Assert.Contains("https://b/file", settings.Inputs);
+        Assert.Contains("https://c/file", settings.Inputs);
+    }
+
+    [Fact]
+    public void Output_MapsToOutputDir()
+    {
+        var settings = ArgParser.Parse(["-o", "/tmp/out"]);
+        Assert.Equal("/tmp/out", settings.OutputDir);
+        settings = ArgParser.Parse(["--output", "/tmp/out2"]);
+        Assert.Equal("/tmp/out2", settings.OutputDir);
+    }
+
+    [Fact]
+    public void Force_IsFlagNotValue()
+    {
+        var settings = ArgParser.Parse(["-f", "https://example.com/file"]);
+        Assert.True(settings.Force);
+        Assert.Single(settings.Inputs);
+        Assert.Equal("https://example.com/file", settings.Inputs[0]);
+    }
+
+    [Fact]
+    public void Jobs_ValidatedRange()
+    {
+        var settings = ArgParser.Parse(["-j", "4"]);
+        Assert.Equal(4, settings.Jobs);
+        var ex = Assert.Throws<CliException>(() => ArgParser.Parse(["-j", "0"]));
+        Assert.Contains("1 to 16", ex.Message, StringComparison.Ordinal);
+        ex = Assert.Throws<CliException>(() => ArgParser.Parse(["-j", "17"]));
+        Assert.Contains("1 to 16", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Connections_ValidatedRange()
+    {
+        var settings = ArgParser.Parse(["-c", "8"]);
+        Assert.Equal(8, settings.Connections);
+        var ex = Assert.Throws<CliException>(() => ArgParser.Parse(["-c", "100"]));
+        Assert.Contains("1 to 16", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Limit_Set()
+    {
+        var settings = ArgParser.Parse(["-l", "2M"]);
+        Assert.Equal("2M", settings.SpeedLimit);
+    }
+
+    [Fact]
+    public void Session_Set()
+    {
+        var settings = ArgParser.Parse(["-s", "/tmp/resume.session"]);
+        Assert.Equal("/tmp/resume.session", settings.SessionFile);
+    }
+
+    [Fact]
+    public void InstallDeps_NoInstall()
+    {
+        var settings = ArgParser.Parse(["-y"]);
+        Assert.True(settings.InstallDeps);
+        settings = ArgParser.Parse(["-n"]);
+        Assert.True(settings.NoInstall);
+    }
+
+    [Fact]
+    public void Verbose_Set()
+    {
+        var settings = ArgParser.Parse(["-v"]);
+        Assert.True(settings.Verbose);
+    }
+
+    [Fact]
+    public void LongOpt_EqualsForm()
+    {
+        var settings = ArgParser.Parse(["--jobs=5", "--connections=4"]);
+        Assert.Equal(5, settings.Jobs);
+        Assert.Equal(4, settings.Connections);
+    }
+
+    [Fact]
+    public void LongOpt_SpaceForm()
+    {
+        var settings = ArgParser.Parse(["--jobs", "5"]);
+        Assert.Equal(5, settings.Jobs);
+    }
+
+    [Fact]
+    public void DashDash_TerminatesOptions()
+    {
+        var settings = ArgParser.Parse(["--", "https://example.com/file", "-h"]);
+        Assert.Equal(2, settings.Inputs.Count);
+        Assert.Equal("https://example.com/file", settings.Inputs[0]);
+        Assert.Equal("-h", settings.Inputs[1]);
+        Assert.False(settings.Help);
+    }
+
+    [Fact]
+    public void UnknownOption_Throws()
+    {
+        var ex = Assert.Throws<CliException>(() => ArgParser.Parse(["--bogus"]));
+        Assert.Contains("--bogus", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("--help", ex.Message, StringComparison.Ordinal);
+        ex = Assert.Throws<CliException>(() => ArgParser.Parse(["-z"]));
+        Assert.Contains("-z", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MissingValue_Throws()
+    {
+        var ex = Assert.Throws<CliException>(() => ArgParser.Parse(["-j"]));
+        Assert.Contains("Missing value", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ShortCluster_Flags()
+    {
+        var settings = ArgParser.Parse(["-fkv"]);
+        Assert.True(settings.Force);
+        Assert.True(settings.KeepListFiles);
+        Assert.True(settings.Verbose);
+    }
+
+    [Fact]
+    public void ShortCluster_WithValue()
+    {
+        var settings = ArgParser.Parse(["-j3"]);
+        Assert.Equal(3, settings.Jobs);
+    }
+
+    [Fact]
+    public void NoColor_LongOnly()
+    {
+        var settings = ArgParser.Parse(["--no-color"]);
+        Assert.True(settings.NoColor);
+    }
+
+    [Fact]
+    public async Task Program_Help_ExitsZero()
+    {
+        var exitCode = await Program.Main(["-h"]);
+        Assert.Equal(0, exitCode);
+    }
+
+    [Fact]
+    public async Task Program_MissingInputs_ReturnsUsageError()
+    {
+        var exitCode = await Program.Main(Array.Empty<string>());
+        Assert.Equal(2, exitCode);
+    }
+}

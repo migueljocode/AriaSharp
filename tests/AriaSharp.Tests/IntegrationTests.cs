@@ -45,8 +45,8 @@ public class IntegrationTests
     public void FormatHelpers_MaskCredentials_HidesPassword()
     {
         var masked = FormatHelpers.MaskCredentials("https://user:pass@example.com/file");
-        Assert.Contains("***@", masked);
-        Assert.DoesNotContain("pass", masked);
+        Assert.Contains("***@", masked, StringComparison.Ordinal);
+        Assert.DoesNotContain("pass", masked, StringComparison.Ordinal);
     }
 
     [Fact]

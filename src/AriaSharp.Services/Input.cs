@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.RegularExpressions;
+using AriaSharp.Models;
 
 namespace AriaSharp.Services;
 
@@ -12,7 +13,6 @@ public interface IUrlClassifier
     bool IsAria2ListFile(string value);
 }
 public interface IUrlSanitizer { string Sanitize(string value); string MaskCredentials(string value); }
-public interface IUrlNameGuesser { string GuessName(string url); }
 
 public sealed class UrlExtractor : IUrlExtractor
 {
@@ -87,18 +87,17 @@ public sealed class UrlSanitizer : IUrlSanitizer
 
 public sealed class UrlNameGuesser : IUrlNameGuesser
 {
-    public string GuessName(string url)
+    public string GuessName(Uri url)
     {
-        if (string.IsNullOrEmpty(url)) return "download";
+        if (url == null) return "download";
         try
         {
-            var uri = new Uri(url);
-            var name = Path.GetFileName(uri.LocalPath);
-            if (string.IsNullOrEmpty(name)) name = uri.Host;
+            var name = Path.GetFileName(url.LocalPath);
+            if (string.IsNullOrEmpty(name)) name = url.Host;
             if (string.IsNullOrEmpty(name)) name = "download";
             foreach (var c in Path.GetInvalidFileNameChars()) name = name.Replace(c.ToString(), "_", StringComparison.Ordinal);
             return name;
         }
-        catch (UriFormatException) { return "download"; }
+        catch (Exception) { return "download"; }
     }
 }

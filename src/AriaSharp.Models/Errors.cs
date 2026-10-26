@@ -16,11 +16,16 @@ public sealed class Aria2ErrorInfo
     };
 }
 
-[SuppressMessage("Quality", "CA1062:Validate arguments of externally visible methods")]
 public sealed class Aria2Exception : Exception
 {
-    public Aria2Exception(Aria2ErrorInfo info) : base(info?.Text ?? string.Empty) { Error = info ?? throw new ArgumentNullException(nameof(info)); }
-    public Aria2Exception(string message) : base(message) { Error = Aria2ErrorInfo.FromCode(0, message); }
+    public Aria2Exception() : this(Aria2ErrorInfo.None) { }
+    public Aria2Exception(string message) : this(Aria2ErrorInfo.FromCode(0, message)) { }
+    public Aria2Exception(string message, Exception inner) : this(Aria2ErrorInfo.FromCode(0, message), inner) { }
+    public Aria2Exception(Aria2ErrorInfo info) : this(info, null) { }
+    private Aria2Exception(Aria2ErrorInfo info, Exception? inner) : base(info?.Text ?? string.Empty, inner)
+    {
+        Error = info ?? throw new ArgumentNullException(nameof(info));
+    }
     public Aria2ErrorInfo Error { get; }
 }
 
@@ -36,4 +41,11 @@ public sealed class PrerequisiteException : Exception
     public PrerequisiteException() { }
     public PrerequisiteException(string message) : base(message) { }
     public PrerequisiteException(string message, Exception inner) : base(message, inner) { }
+}
+
+public sealed class CliException : Exception
+{
+    public CliException() { }
+    public CliException(string message) : base(message) { }
+    public CliException(string message, Exception inner) : base(message, inner) { }
 }

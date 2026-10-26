@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace AriaSharp.Console;
+namespace AriaSharp.App;
 
 public static class DashboardView
 {
@@ -10,7 +10,7 @@ public static class DashboardView
         sb.AppendLine("┌" + new string('─', w) + "┐");
         sb.AppendLine("│" + Center("ACTIVE DOWNLOADS", w) + "│");
         sb.AppendLine("├" + new string('─', w) + "┤");
-        if (state.ActiveItems.Length == 0)
+        if (state.ActiveItems.Count == 0)
         {
             sb.AppendLine("│" + Center("(none)", w) + "│");
         }

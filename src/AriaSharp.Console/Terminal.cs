@@ -1,6 +1,7 @@
 using System.Text;
+using AriaSharp.Models;
 
-namespace AriaSharp.Console;
+namespace AriaSharp.App;
 
 public static class Terminal
 {
@@ -24,9 +25,5 @@ public static class Terminal
         };
         System.Console.Write($"\x1b[{code}m{text}\x1b[0m");
     }
-    public static string Truncate(string? text, int max)
-    {
-        if (string.IsNullOrEmpty(text)) return string.Empty;
-        return text.Length <= max ? text : text[..(max - 3)] + "...";
-    }
+    public static string Truncate(string? text, int max) => FormatHelpers.Truncate(text, max);
 }

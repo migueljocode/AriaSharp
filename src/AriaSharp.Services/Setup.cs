@@ -1,13 +1,7 @@
 using System.Diagnostics;
+using AriaSharp.Models;
 
 namespace AriaSharp.Services;
-
-public interface IPrerequisiteInstaller
-{
-    Task<bool> InstallAsync(string package, CancellationToken ct);
-    Task<bool> IsInstalledAsync(string package, CancellationToken ct);
-    Task<bool> InstallAria2Async(CancellationToken ct);
-}
 
 public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
 {
@@ -21,7 +15,7 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
         var command = package switch { "wl-clipboard" => "wl-paste", "xclip" => "xclip", "xsel" => "xsel", _ => package };
         return (await RunAsync("which", command, ct).ConfigureAwait(false)) == 0;
     }
-    public async Task<bool> InstallAria2Async(CancellationToken ct)
+    public static async Task<bool> InstallAria2Async(CancellationToken ct)
     {
         var script = "curl -fsSL https://aria2.github.io/dl/aria2-1.37.0.tar.gz -o /tmp/aria2.tar.gz && tar -xzf /tmp/aria2.tar.gz -C /tmp && cd /tmp/aria2-1.37.0 && ./configure --prefix=/usr/local && make && make install";
         return (await RunAsync("bash", $"-c \"{script}\"", ct).ConfigureAwait(false)) == 0;
@@ -69,5 +63,5 @@ public sealed class NetworkProbe
 
 public sealed class Aria2SourceBuilder
 {
-    public static string BuildTarballUrl(string version) => $"https://aria2.github.io/dl/aria2-{version}.tar.gz";
+    public static Uri BuildTarballUrl(string version) => new($"https://aria2.github.io/dl/aria2-{version}.tar.gz");
 }

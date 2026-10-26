@@ -1,4 +1,4 @@
-namespace AriaSharp.Console;
+namespace AriaSharp.App;
 
 public static class ProtocolColors
 {

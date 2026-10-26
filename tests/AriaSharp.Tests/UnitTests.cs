@@ -15,14 +15,14 @@ public class UnitTests
     public void FormatBytes_ReturnsKbForLargeValues()
     {
         var result = FormatHelpers.FormatBytes(2048);
-        Assert.Contains("KB", result);
+        Assert.Contains("KB", result, StringComparison.Ordinal);
     }
 
     [Fact]
     public void FormatSpeed_FormatsSpeedCorrectly()
     {
         var result = FormatHelpers.FormatSpeed(1024);
-        Assert.Contains("/s", result);
+        Assert.Contains("/s", result, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -37,6 +37,15 @@ public class UnitTests
     {
         var result = FormatHelpers.Truncate("short", 20);
         Assert.Equal("short", result);
+    }
+
+    [Fact]
+    public void Truncate_SmallMaxDoesNotThrow()
+    {
+        Assert.Equal(string.Empty, FormatHelpers.Truncate("abc", 0));
+        Assert.Equal("a", FormatHelpers.Truncate("abc", 1));
+        Assert.Equal("ab", FormatHelpers.Truncate("abc", 2));
+        Assert.Equal("abc", FormatHelpers.Truncate("abc", 3));
     }
 
     [Fact]
@@ -94,8 +103,8 @@ public class UnitTests
     [Fact]
     public void ErrorCatalog_TextFor_ReturnsKnownText()
     {
-        Assert.Equal("File not found", ErrorCatalog.TextFor(1));
-        Assert.Contains("Unknown error", ErrorCatalog.TextFor(999));
+        Assert.Equal("Unknown error", ErrorCatalog.TextFor(1));
+        Assert.Contains("Unknown error", ErrorCatalog.TextFor(999), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -107,7 +116,7 @@ public class UnitTests
     [Fact]
     public void ErrorCatalog_Classify_Timeout()
     {
-        Assert.Equal(Aria2ErrorKind.Timeout, ErrorCatalog.Classify(15));
+        Assert.Equal(Aria2ErrorKind.Timeout, ErrorCatalog.Classify(2));
     }
 
     [Fact]
@@ -119,7 +128,7 @@ public class UnitTests
     [Fact]
     public void ErrorCatalog_Classify_Protocol()
     {
-        Assert.Equal(Aria2ErrorKind.Protocol, ErrorCatalog.Classify(2));
+        Assert.Equal(Aria2ErrorKind.Protocol, ErrorCatalog.Classify(22));
     }
 
     [Fact]
@@ -139,10 +148,10 @@ public class UnitTests
     }
 
     [Fact]
-    public void DownloadSnapshot_RequiresAllArrays()
+    public void EngineSnapshot_RequiresAllArrays()
     {
         var empty = Array.Empty<DownloadItem>();
-        var snap = new DownloadSnapshot
+        var snap = new EngineSnapshot
         {
             Timestamp = 1L,
             Active = empty, Waiting = empty, Stopped = empty, Paused = empty,

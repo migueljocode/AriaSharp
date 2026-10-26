@@ -1,3 +1,6 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
 namespace AriaSharp.Models;
 
 public sealed class AppDefaults
@@ -45,10 +48,13 @@ public sealed class AppSettings
     public bool SaveSession { get; set; } = AppDefaults.SaveSession;
     public int SaveSessionInterval { get; set; } = AppDefaults.SaveSessionInterval;
     public int RefreshIntervalMs { get; set; } = AppDefaults.RefreshIntervalMs;
+    public int Jobs { get; set; } = AppDefaults.MaxConcurrentDownloads;
+    public int Connections { get; set; } = AppDefaults.MaxConnectionPerServer;
     public bool Inline { get; set; }
     public bool Plain { get; set; }
     public bool NoColor { get; set; }
     public bool NoPager { get; set; }
+    public bool NoInstall { get; set; }
     public bool Verbose { get; set; }
     public bool Yes { get; set; }
     public bool Force { get; set; }
@@ -63,10 +69,15 @@ public sealed class AppSettings
     public string? SessionFile { get; set; }
     public string? ConfigFile { get; set; }
     public string? Aria2Path { get; set; }
-    public string? Aria2Opt { get; set; }
     public string? SpeedLimit { get; set; }
-    public string[] Inputs { get; set; } = Array.Empty<string>();
-    public string[] ExtraOptions { get; set; } = Array.Empty<string>();
+    public string? Limit { get; set; }
+    public IReadOnlyList<string> Inputs { get; set; } = Array.Empty<string>();
+    public IReadOnlyList<string> ExtraOptions { get; set; } = Array.Empty<string>();
+}
+
+[JsonSerializable(typeof(AppSettings))]
+public partial class AppSettingsJsonContext : JsonSerializerContext
+{
 }
 
 public sealed class UiSettings
