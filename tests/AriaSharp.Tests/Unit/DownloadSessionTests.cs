@@ -46,6 +46,42 @@ public class DownloadSessionTests
     }
 
     [Fact]
+    public async Task RunAsync_AllSkipped_ReturnsCompleted()
+    {
+        var engine = new ScriptedEngine(Enumerable.Repeat(Snapshot(skipped: [Item("a", DownloadState.Skipped, 0, 0)]), 3));
+        try
+        {
+            var session = new DownloadSession(engine, new ProgressCalculator(), new AppSettings { RefreshIntervalMs = 100 });
+            var outcome = await session.RunAsync(CancellationToken.None).ConfigureAwait(true);
+            Assert.Equal(RunOutcomeKind.Completed, outcome.Kind);
+        }
+        finally
+        {
+            await engine.DisposeAsync().ConfigureAwait(true);
+        }
+    }
+
+    [Fact]
+    public async Task RunAsync_CancelledDuringSnapshot_ReturnsInterrupted()
+    {
+        using var cts = new CancellationTokenSource();
+        var engine = new ScriptedEngine(Enumerable.Repeat(Snapshot(active: [Item("a", DownloadState.Active, 1, 100)]), 5))
+        {
+            OnSnapshot = cts.Cancel,
+        };
+        try
+        {
+            var session = new DownloadSession(engine, new ProgressCalculator(), new AppSettings { RefreshIntervalMs = 100 });
+            var outcome = await session.RunAsync(cts.Token).ConfigureAwait(true);
+            Assert.Equal(RunOutcomeKind.Interrupted, outcome.Kind);
+        }
+        finally
+        {
+            await engine.DisposeAsync().ConfigureAwait(true);
+        }
+    }
+
+    [Fact]
     public async Task RunAsync_IdleWithFailed_ReturnsFailed()
     {
         var engine = new ScriptedEngine(
@@ -99,6 +135,7 @@ public class DownloadSessionTests
     private static EngineSnapshot Snapshot(
         IReadOnlyList<DownloadItem>? active = null,
         IReadOnlyList<DownloadItem>? paused = null,
+        IReadOnlyList<DownloadItem>? skipped = null,
         IReadOnlyList<DownloadItem>? complete = null,
         IReadOnlyList<DownloadItem>? failed = null) => new()
     {
@@ -109,7 +146,7 @@ public class DownloadSessionTests
         Paused = paused ?? [],
         Complete = complete ?? [],
         Failed = failed ?? [],
-        Skipped = [],
+        Skipped = skipped ?? [],
         Interrupted = [],
     };
 
@@ -120,16 +157,19 @@ public class DownloadSessionTests
 
         public ScriptedEngine(IEnumerable<EngineSnapshot> script) => _script = new Queue<EngineSnapshot>(script);
 
+        public Action? OnSnapshot { get; init; }
         public ChannelReader<EngineEvent> Events => _events.Reader;
         public Task StartAsync(EngineSettings settings, CancellationToken ct) => Task.CompletedTask;
         public Task SaveSessionAsync(CancellationToken ct) => Task.CompletedTask;
         public Task ShutdownAsync(CancellationToken ct) => Task.CompletedTask;
-        public Task<long> AddUriAsync(string[] uris, CancellationToken ct) => Task.FromResult(0L);
+        public Task<string> AddUriAsync(string[] uris, CancellationToken ct) => Task.FromResult(string.Empty);
         public Task<string> GetVersionAsync(CancellationToken ct) => Task.FromResult("1.37.0");
         public ValueTask DisposeAsync() { _events.Writer.TryComplete(); return ValueTask.CompletedTask; }
 
         public Task<EngineSnapshot> GetSnapshotAsync(CancellationToken ct)
         {
+            OnSnapshot?.Invoke();
+            ct.ThrowIfCancellationRequested();
             if (_script.Count == 0)
                 return Task.FromResult(Snapshot());
             return Task.FromResult(_script.Dequeue());

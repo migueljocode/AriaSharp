@@ -23,6 +23,8 @@ public sealed class Aria2Engine : IAria2Engine
         Channel.CreateUnbounded<EngineEvent>(new UnboundedChannelOptions { SingleReader = true });
 
     private Aria2Process? _process;
+    private ChannelWriter<string>? _logWriter;
+    private Task _logTask = Task.CompletedTask;
     private Aria2RpcClient? _rpc;
     private Aria2NotificationListener? _notifications;
     private string _version = string.Empty;
@@ -44,16 +46,12 @@ public sealed class Aria2Engine : IAria2Engine
             SingleReader = true,
             SingleWriter = false,
         });
-        _ = DrainLogsAsync(logChannel.Reader, ct);
+        _logWriter = logChannel.Writer;
+        _logTask = DrainLogsAsync(logChannel.Reader, settings.LogFile);
 
         _process = new Aria2Process(settings.Aria2Path, settings.Args.ToArray(), logChannel.Writer);
 
-        var http = new HttpClient
-        {
-            BaseAddress = new Uri($"http://127.0.0.1:{settings.Port}/"),
-            Timeout = TimeSpan.FromSeconds(10),
-        };
-        _rpc = new Aria2RpcClient(http, settings.Secret);
+        _rpc = new Aria2RpcClient(CreateLoopbackClient(settings.Port), settings.Secret);
 
         await WaitForRpcAsync(ct).ConfigureAwait(false);
 
@@ -174,12 +172,12 @@ public sealed class Aria2Engine : IAria2Engine
         catch (TaskCanceledException) { }
     }
 
-    public async Task<long> AddUriAsync(string[] uris, CancellationToken ct)
+    public async Task<string> AddUriAsync(string[] uris, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(uris);
         var rpc = _rpc ?? throw new InvalidOperationException("Engine not started.");
-        await rpc.CallAsync("aria2.addUri", [uris], ct).ConfigureAwait(false);
-        return 0L;
+        var gid = await rpc.CallAsync("aria2.addUri", [uris], ct).ConfigureAwait(false);
+        return gid.ValueKind == JsonValueKind.String ? gid.GetString()! : throw new InvalidOperationException("aria2.addUri returned no GID.");
     }
 
     public async Task<string> GetVersionAsync(CancellationToken ct)
@@ -218,9 +216,21 @@ public sealed class Aria2Engine : IAria2Engine
                 await _process.DisposeAsync().ConfigureAwait(false);
             if (_rpc is not null)
                 await _rpc.DisposeAsync().ConfigureAwait(false);
+            _logWriter?.TryComplete();
+            await _logTask.ConfigureAwait(false);
             _channel.Writer.TryComplete();
         }
     }
+
+    // Loopback RPC must never go through a proxy.
+    private static readonly SocketsHttpHandler LoopbackHandler = new() { UseProxy = false };
+
+    private static HttpClient CreateLoopbackClient(int port) =>
+        new(LoopbackHandler, disposeHandler: false)
+        {
+            BaseAddress = new Uri($"http://127.0.0.1:{port}/"),
+            Timeout = TimeSpan.FromSeconds(10),
+        };
 
     public static int FindFreePort()
     {
@@ -317,13 +327,42 @@ private async Task WaitForRpcAsync(CancellationToken ct)
         throw new TimeoutException($"aria2 RPC not ready within {AppDefaults.RpcReadyTimeoutMs} ms.", last);
     }
 
-    private static async Task DrainLogsAsync(ChannelReader<string> reader, CancellationToken ct)
+    private static StreamWriter OpenLog(string? path)
     {
-        try
+        if (path is not null)
         {
-            await foreach (var _ in reader.ReadAllAsync(ct).ConfigureAwait(false)) { }
+            var options = new FileStreamOptions
+            {
+                Mode = FileMode.Create,
+                Access = FileAccess.Write,
+                Share = FileShare.Read,
+                Options = FileOptions.Asynchronous | FileOptions.SequentialScan,
+            };
+            if (!OperatingSystem.IsWindows())
+                options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+            try
+            {
+                return new StreamWriter(new FileStream(path, options)) { NewLine = "\n", AutoFlush = true };
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         }
-        catch (OperationCanceledException) { }
+        return new StreamWriter(Stream.Null);
+    }
+
+    // aria2 stdout/stderr must always be drained; written to the run's private log file when one is given.
+    private static async Task DrainLogsAsync(ChannelReader<string> reader, string? path)
+    {
+        var writer = OpenLog(path);
+        await using (writer.ConfigureAwait(false))
+        {
+            var ok = true;
+            await foreach (var line in reader.ReadAllAsync().ConfigureAwait(false))
+            {
+                if (!ok) continue;
+                try { await writer.WriteLineAsync(line).ConfigureAwait(false); }
+                catch (IOException) { ok = false; }
+            }
+        }
     }
 
     private static JsonElement ExtractMulticallResult(JsonElement multicall, int index)

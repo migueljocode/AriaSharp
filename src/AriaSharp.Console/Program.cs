@@ -254,6 +254,7 @@ internal static class Program
                 Secret = provisional.Secret,
                 Port = provisional.Port,
                 Args = args,
+                LogFile = workspace.LogFile,
             };
 
             try

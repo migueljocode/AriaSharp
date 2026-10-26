@@ -60,7 +60,15 @@ public sealed class DownloadSession : IDownloadSession
         {
             while (!ct.IsCancellationRequested && Volatile.Read(ref _stopRequested) == 0)
             {
-                var snapshot = await _engine.GetSnapshotAsync(ct).ConfigureAwait(false);
+                EngineSnapshot snapshot;
+                try
+                {
+                    snapshot = await _engine.GetSnapshotAsync(ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    break;
+                }
                 ticks++;
                 _state = _calculator.Compute(snapshot, prevCompleted, prevTotal, prevSpeed, ticks);
                 prevCompleted = _state.CompletedLength;
@@ -128,7 +136,7 @@ public sealed class DownloadSession : IDownloadSession
             return RunOutcome.Failed(msg);
         }
 
-        if (complete == 0 && state.StoppedItems.Count == 0 && state.InterruptedItems.Count == 0)
+        if (complete == 0 && state.SkippedItems.Count == 0 && state.StoppedItems.Count == 0 && state.InterruptedItems.Count == 0)
             return RunOutcome.Empty("Nothing completed — check URLs and network.");
 
         return RunOutcome.Completed();
@@ -142,7 +150,7 @@ public sealed class DownloadSession : IDownloadSession
         }
         catch (HttpRequestException) { }
         catch (InvalidOperationException) { }
-        catch (TaskCanceledException) { }
+        catch (OperationCanceledException) { }
     }
 
     private static SessionState EmptyState() => new()

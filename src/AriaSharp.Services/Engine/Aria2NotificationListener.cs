@@ -29,7 +29,7 @@ internal sealed class Aria2NotificationListener : IAsyncDisposable
     public async Task StartAsync(CancellationToken ct)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        _ws = new ClientWebSocket();
+        _ws = new ClientWebSocket { Options = { Proxy = null } };
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, _cts.Token);
         await _ws.ConnectAsync(_uri, linked.Token).ConfigureAwait(false);
         _loop = Task.Run(() => ReceiveLoopAsync(_cts.Token), CancellationToken.None);
