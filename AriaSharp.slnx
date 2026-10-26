@@ -1,0 +1,14 @@
+<Solution>
+  <Project Path="src/AriaSharp.Models/AriaSharp.Models.csproj">
+    <Build Project="true" />
+  </Project>
+  <Project Path="src/AriaSharp.Services/AriaSharp.Services.csproj">
+    <Build Project="true" />
+  </Project>
+  <Project Path="src/AriaSharp.Console/AriaSharp.Console.csproj">
+    <Build Project="true" />
+  </Project>
+  <Project Path="tests/AriaSharp.Tests/AriaSharp.Tests.csproj">
+    <Build Project="true" />
+  </Project>
+</Solution>

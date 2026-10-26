@@ -29,13 +29,13 @@ A cross-platform .NET 10 console application that wraps the [aria2](https://aria
 ## Build
 
 ```bash
-dotnet build AriaSharp.sln
+dotnet build AriaSharp.slnx
 ```
 
 ## Test
 
 ```bash
-dotnet test AriaSharp.sln
+dotnet test AriaSharp.slnx
 ```
 
 ## Run

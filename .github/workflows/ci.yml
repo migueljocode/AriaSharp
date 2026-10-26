@@ -23,10 +23,10 @@ jobs:
           dotnet-version: 10.0.x
 
       - name: Restore dependencies
-        run: dotnet restore AriaSharp.sln
+        run: dotnet restore AriaSharp.slnx
 
       - name: Build solution
-        run: dotnet build AriaSharp.sln --configuration Release --no-restore
+        run: dotnet build AriaSharp.slnx --configuration Release --no-restore
 
       - name: Run unit tests
         run: dotnet test tests/AriaSharp.Tests/AriaSharp.Tests.csproj --configuration Release --verbosity normal
