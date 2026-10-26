@@ -166,7 +166,15 @@ internal static class Program
                 return (int)ExitCode.Failure;
             }
 
-            var session = new DownloadSession(engine, new ProgressCalculator(), settings);
+            // Live progress: always on for --plain; also for default mode until the dashboard lands.
+            var interactive = !System.Console.IsOutputRedirected && !settings.NoColor;
+            ProgressTick? onTick = (state, elapsed) =>
+            {
+                try { PlainView.WriteProgress(System.Console.Error, state, elapsed, interactive); }
+                catch (IOException) { /* broken pipe */ }
+            };
+
+            var session = new DownloadSession(engine, new ProgressCalculator(), settings, onTick);
             RunOutcome outcome;
             try
             {
@@ -178,9 +186,12 @@ internal static class Program
             }
             catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or IOException)
             {
+                PlainView.EndProgress(System.Console.Error, interactive);
                 await System.Console.Error.WriteLineAsync($"Error: {ex.Message}").ConfigureAwait(false);
                 return (int)ExitCode.Failure;
             }
+
+            PlainView.EndProgress(System.Console.Error, interactive);
 
             var summary = SummaryView.Render(
                 session.State,

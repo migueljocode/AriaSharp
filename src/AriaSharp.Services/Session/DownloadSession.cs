@@ -13,20 +13,31 @@ public interface IDownloadSession
     Task RequestStopAsync();
 }
 
+/// <summary>
+/// Optional progress hook invoked after every poll. Lives in Services (no Spectre).
+/// </summary>
+public delegate void ProgressTick(SessionState state, TimeSpan elapsed);
+
 public sealed class DownloadSession : IDownloadSession
 {
     private readonly IAria2Engine _engine;
     private readonly IProgressCalculator _calculator;
     private readonly AppSettings _settings;
+    private readonly ProgressTick? _onTick;
     private readonly Stopwatch _watch = new();
     private SessionState? _state;
     private int _stopRequested;
 
-    public DownloadSession(IAria2Engine engine, IProgressCalculator calculator, AppSettings settings)
+    public DownloadSession(
+        IAria2Engine engine,
+        IProgressCalculator calculator,
+        AppSettings settings,
+        ProgressTick? onTick = null)
     {
         _engine = engine ?? throw new ArgumentNullException(nameof(engine));
         _calculator = calculator ?? throw new ArgumentNullException(nameof(calculator));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+        _onTick = onTick;
     }
 
     public SessionState State => _state ?? EmptyState();
@@ -55,6 +66,8 @@ public sealed class DownloadSession : IDownloadSession
                 prevCompleted = _state.CompletedLength;
                 prevTotal = _state.TotalLength;
                 prevSpeed = _state.TotalDownloadSpeed;
+
+                _onTick?.Invoke(_state, _watch.Elapsed);
 
                 if (_state.NumActive == 0 && _state.NumWaiting == 0)
                 {
