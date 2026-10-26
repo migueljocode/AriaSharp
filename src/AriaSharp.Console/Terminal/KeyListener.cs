@@ -55,4 +55,24 @@ internal static class KeyListener
         catch (IOException) { }
         return false;
     }
+
+    /// <summary>Wait for any key (or Q/Esc) to dismiss a held screen. No Enter.</summary>
+    public static void WaitDismiss()
+    {
+        try
+        {
+            while (true)
+            {
+                if (!System.Console.KeyAvailable)
+                {
+                    Thread.Sleep(30);
+                    continue;
+                }
+                _ = System.Console.ReadKey(intercept: true);
+                return;
+            }
+        }
+        catch (InvalidOperationException) { }
+        catch (IOException) { }
+    }
 }

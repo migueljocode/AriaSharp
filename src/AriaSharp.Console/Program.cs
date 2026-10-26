@@ -332,30 +332,44 @@ internal static class Program
             var sess = Path.GetFullPath(sessionPath);
             var color = !settings.NoColor && !settings.Ascii && !settings.Plain
                 && !System.Console.IsOutputRedirected;
-            var canPrompt = outcome.Kind == RunOutcomeKind.Failed
-                && !settings.Yes
+            var canInteract = !settings.Yes
                 && !settings.Plain
                 && !System.Console.IsInputRedirected
                 && !System.Console.IsOutputRedirected;
+            var bad = outcome.Kind is RunOutcomeKind.Failed or RunOutcomeKind.Empty;
+            var canPrompt = outcome.Kind == RunOutcomeKind.Failed && canInteract;
 
-            // Dashboard already rendered summary + prompt inside alt screen.
-            if (!useDashboard)
-                SummaryView.Write(finalState, outcome, elapsed, outDir, sess, color, showRetryPrompt: canPrompt);
+            // Always leave a durable summary in the normal buffer after alt-screen exits.
+            SummaryView.Write(
+                finalState, outcome, elapsed, outDir, sess, color,
+                showRetryPrompt: canPrompt && !useDashboard);
 
             var retry = false;
-            if (canPrompt)
+            if (useDashboard)
             {
-                if (useDashboard)
-                    retry = dashboardRetry;
-                else
-                    retry = KeyListener.WaitRetryOrQuit();
+                retry = dashboardRetry;
             }
+            else if (canPrompt)
+            {
+                retry = KeyListener.WaitRetryOrQuit();
+            }
+            else if (bad && canInteract)
+            {
+                await System.Console.Out.WriteLineAsync("Press any key to continue…").ConfigureAwait(false);
+                KeyListener.WaitDismiss();
+            }
+
+            if (outcome.Kind == RunOutcomeKind.Failed && !string.IsNullOrEmpty(outcome.Message))
+                await System.Console.Error.WriteLineAsync($"Error: {outcome.Message}").ConfigureAwait(false);
+            else if (outcome.Kind == RunOutcomeKind.Empty && !string.IsNullOrEmpty(outcome.Message))
+                await System.Console.Error.WriteLineAsync($"Error: {outcome.Message}").ConfigureAwait(false);
 
             var code = outcome.Kind switch
             {
                 RunOutcomeKind.Completed => (int)ExitCode.Ok,
                 RunOutcomeKind.Interrupted => (int)ExitCode.Interrupted,
-                RunOutcomeKind.Empty => (int)ExitCode.Ok,
+                // Empty (no items) is a failure for the user, not success
+                RunOutcomeKind.Empty => (int)ExitCode.Failure,
                 _ => (int)ExitCode.Failure,
             };
             return (code, retry);
@@ -435,25 +449,30 @@ internal static class Program
                             outcome = RunOutcome.Failed(ex.Message);
                         }
 
-                        // Still inside Live + alt screen: show summary / retry prompt
+                        // Still inside Live + alt screen: show summary and hold so it is not a flash.
                         var state = session?.State ?? empty;
                         var elapsed = session?.Elapsed ?? TimeSpan.Zero;
-                        var offer = outcome.Kind == RunOutcomeKind.Failed
-                            && !settings.Yes
-                            && !settings.Plain;
+                        var interactive = !settings.Yes && !settings.Plain;
+                        var bad = outcome.Kind is RunOutcomeKind.Failed or RunOutcomeKind.Empty;
+                        var offerRetry = outcome.Kind == RunOutcomeKind.Failed && interactive;
                         try
                         {
                             ctx.UpdateTarget(SummaryView.Build(
-                                state, outcome, elapsed, outputDir, sessionPath, showRetryPrompt: offer));
+                                state, outcome, elapsed, outputDir, sessionPath,
+                                showRetryPrompt: offerRetry));
                         }
                         catch (InvalidOperationException) { }
                         catch (IOException) { }
 
-                        if (offer)
+                        if (bad && interactive)
                         {
-                            // stop cancel watcher from eating R key
-                            try { await linked.CancelAsync().ConfigureAwait(false); } catch (ObjectDisposedException) { }
-                            retry = KeyListener.WaitRetryOrQuit();
+                            // stop cancel watcher from eating keys
+                            try { await linked.CancelAsync().ConfigureAwait(false); }
+                            catch (ObjectDisposedException) { }
+                            if (offerRetry)
+                                retry = KeyListener.WaitRetryOrQuit();
+                            else
+                                KeyListener.WaitDismiss(); // Empty: any key to close
                         }
                     }).ConfigureAwait(false);
             }

@@ -115,7 +115,7 @@ public sealed class DownloadSession : IDownloadSession
         var total = state.AllItems.Count;
 
         if (total == 0)
-            return RunOutcome.Empty("No downloads.");
+            return RunOutcome.Empty("No downloads started — input had no usable URLs or aria2 rejected them.");
 
         if (failed > 0)
         {
@@ -129,7 +129,7 @@ public sealed class DownloadSession : IDownloadSession
         }
 
         if (complete == 0 && state.StoppedItems.Count == 0 && state.InterruptedItems.Count == 0)
-            return RunOutcome.Empty("Nothing completed.");
+            return RunOutcome.Empty("Nothing completed — check URLs and network.");
 
         return RunOutcome.Completed();
     }
