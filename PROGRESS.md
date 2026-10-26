@@ -1,19 +1,20 @@
 # PROGRESS.md
 
 ## Milestone
-M4: dashboard + inline + width snapshots.
+M2–M4 on feat/rebuild: engine, session, dashboard, inline, throttle.
 
 ## Done
-- Purple Live dashboard, ScreenGuard, q/Esc cancel
-- **--inline**: single-line colored progress (no alt screen)
-- DashboardView width snapshots at 40/80/120
-- InlineViewTests
-- **Verified:** 132 tests; --plain and --inline smoke exit 0
+- Real Aria2Engine (RPC, multicall, WS notifications, owner-only conf)
+- DownloadSession outcomes (Completed/Failed/Empty/Interrupted) + SummaryView
+- Live plain progress + ProgressThrottle (~1 Hz when redirected)
+- Purple Spectre Live dashboard, ScreenGuard, q/Esc cancel
+- --inline single-line mode
+- Dashboard width snapshots
+- **Verified:** 137 tests; example.com exit 0; 404 exit 1
 
 ## Next
-- Optional: throttle progress when redirected
-- Installer scripts (compile aria2) if desired
-- Open PR to main when ready
+- Open PR → main (16+ commits)
+- Installer scripts optional
 
 ## Blocked
 - (none)

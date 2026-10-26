@@ -187,10 +187,14 @@ internal static class Program
             {
                 var interactive = !System.Console.IsOutputRedirected;
                 var useInline = settings.Inline && !settings.Plain;
+                // Throttle redirected progress to ~1 Hz; interactive CR updates stay full rate.
+                ProgressThrottle? throttle = interactive ? null : new ProgressThrottle(1000);
                 ProgressTick? onTick = (state, tickElapsed) =>
                 {
                     try
                     {
+                        if (throttle is not null && !throttle.ShouldEmit(state, tickElapsed))
+                            return;
                         if (useInline)
                             InlineView.WriteProgress(System.Console.Error, state, tickElapsed, color: !settings.NoColor);
                         else
