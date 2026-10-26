@@ -49,6 +49,13 @@ internal static class Program
             settings.InstallAria2 = false;
         }
 
+        // -y / --yes: non-interactive defaults
+        if (settings.Yes)
+        {
+            settings.KeepListFiles = true;
+            settings.Resume = true;
+        }
+
         if (settings.Force)
             settings.AllowOverwrite = true;
 
@@ -123,8 +130,36 @@ internal static class Program
             }
             catch (FileNotFoundException ex)
             {
-                await System.Console.Error.WriteLineAsync($"Error: {ex.Message}").ConfigureAwait(false);
-                return (int)ExitCode.Failure;
+                var mayInstall = !settings.NoInstall
+                    && (settings.InstallDeps || settings.InstallAria2 || settings.Yes);
+                if (mayInstall)
+                {
+                    await System.Console.Error.WriteLineAsync("aria2c not found — attempting install…").ConfigureAwait(false);
+                    var installed = await PrerequisiteInstaller.InstallAria2Async(cts.Token).ConfigureAwait(false);
+                    if (installed)
+                    {
+                        try
+                        {
+                            aria2Path = await new Aria2Locator(settings.Aria2Path).LocateAsync(cts.Token).ConfigureAwait(false);
+                        }
+                        catch (FileNotFoundException retryEx)
+                        {
+                            await System.Console.Error.WriteLineAsync($"Error: install reported success but aria2c still missing ({retryEx.Message})").ConfigureAwait(false);
+                            return (int)ExitCode.Failure;
+                        }
+                    }
+                    else
+                    {
+                        await System.Console.Error.WriteLineAsync($"Error: {ex.Message}").ConfigureAwait(false);
+                        return (int)ExitCode.Failure;
+                    }
+                }
+                else
+                {
+                    await System.Console.Error.WriteLineAsync($"Error: {ex.Message}").ConfigureAwait(false);
+                    await System.Console.Error.WriteLineAsync("Hint: pass -y / --install-deps / --install-aria2 to install, or --aria2-path.").ConfigureAwait(false);
+                    return (int)ExitCode.Failure;
+                }
             }
 
             var port = Aria2Engine.FindFreePort();

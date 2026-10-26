@@ -1,20 +1,18 @@
 # PROGRESS.md
 
 ## Milestone
-M2–M4 on feat/rebuild: engine, session, dashboard, inline, throttle.
+CLI option correctness + M2–M4 on feat/rebuild.
 
 ## Done
-- Real Aria2Engine (RPC, multicall, WS notifications, owner-only conf)
-- DownloadSession outcomes (Completed/Failed/Empty/Interrupted) + SummaryView
-- Live plain progress + ProgressThrottle (~1 Hz when redirected)
-- Purple Spectre Live dashboard, ScreenGuard, q/Esc cancel
-- --inline single-line mode
-- Dashboard width snapshots
-- **Verified:** 137 tests; example.com exit 0; 404 exit 1
+- **`-y` → `--yes`** (was wrongly `--install-deps`)
+- `--install-deps` long-only; `-n` still `--no-install`
+- `--yes` sets KeepListFiles + Resume; enables aria2 install attempt if missing
+- ArgParser coverage for shorts + core long flags + value forms
+- **Verified:** 141 tests; print-config shows Yes/Force/AllowOverwrite
 
 ## Next
-- Open PR → main (16+ commits)
-- Installer scripts optional
+- Watch CI on PR #1
+- Optional installers polish
 
 ## Blocked
 - (none)

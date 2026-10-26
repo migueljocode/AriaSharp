@@ -87,9 +87,19 @@ public class ArgParserTests
     }
 
     [Fact]
-    public void InstallDeps_NoInstall()
+    public void Yes_ShortY_MapsToYes_NotInstallDeps()
     {
         var settings = ArgParser.Parse(["-y"]);
+        Assert.True(settings.Yes == true);
+        Assert.Null(settings.InstallDeps);
+        settings = ArgParser.Parse(["--yes"]);
+        Assert.True(settings.Yes == true);
+    }
+
+    [Fact]
+    public void InstallDeps_LongOnly_NoInstall_ShortN()
+    {
+        var settings = ArgParser.Parse(["--install-deps"]);
         Assert.True(settings.InstallDeps == true);
         settings = ArgParser.Parse(["-n"]);
         Assert.True(settings.NoInstall == true);
@@ -199,5 +209,56 @@ public class ArgParserTests
         {
             System.Console.SetError(oldError);
         }
+    }
+
+    [Fact]
+    public void AllShortFlags_ParseWithoutError()
+    {
+        // Every short letter currently claimed by OptionTable
+        var settings = ArgParser.Parse(["-y", "-n", "-f", "-k", "-v", "-h"]);
+        Assert.True(settings.Yes == true);
+        Assert.True(settings.NoInstall == true);
+        Assert.True(settings.Force == true);
+        Assert.True(settings.KeepListFiles == true);
+        Assert.True(settings.Verbose == true);
+        Assert.True(settings.Help == true);
+    }
+
+    [Fact]
+    public void LongFlags_CoreSet()
+    {
+        var settings = ArgParser.Parse([
+            "--plain", "--inline", "--no-color", "--ascii", "--no-pager",
+            "--resume", "--force", "--auto-file-renaming",
+            "--install-deps", "--install-aria2", "--print-config",
+        ]);
+        Assert.True(settings.Plain == true);
+        Assert.True(settings.Inline == true);
+        Assert.True(settings.NoColor == true);
+        Assert.True(settings.Ascii == true);
+        Assert.True(settings.NoPager == true);
+        Assert.True(settings.Resume == true);
+        Assert.True(settings.Force == true);
+        Assert.True(settings.AutoFileRenaming == true);
+        Assert.True(settings.InstallDeps == true);
+        Assert.True(settings.InstallAria2 == true);
+        Assert.True(settings.PrintConfig == true);
+    }
+
+    [Fact]
+    public void ValueOptions_AttachedAndSeparated()
+    {
+        var a = ArgParser.Parse(["-o", "/tmp/a", "-j", "3", "-c", "8", "-l", "2M", "-s", "/tmp/s.session"]);
+        Assert.Equal("/tmp/a", a.OutputDir);
+        Assert.Equal(3, a.MaxConcurrentDownloads);
+        Assert.Equal(8, a.Connections);
+        Assert.Equal("2M", a.SpeedLimit);
+        Assert.Equal("/tmp/s.session", a.SessionFile);
+
+        var b = ArgParser.Parse(["-j3", "-c8", "--output=/tmp/b", "--limit=500K"]);
+        Assert.Equal(3, b.MaxConcurrentDownloads);
+        Assert.Equal(8, b.Connections);
+        Assert.Equal("/tmp/b", b.OutputDir);
+        Assert.Equal("500K", b.SpeedLimit);
     }
 }
