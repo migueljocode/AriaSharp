@@ -51,7 +51,8 @@ internal static class Program
 
         if (cli.Help == true)
         {
-            await System.Console.Out.WriteLineAsync(HelpDocument.Render(settings)).ConfigureAwait(false);
+            Theme.Enabled = !(settings.NoColor || settings.Ascii || settings.Plain);
+            HelpView.Render(settings);
             return (int)ExitCode.Ok;
         }
 
