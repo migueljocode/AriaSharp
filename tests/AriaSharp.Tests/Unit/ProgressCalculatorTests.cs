@@ -80,6 +80,37 @@ public class ProgressCalculatorTests
     }
 
     [Fact]
+    public void Compute_IncludesWaitingInOverall()
+    {
+        var calc = new ProgressCalculator();
+        var snap = Snapshot(
+            active: [Item(50, 100)],
+            waiting: [Item(0, 400)]);
+
+        var state = calc.Compute(snap, 0, 0, 0, 1);
+
+        Assert.Equal(50, state.CompletedLength);
+        Assert.Equal(500, state.TotalLength);
+        Assert.Equal(1, state.NumWaiting);
+        Assert.True(state.OverallPercent < 15);
+    }
+
+    [Fact]
+    public void Compute_Paused_FreezesEta()
+    {
+        var calc = new ProgressCalculator();
+        // warm up EMA
+        var active = Snapshot(active: [Item(50, 100)], speed: 10_000);
+        _ = calc.Compute(active, 0, 0, 0, 5);
+        _ = calc.Compute(active, 50, 100, 10_000, 6);
+        // all paused
+        var paused = Snapshot(paused: [Item(50, 100, DownloadState.Paused)], speed: 0);
+        var state = calc.Compute(paused, 50, 100, 10_000, 7);
+        Assert.Equal(Confidence.Unknown, state.OverallEta.Confidence);
+        Assert.Null(state.OverallEta.Seconds);
+    }
+
+    [Fact]
     public void Compute_EmptySnapshot_EstimatedZero()
     {
         var calc = new ProgressCalculator();

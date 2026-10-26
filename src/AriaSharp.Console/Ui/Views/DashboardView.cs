@@ -31,6 +31,9 @@ internal static class DashboardView
             $"[#BB86FC]{new string('█', filled)}[/]" +
             $"[#6C3483]{new string('░', Math.Max(0, barWidth - filled))}[/]";
 
+        var etaText = state.NumActive == 0 && state.NumPaused > 0 && state.TotalDownloadSpeed <= 0
+            ? "paused"
+            : state.OverallEta.Format();
         var overallRows = new Rows(
             new Markup(bar),
             new Markup(
@@ -38,7 +41,7 @@ internal static class DashboardView
                 $"[grey]{Markup.Escape(state.TotalLength > 0 ? FormatHelpers.FormatBytes(state.TotalLength) : "?")}[/]  " +
                 $"[#BB86FC]{state.OverallPercent:F1}%[/]  " +
                 $"[grey]{Markup.Escape(FormatHelpers.FormatSpeed(state.TotalDownloadSpeed))}[/]  " +
-                $"eta [grey]{Markup.Escape(state.OverallEta.Format())}[/]  " +
+                $"eta [grey]{Markup.Escape(etaText)}[/]  " +
                 $"[dim]{FormatElapsed(elapsed)}[/]"));
 
         root.AddRow(new Panel(overallRows)
@@ -160,12 +163,14 @@ internal static class DashboardView
                 .Expand());
         }
 
-        // Keybinding footer
+        // Purple ribbon keybinding strip (help-page style)
         root.AddRow(new Panel(new Markup(
-                $"[{Theme.PurpleBright}]P[/] [{Theme.Muted}]pause all[/]   "
-                + $"[{Theme.PurpleBright}]R[/] [{Theme.Muted}]resume all[/]   "
-                + $"[{Theme.PurpleBright}]Q[/]/[{Theme.PurpleBright}]Esc[/] [{Theme.Muted}]stop[/]"))
-            .BorderColor(PurpleDeep)
+                $"[#BB86FC on #6C3483] P [/][white on #6C3483] pause [/]  "
+                + $"[#BB86FC on #6C3483] R [/][white on #6C3483] resume [/]  "
+                + $"[#BB86FC on #6C3483] Q [/][white on #6C3483]/[/][#BB86FC on #6C3483] Esc [/][white on #6C3483] stop [/]"))
+            .Header($"[{Theme.Magenta}]KEYS[/]")
+            .BorderColor(Purple)
+            .Border(BoxBorder.Rounded)
             .Padding(1, 0)
             .Expand());
 
@@ -187,6 +192,8 @@ internal static class DashboardView
 
     private static string ItemEta(DownloadItem item)
     {
+        if (item.State == DownloadState.Paused)
+            return "paused";
         if (item.DownloadSpeed <= 0 || item.TotalLength <= 0 || item.CompletedLength >= item.TotalLength)
             return "--";
         var remain = item.TotalLength - item.CompletedLength;

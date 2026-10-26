@@ -25,38 +25,44 @@ public sealed class ProgressCalculator : IProgressCalculator
         var skippedItems = snapshot.Skipped;
         var interruptedItems = snapshot.Interrupted;
 
-        var activeCompleted = activeItems.Sum(i => i.CompletedLength);
-        var activeTotal = activeItems.Sum(i => i.TotalLength);
-        var waitingTotal = waitingItems.Sum(i => i.TotalLength);
-        var stoppedTotal = stoppedItems.Sum(i => i.TotalLength);
-        var pausedTotal = pausedItems.Sum(i => i.TotalLength);
-        var completeTotal = completeItems.Sum(i => i.TotalLength > 0 ? i.TotalLength : i.CompletedLength);
-        var completeCompleted = completeItems.Sum(i => i.CompletedLength > 0 ? i.CompletedLength : i.TotalLength);
+        // Overall = every download (active + queued/waiting + paused + terminal)
+        static long ItemTotal(DownloadItem i) =>
+            i.TotalLength > 0 ? i.TotalLength : Math.Max(0, i.CompletedLength);
+        static long ItemDone(DownloadItem i) => Math.Max(0, i.CompletedLength);
 
-        // Failed / skipped / interrupted contribute their completed length but not open work.
-        var terminalCompleted = completeCompleted
-            + failedItems.Sum(i => i.CompletedLength)
-            + skippedItems.Sum(i => i.CompletedLength)
-            + interruptedItems.Sum(i => i.CompletedLength);
+        var cohorts = new[]
+        {
+            activeItems, waitingItems, stoppedItems, pausedItems,
+            completeItems, failedItems, skippedItems, interruptedItems,
+        };
 
-        var unknownTotal = activeItems.Concat(waitingItems).Concat(stoppedItems).Concat(pausedItems)
-            .Sum(i => i.TotalLength <= 0 ? 1L : 0L);
+        long completed = 0, total = 0, unknownTotal = 0;
+        foreach (var list in cohorts)
+        {
+            foreach (var i in list)
+            {
+                completed += ItemDone(i);
+                var t = ItemTotal(i);
+                total += t;
+                if (i.TotalLength <= 0)
+                    unknownTotal++;
+            }
+        }
 
-        var totalKnown = activeTotal + waitingTotal + stoppedTotal + pausedTotal + completeTotal;
-        var completed = activeCompleted
-            + stoppedItems.Sum(i => i.CompletedLength)
-            + pausedItems.Sum(i => i.CompletedLength)
-            + terminalCompleted;
+        var activeCompleted = activeItems.Sum(ItemDone);
+        var activeTotal = activeItems.Sum(ItemTotal);
+        var waitingTotal = waitingItems.Sum(ItemTotal);
+        var stoppedTotal = stoppedItems.Sum(ItemTotal);
+        var pausedTotal = pausedItems.Sum(ItemTotal);
 
-        var total = totalKnown;
         Confidence confidence;
         double overallPercent;
-        if (unknownTotal > 0 && totalKnown > 0)
+        if (unknownTotal > 0 && total > 0)
         {
             confidence = Confidence.AtLeast;
-            overallPercent = total > 0 ? (double)completed / total * 100 : 0;
+            overallPercent = (double)completed / total * 100;
         }
-        else if (totalKnown > 0)
+        else if (total > 0)
         {
             confidence = Confidence.Exact;
             overallPercent = (double)completed / total * 100;
@@ -67,21 +73,29 @@ public sealed class ProgressCalculator : IProgressCalculator
             overallPercent = 0;
         }
 
-        var delta = completed - previousCompleted;
         var speed = snapshot.TotalDownloadSpeed;
-        if (speed <= 0 && delta > 0)
+        var delta = completed - previousCompleted;
+        if (speed <= 0 && delta > 0 && activeItems.Count > 0)
             speed = (long)(delta / (Math.Max(1, ticks) * 0.5));
 
-        _emaSpeed = _emaSpeed == 0
-            ? speed
-            : (AppDefaults.EmaAlpha * speed + (1 - AppDefaults.EmaAlpha) * _emaSpeed);
-
-        if (speed > 0) _stableTicks++;
-        else _stableTicks = 0;
+        // Pause / idle: freeze ETA — do not keep EMA coasting
+        var pausedOrIdle = activeItems.Count == 0 || speed <= 0;
+        if (pausedOrIdle)
+        {
+            _emaSpeed = 0;
+            _stableTicks = 0;
+        }
+        else
+        {
+            _emaSpeed = _emaSpeed == 0
+                ? speed
+                : (AppDefaults.EmaAlpha * speed + (1 - AppDefaults.EmaAlpha) * _emaSpeed);
+            _stableTicks++;
+        }
 
         var remaining = Math.Max(0, total - completed);
         EtaEstimate eta;
-        if (_stableTicks >= AppDefaults.EtaStableTicks && _emaSpeed > 0)
+        if (!pausedOrIdle && _stableTicks >= AppDefaults.EtaStableTicks && _emaSpeed > 0 && remaining > 0)
         {
             var seconds = remaining / _emaSpeed;
             eta = confidence == Confidence.Exact ? EtaEstimate.Exact(seconds) : EtaEstimate.AtLeast(seconds);
@@ -110,7 +124,7 @@ public sealed class ProgressCalculator : IProgressCalculator
             NumWaiting = waitingItems.Count,
             NumStopped = stoppedItems.Count,
             NumPaused = pausedItems.Count,
-            TotalDownloadSpeed = speed,
+            TotalDownloadSpeed = snapshot.TotalDownloadSpeed,
             TotalUploadSpeed = snapshot.TotalUploadSpeed,
             CompletedLength = completed,
             TotalLength = total,
