@@ -90,14 +90,13 @@ public sealed class Aria2Engine : IAria2Engine
         ], ct).ConfigureAwait(false);
 
         var active = MapItems(ExtractMulticallResult(multicall, 0));
-        var waiting = MapItems(ExtractMulticallResult(multicall, 1));
+        var (waiting, paused) = SplitPaused(MapItems(ExtractMulticallResult(multicall, 1)));
         var stoppedRaw = MapItems(ExtractMulticallResult(multicall, 2));
         var global = ExtractMulticallResult(multicall, 3);
 
         var complete = new List<DownloadItem>();
         var failed = new List<DownloadItem>();
         var skipped = new List<DownloadItem>();
-        var paused = new List<DownloadItem>();
         var interrupted = new List<DownloadItem>();
         var stopped = new List<DownloadItem>();
 
@@ -114,9 +113,6 @@ public sealed class Aria2Engine : IAria2Engine
                     break;
                 case DownloadState.Failed:
                     failed.Add(item);
-                    break;
-                case DownloadState.Paused:
-                    paused.Add(item);
                     break;
                 case DownloadState.Interrupted:
                     interrupted.Add(item);
@@ -339,6 +335,10 @@ private async Task WaitForRpcAsync(CancellationToken ct)
             return entry[0];
         return default;
     }
+
+    // aria2 lists paused downloads in tellWaiting (status "paused"), never in tellStopped.
+    internal static (List<DownloadItem> Waiting, List<DownloadItem> Paused) SplitPaused(List<DownloadItem> queue) =>
+        (queue.FindAll(i => i.State != DownloadState.Paused), queue.FindAll(i => i.State == DownloadState.Paused));
 
     private static List<DownloadItem> MapItems(JsonElement array)
     {
