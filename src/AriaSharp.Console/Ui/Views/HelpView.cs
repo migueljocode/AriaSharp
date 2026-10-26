@@ -11,7 +11,6 @@ namespace AriaSharp.App;
 internal static class HelpView
 {
     private static readonly Color Purple = new(155, 89, 182);
-    private static readonly Color PurpleBright = new(187, 134, 252);
     private static readonly Color PurpleDeep = new(108, 52, 131);
 
     public static void Render(AppSettings settings)
