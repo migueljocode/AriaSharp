@@ -1,20 +1,20 @@
 # PROGRESS.md
 
 ## Milestone
-WebSocket notifications + live plain progress + M2.
+M4 slice: purple Spectre Live dashboard.
 
 ## Done
-- Aria2Engine end-to-end + DownloadSession classification + SummaryView
-- Live plain progress (ProgressTick → PlainView)
-- **Aria2NotificationListener**: ClientWebSocket on ws://127.0.0.1:port/jsonrpc
-  maps onDownloadStart/Pause/Stop/Complete/Error + onBtDownloadComplete → EngineEvent channel
-  best-effort (HTTP poll remains source of truth if WS fails)
-- NotificationTests (TryMap) — **122 tests green**
-- Smoke: example.com exit 0
+- M2 engine + session + summary + plain progress + WebSocket events
+- **DashboardView**: Figlet, overall bar, active table, status, failed list (purple theme)
+- **Program**: Live dashboard when interactive ANSI terminal; --plain/--no-color falls back to PlainView
+- DashboardViewTests (Spectre TestConsole-style render smoke)
+- **Verified:** 124 tests; --plain smoke exit 0
 
 ## Next
-- Full-screen purple dashboard (M4) consuming Events + snapshots
-- Optional: surface notification events in verbose/plain output
+- Dashboard key handling (q/Esc cancel)
+- Alternate screen + ScreenGuard restore
+- Inline mode polish
+- Snapshot tests at multiple widths
 
 ## Blocked
 - (none)

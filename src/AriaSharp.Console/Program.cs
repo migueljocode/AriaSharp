@@ -1,5 +1,7 @@
 using System.Text.Json;
 
+using Spectre.Console;
+
 using AriaSharp.Models;
 using AriaSharp.Services;
 
@@ -166,37 +168,53 @@ internal static class Program
                 return (int)ExitCode.Failure;
             }
 
-            // Live progress: always on for --plain; also for default mode until the dashboard lands.
-            var interactive = !System.Console.IsOutputRedirected && !settings.NoColor;
-            ProgressTick? onTick = (state, elapsed) =>
-            {
-                try { PlainView.WriteProgress(System.Console.Error, state, elapsed, interactive); }
-                catch (IOException) { /* broken pipe */ }
-            };
+            var useDashboard = !settings.Plain && !settings.NoColor && !settings.Ascii
+                && !System.Console.IsOutputRedirected
+                && AnsiConsole.Profile.Capabilities.Interactive
+                && AnsiConsole.Profile.Capabilities.Ansi;
 
-            var session = new DownloadSession(engine, new ProgressCalculator(), settings, onTick);
             RunOutcome outcome;
-            try
-            {
-                outcome = await session.RunAsync(cts.Token).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                outcome = RunOutcome.Interrupted();
-            }
-            catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or IOException)
-            {
-                PlainView.EndProgress(System.Console.Error, interactive);
-                await System.Console.Error.WriteLineAsync($"Error: {ex.Message}").ConfigureAwait(false);
-                return (int)ExitCode.Failure;
-            }
+            SessionState finalState;
+            TimeSpan elapsed;
 
-            PlainView.EndProgress(System.Console.Error, interactive);
+            if (useDashboard)
+            {
+                Theme.Enabled = true;
+                (outcome, finalState, elapsed) = await RunWithDashboardAsync(
+                    engine, settings, cts.Token).ConfigureAwait(false);
+            }
+            else
+            {
+                var interactive = !System.Console.IsOutputRedirected;
+                ProgressTick? onTick = (state, tickElapsed) =>
+                {
+                    try { PlainView.WriteProgress(System.Console.Error, state, tickElapsed, interactive); }
+                    catch (IOException) { }
+                };
+                var session = new DownloadSession(engine, new ProgressCalculator(), settings, onTick);
+                try
+                {
+                    outcome = await session.RunAsync(cts.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    outcome = RunOutcome.Interrupted();
+                }
+                catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or IOException)
+                {
+                    PlainView.EndProgress(System.Console.Error, interactive);
+                    await System.Console.Error.WriteLineAsync($"Error: {ex.Message}").ConfigureAwait(false);
+                    return (int)ExitCode.Failure;
+                }
+                PlainView.EndProgress(System.Console.Error, interactive);
+                finalState = session.State;
+                elapsed = session.Elapsed;
+            }
 
             var summary = SummaryView.Render(
-                session.State,
+                finalState,
                 outcome,
-                session.Elapsed,
+                elapsed,
                 Path.GetFullPath(outputDir),
                 Path.GetFullPath(sessionPath));
             await System.Console.Out.WriteAsync(summary).ConfigureAwait(false);
@@ -217,5 +235,52 @@ internal static class Program
             await engine.DisposeAsync().ConfigureAwait(false);
             await workspace.DisposeAsync().ConfigureAwait(false);
         }
+    }
+
+    private static async Task<(RunOutcome Outcome, SessionState State, TimeSpan Elapsed)> RunWithDashboardAsync(
+        Aria2Engine engine,
+        AppSettings settings,
+        CancellationToken ct)
+    {
+        RunOutcome outcome = RunOutcome.Interrupted();
+        DownloadSession? session = null;
+
+        var empty = new SessionState
+        {
+            ActiveItems = [],
+            WaitingItems = [],
+            StoppedItems = [],
+            PausedItems = [],
+            CompleteItems = [],
+            FailedItems = [],
+            SkippedItems = [],
+            InterruptedItems = [],
+            AllItems = [],
+        };
+
+        await AnsiConsole.Live(DashboardView.Build(empty, TimeSpan.Zero))
+            .AutoClear(false)
+            .Overflow(VerticalOverflow.Ellipsis)
+            .Cropping(VerticalOverflowCropping.Bottom)
+            .StartAsync(async ctx =>
+            {
+                ProgressTick onTick = (state, elapsed) =>
+                {
+                    try { ctx.UpdateTarget(DashboardView.Build(state, elapsed)); }
+                    catch (InvalidOperationException) { }
+                    catch (IOException) { }
+                };
+                session = new DownloadSession(engine, new ProgressCalculator(), settings, onTick);
+                try
+                {
+                    outcome = await session.RunAsync(ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    outcome = RunOutcome.Interrupted();
+                }
+            }).ConfigureAwait(false);
+
+        return (outcome, session?.State ?? empty, session?.Elapsed ?? TimeSpan.Zero);
     }
 }
