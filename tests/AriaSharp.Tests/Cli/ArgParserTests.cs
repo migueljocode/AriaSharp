@@ -182,16 +182,18 @@ public class ArgParserTests
     }
 
     [Fact]
-    public async Task Program_Inputs_ReturnsNotImplemented()
+    public async Task Program_Inputs_MissingAria2_FailsHonestly()
     {
         var oldError = System.Console.Error;
         using var sw = new System.IO.StringWriter();
         System.Console.SetError(sw);
         try
         {
-            var exitCode = await Program.Main(["https://example.com/file"]);
+            var exitCode = await Program.Main(["--aria2-path", "/nonexistent/aria2c", "https://example.com/file"]);
             Assert.Equal(1, exitCode);
-            Assert.Contains("engine not implemented yet", sw.ToString(), StringComparison.Ordinal);
+            var err = sw.ToString();
+            Assert.DoesNotContain("engine not implemented yet", err, StringComparison.Ordinal);
+            Assert.Contains("aria2", err, StringComparison.OrdinalIgnoreCase);
         }
         finally
         {

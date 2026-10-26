@@ -21,7 +21,7 @@ public sealed class Aria2Process : IAsyncDisposable
             CreateNoWindow = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
-            RedirectStandardInput = true,
+            RedirectStandardInput = false,
             WindowStyle = ProcessWindowStyle.Hidden,
         };
         foreach (var arg in args)

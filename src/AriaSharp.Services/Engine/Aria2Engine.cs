@@ -36,7 +36,7 @@ public sealed class Aria2Engine : IAria2Engine
         if (_process is not null)
             throw new InvalidOperationException("Engine already started.");
 
-        await WriteConfAsync(settings.ConfFile, settings.Secret, ct).ConfigureAwait(false);
+        await WriteConfAsync(settings.ConfFile, settings.Secret, settings.Port, ct).ConfigureAwait(false);
 
         var logChannel = Channel.CreateUnbounded<string>(new UnboundedChannelOptions
         {
@@ -218,7 +218,7 @@ public sealed class Aria2Engine : IAria2Engine
         return Convert.ToHexString(bytes);
     }
 
-    private static async Task WriteConfAsync(string path, string secret, CancellationToken ct)
+    private static async Task WriteConfAsync(string path, string secret, int port, CancellationToken ct)
     {
         var options = new FileStreamOptions
         {
@@ -238,6 +238,8 @@ public sealed class Aria2Engine : IAria2Engine
             {
                 await writer.WriteLineAsync($"rpc-secret={secret}").ConfigureAwait(false);
                 await writer.WriteLineAsync("enable-rpc=true").ConfigureAwait(false);
+                await writer.WriteLineAsync("rpc-listen-all=false").ConfigureAwait(false);
+                await writer.WriteLineAsync($"rpc-listen-port={port}").ConfigureAwait(false);
                 await writer.FlushAsync(ct).ConfigureAwait(false);
             }
         }

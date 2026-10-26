@@ -1,12 +1,9 @@
-using System.Net.Http.Json;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace AriaSharp.Services;
 
 /// <summary>
-/// Minimal aria2 JSON-RPC 2.0 client over HTTP. No third-party packages; AOT-friendly with
-/// source-generated System.Text.Json. WebSocket notifications are a later slice.
+/// Minimal aria2 JSON-RPC 2.0 client over HTTP. Hand-written UTF-8 JSON for AOT safety.
 /// </summary>
 internal sealed class Aria2RpcClient : IAsyncDisposable
 {
@@ -20,72 +17,48 @@ internal sealed class Aria2RpcClient : IAsyncDisposable
         _tokenParam = "token:" + secret;
     }
 
-    public async Task<JsonElement> CallAsync(string method, object?[]? parameters, CancellationToken ct)
+    public Task<JsonElement> CallAsync(string method, object?[]? parameters, CancellationToken ct)
     {
-        var id = Interlocked.Increment(ref _id);
-        object[] paramsWithToken;
-        if (parameters is null || parameters.Length == 0)
-            paramsWithToken = [_tokenParam];
-        else
-        {
-            paramsWithToken = new object[parameters.Length + 1];
-            paramsWithToken[0] = _tokenParam;
-            parameters.CopyTo(paramsWithToken, 1);
-        }
-
-        var request = new RpcRequest
-        {
-            JsonRpc = "2.0",
-            Id = id.ToString(CultureInfo.InvariantCulture),
-            Method = method,
-            Params = paramsWithToken,
-        };
-
-        using var response = await _http.PostAsJsonAsync(
-            "jsonrpc",
-            request,
-            Aria2RpcJsonContext.Default.RpcRequest,
-            ct).ConfigureAwait(false);
-
-        response.EnsureSuccessStatusCode();
-
-        var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-        await using (stream.ConfigureAwait(false))
-        {
-            var rpc = await JsonSerializer.DeserializeAsync(stream, Aria2RpcJsonContext.Default.RpcResponse, ct)
-                .ConfigureAwait(false)
-                ?? throw new InvalidOperationException("Empty JSON-RPC response.");
-
-            if (rpc.Error is { } err)
-                throw new InvalidOperationException($"aria2 RPC {method}: [{err.Code}] {err.Message}");
-
-            return rpc.Result ?? throw new InvalidOperationException($"aria2 RPC {method}: missing result.");
-        }
+        var id = Interlocked.Increment(ref _id).ToString(CultureInfo.InvariantCulture);
+        var json = BuildRequest(id, method, parameters);
+        return SendAsync(method, json, ct);
     }
 
-    public async Task<JsonElement> MulticallAsync(IReadOnlyList<(string Method, object?[]? Params)> calls, CancellationToken ct)
+    public Task<JsonElement> MulticallAsync(IReadOnlyList<(string Method, object?[]? Params)> calls, CancellationToken ct)
     {
-        // aria2 system.multicall: array of {methodName, params}. Token is first element of each
-        // method's params (aria2 does not inject the secret for multicall entries).
-        var entries = new MulticallEntry[calls.Count];
-        for (var i = 0; i < calls.Count; i++)
+        var id = Interlocked.Increment(ref _id).ToString(CultureInfo.InvariantCulture);
+        using var stream = new MemoryStream();
+        using (var w = new Utf8JsonWriter(stream))
         {
-            var (method, p) = calls[i];
-            object[] inner;
-            if (p is null || p.Length == 0)
-                inner = [_tokenParam];
-            else
+            w.WriteStartObject();
+            w.WriteString("jsonrpc", "2.0");
+            w.WriteString("id", id);
+            w.WriteString("method", "system.multicall");
+            // system.multicall takes one argument: the array of calls (no outer token).
+            // Each call's params must start with the token when --rpc-secret is set.
+            w.WritePropertyName("params");
+            w.WriteStartArray();
+            w.WriteStartArray();
+            foreach (var (method, p) in calls)
             {
-                inner = new object[p.Length + 1];
-                inner[0] = _tokenParam;
-                p.CopyTo(inner, 1);
+                w.WriteStartObject();
+                w.WriteString("methodName", method);
+                w.WritePropertyName("params");
+                w.WriteStartArray();
+                w.WriteStringValue(_tokenParam);
+                if (p is not null)
+                {
+                    foreach (var item in p)
+                        WriteValue(w, item);
+                }
+                w.WriteEndArray();
+                w.WriteEndObject();
             }
-            entries[i] = new MulticallEntry { MethodName = method, Params = inner };
+            w.WriteEndArray();
+            w.WriteEndArray();
+            w.WriteEndObject();
         }
-
-        // system.multicall itself does not take the token as a separate first arg when using
-        // the structured form; pass the entries array only.
-        return await CallAsync("system.multicall", [entries], ct).ConfigureAwait(false);
+        return SendAsync("system.multicall", stream.ToArray(), ct);
     }
 
     public ValueTask DisposeAsync()
@@ -94,55 +67,91 @@ internal sealed class Aria2RpcClient : IAsyncDisposable
         return ValueTask.CompletedTask;
     }
 
-    internal sealed class RpcRequest
+    private async Task<JsonElement> SendAsync(string method, byte[] json, CancellationToken ct)
     {
-        [JsonPropertyName("jsonrpc")]
-        public string JsonRpc { get; set; } = "2.0";
+        using var content = new ByteArrayContent(json);
+        content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+        using var response = await _http.PostAsync(new Uri("jsonrpc", UriKind.Relative), content, ct).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
 
-        [JsonPropertyName("id")]
-        public string Id { get; set; } = "1";
-
-        [JsonPropertyName("method")]
-        public string Method { get; set; } = "";
-
-        [JsonPropertyName("params")]
-        public object[]? Params { get; set; }
+        var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+        await using (stream.ConfigureAwait(false))
+        {
+            using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct).ConfigureAwait(false);
+            var root = doc.RootElement;
+            if (root.TryGetProperty("error", out var err)
+                && err.ValueKind is not JsonValueKind.Null and not JsonValueKind.Undefined)
+            {
+                var code = err.TryGetProperty("code", out var c) ? c.GetInt32() : 0;
+                var msg = err.TryGetProperty("message", out var m) ? m.GetString() : "unknown";
+                throw new InvalidOperationException($"aria2 RPC {method}: [{code}] {msg}");
+            }
+            if (!root.TryGetProperty("result", out var result))
+                throw new InvalidOperationException($"aria2 RPC {method}: missing result.");
+            return result.Clone();
+        }
     }
 
-    internal sealed class RpcResponse
+    private byte[] BuildRequest(string id, string method, object?[]? parameters)
     {
-        [JsonPropertyName("id")]
-        public string? Id { get; set; }
-
-        [JsonPropertyName("result")]
-        public JsonElement? Result { get; set; }
-
-        [JsonPropertyName("error")]
-        public RpcError? Error { get; set; }
+        using var stream = new MemoryStream();
+        using (var w = new Utf8JsonWriter(stream))
+        {
+            w.WriteStartObject();
+            w.WriteString("jsonrpc", "2.0");
+            w.WriteString("id", id);
+            w.WriteString("method", method);
+            w.WritePropertyName("params");
+            w.WriteStartArray();
+            w.WriteStringValue(_tokenParam);
+            if (parameters is not null)
+            {
+                foreach (var p in parameters)
+                    WriteValue(w, p);
+            }
+            w.WriteEndArray();
+            w.WriteEndObject();
+        }
+        return stream.ToArray();
     }
 
-    internal sealed class RpcError
+    private static void WriteValue(Utf8JsonWriter w, object? value)
     {
-        [JsonPropertyName("code")]
-        public int Code { get; set; }
-
-        [JsonPropertyName("message")]
-        public string Message { get; set; } = "";
-    }
-
-    internal sealed class MulticallEntry
-    {
-        [JsonPropertyName("methodName")]
-        public string MethodName { get; set; } = "";
-
-        [JsonPropertyName("params")]
-        public object[] Params { get; set; } = [];
+        switch (value)
+        {
+            case null:
+                w.WriteNullValue();
+                break;
+            case string s:
+                w.WriteStringValue(s);
+                break;
+            case int i:
+                w.WriteNumberValue(i);
+                break;
+            case long l:
+                w.WriteNumberValue(l);
+                break;
+            case bool b:
+                w.WriteBooleanValue(b);
+                break;
+            case string[] arr:
+                w.WriteStartArray();
+                foreach (var s in arr) w.WriteStringValue(s);
+                w.WriteEndArray();
+                break;
+            case int[] arr:
+                w.WriteStartArray();
+                foreach (var i in arr) w.WriteNumberValue(i);
+                w.WriteEndArray();
+                break;
+            case object[] arr:
+                w.WriteStartArray();
+                foreach (var o in arr) WriteValue(w, o);
+                w.WriteEndArray();
+                break;
+            default:
+                w.WriteStringValue(Convert.ToString(value, CultureInfo.InvariantCulture));
+                break;
+        }
     }
 }
-
-[JsonSerializable(typeof(Aria2RpcClient.RpcRequest))]
-[JsonSerializable(typeof(Aria2RpcClient.RpcResponse))]
-[JsonSerializable(typeof(Aria2RpcClient.MulticallEntry))]
-[JsonSerializable(typeof(Aria2RpcClient.MulticallEntry[]))]
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
-internal sealed partial class Aria2RpcJsonContext : JsonSerializerContext;
