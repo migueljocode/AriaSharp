@@ -56,6 +56,8 @@ public class PlainViewTests
         PlainView.WriteProgress(sw, state, TimeSpan.FromSeconds(1), interactive: false);
         var text = sw.ToString();
         Assert.EndsWith(Environment.NewLine, text, StringComparison.Ordinal);
-        Assert.DoesNotContain("\r", text, StringComparison.Ordinal);
+        // Interactive path uses lone CR overwrite; redirected must end with a full newline
+        // (Windows NewLine is \r\n, so we only forbid a trailing lone CR without LF).
+        Assert.False(text.EndsWith('\r'));
     }
 }

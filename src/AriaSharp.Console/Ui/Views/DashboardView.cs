@@ -28,7 +28,7 @@ internal static class DashboardView
         root.AddRow(new Markup($"[{Theme.Accent}]download dashboard[/]").Centered());
         root.AddRow(new Text(""));
 
-        var barWidth = Math.Min(50, Math.Max(16, System.Console.WindowWidth - 24));
+        var barWidth = Math.Min(50, Math.Max(16, SafeWindowWidth() - 24));
         var filled = (int)Math.Round(Math.Clamp(state.OverallPercent / 100.0, 0, 1) * barWidth);
         var bar =
             $"[#BB86FC]{new string('█', filled)}[/]" +
@@ -122,4 +122,22 @@ internal static class DashboardView
         ts.TotalHours >= 1
             ? $"{(int)ts.TotalHours}:{ts.Minutes:D2}:{ts.Seconds:D2}"
             : $"{(int)ts.TotalMinutes}:{ts.Seconds:D2}";
+
+    private static int SafeWindowWidth()
+    {
+        try
+        {
+            var w = System.Console.WindowWidth;
+            return w > 0 ? w : 80;
+        }
+        catch (IOException)
+        {
+            return 80;
+        }
+        catch (InvalidOperationException)
+        {
+            return 80;
+        }
+    }
+
 }
