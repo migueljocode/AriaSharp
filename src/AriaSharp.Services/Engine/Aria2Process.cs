@@ -2,6 +2,8 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Threading.Channels;
 
+using AriaSharp.Models;
+
 namespace AriaSharp.Services;
 
 public sealed class Aria2Process : IAsyncDisposable
@@ -39,7 +41,7 @@ public sealed class Aria2Process : IAsyncDisposable
     {
         if (e.Data is { } data)
         {
-            _log.TryWrite(MaskCredentials(data));
+            _log.TryWrite(FormatHelpers.MaskCredentials(data));
         }
     }
 
@@ -47,7 +49,7 @@ public sealed class Aria2Process : IAsyncDisposable
     {
         if (e.Data is { } data)
         {
-            _log.TryWrite(MaskCredentials(data));
+            _log.TryWrite(FormatHelpers.MaskCredentials(data));
         }
     }
 
@@ -88,9 +90,17 @@ public sealed class Aria2Process : IAsyncDisposable
         {
             if (!_process.HasExited)
             {
-                _process.Kill(true);
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
-                await _process.WaitForExitAsync(cts.Token).ConfigureAwait(false);
+                // aria2.shutdown was already requested: give aria2 time to write its session, then kill.
+                using var grace = new CancellationTokenSource(AppDefaults.GracefulStopTimeoutMs);
+                try
+                {
+                    await _process.WaitForExitAsync(grace.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    _process.Kill(true);
+                    await _process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+                }
             }
         }
         catch (InvalidOperationException) { }
@@ -100,25 +110,5 @@ public sealed class Aria2Process : IAsyncDisposable
             _process.Dispose();
             _process = null;
         }
-    }
-
-    private static string MaskCredentials(string value)
-    {
-        if (string.IsNullOrEmpty(value))
-        {
-            return value;
-        }
-        var span = value.AsSpan();
-        var schemeEnd = span.IndexOf("://", StringComparison.Ordinal);
-        if (schemeEnd < 0)
-        {
-            return value;
-        }
-        var at = span[(schemeEnd + 3)..].IndexOf('@');
-        if (at < 0)
-        {
-            return value;
-        }
-        return value[..(schemeEnd + 3)] + "***@" + value[(schemeEnd + 4 + at)..];
     }
 }

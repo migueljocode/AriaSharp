@@ -50,9 +50,11 @@ public static class FormatHelpers
         if (string.IsNullOrEmpty(value)) return string.Empty;
         var schemeEnd = value.IndexOf("://", StringComparison.Ordinal);
         if (schemeEnd < 0) return value;
-        var at = value[(schemeEnd + 3)..].IndexOf('@', StringComparison.Ordinal);
-        if (at < 0) return value;
-        return value[..(schemeEnd + 3)] + "***@" + value[(schemeEnd + 4 + at)..];
+        var start = schemeEnd + 3;
+        var rest = value.AsSpan(start);
+        var end = rest.IndexOfAny("/?# ");
+        var at = (end < 0 ? rest : rest[..end]).LastIndexOf('@');
+        return at < 0 ? value : string.Concat(value.AsSpan(0, start), "***@", rest[(at + 1)..]);
     }
 
     public static string Truncate(string? value, int max)
