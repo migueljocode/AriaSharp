@@ -80,9 +80,11 @@ public sealed class SettingsStore : ISettingsStore
         var tmp = Path.Join(dir, $"settings-{Guid.NewGuid():N}.tmp");
         try
         {
-            await using var stream = new FileStream(tmp, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, FileOptions.Asynchronous);
-            await JsonSerializer.SerializeAsync(stream, settings, AppSettingsJsonContext.Default.AppSettings, ct).ConfigureAwait(false);
-            await stream.FlushAsync(ct).ConfigureAwait(false);
+            {
+                await using var stream = new FileStream(tmp, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, FileOptions.Asynchronous);
+                await JsonSerializer.SerializeAsync(stream, settings, AppSettingsJsonContext.Default.AppSettings, ct).ConfigureAwait(false);
+                await stream.FlushAsync(ct).ConfigureAwait(false);
+            }
             File.Move(tmp, path, overwrite: true);
         }
         catch
