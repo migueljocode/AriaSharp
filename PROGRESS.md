@@ -1,20 +1,19 @@
 # PROGRESS.md
 
 ## Milestone
-M4: dashboard + cancel keys + alternate screen.
+M4: dashboard + inline + width snapshots.
 
 ## Done
-- Purple Live dashboard (default interactive ANSI)
-- **ScreenGuard**: alternate buffer + hide cursor; restore on Dispose
-- **KeyListener**: `q` / `Esc` → cancel session (exit 130)
-- Ctrl+C still handled via CancelKeyPress
-- Plain/--no-color fallback unchanged
-- **Verified:** 126 tests; plain smoke exit 0
+- Purple Live dashboard, ScreenGuard, q/Esc cancel
+- **--inline**: single-line colored progress (no alt screen)
+- DashboardView width snapshots at 40/80/120
+- InlineViewTests
+- **Verified:** 132 tests; --plain and --inline smoke exit 0
 
 ## Next
-- Width snapshot tests for DashboardView
-- Inline mode polish
+- Optional: throttle progress when redirected
 - Installer scripts (compile aria2) if desired
+- Open PR to main when ready
 
 ## Blocked
 - (none)

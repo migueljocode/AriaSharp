@@ -168,7 +168,7 @@ internal static class Program
                 return (int)ExitCode.Failure;
             }
 
-            var useDashboard = !settings.Plain && !settings.NoColor && !settings.Ascii
+            var useDashboard = !settings.Plain && !settings.Inline && !settings.NoColor && !settings.Ascii
                 && !System.Console.IsOutputRedirected
                 && AnsiConsole.Profile.Capabilities.Interactive
                 && AnsiConsole.Profile.Capabilities.Ansi;
@@ -186,9 +186,16 @@ internal static class Program
             else
             {
                 var interactive = !System.Console.IsOutputRedirected;
+                var useInline = settings.Inline && !settings.Plain;
                 ProgressTick? onTick = (state, tickElapsed) =>
                 {
-                    try { PlainView.WriteProgress(System.Console.Error, state, tickElapsed, interactive); }
+                    try
+                    {
+                        if (useInline)
+                            InlineView.WriteProgress(System.Console.Error, state, tickElapsed, color: !settings.NoColor);
+                        else
+                            PlainView.WriteProgress(System.Console.Error, state, tickElapsed, interactive);
+                    }
                     catch (IOException) { }
                 };
                 var session = new DownloadSession(engine, new ProgressCalculator(), settings, onTick);
@@ -202,11 +209,13 @@ internal static class Program
                 }
                 catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or IOException)
                 {
-                    PlainView.EndProgress(System.Console.Error, interactive);
+                    if (useInline) InlineView.EndProgress(System.Console.Error);
+                    else PlainView.EndProgress(System.Console.Error, interactive);
                     await System.Console.Error.WriteLineAsync($"Error: {ex.Message}").ConfigureAwait(false);
                     return (int)ExitCode.Failure;
                 }
-                PlainView.EndProgress(System.Console.Error, interactive);
+                if (useInline) InlineView.EndProgress(System.Console.Error);
+                else PlainView.EndProgress(System.Console.Error, interactive);
                 finalState = session.State;
                 elapsed = session.Elapsed;
             }
