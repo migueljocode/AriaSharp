@@ -1,20 +1,20 @@
 # PROGRESS.md
 
 ## Milestone
-M4 slice: purple Spectre Live dashboard.
+M4: dashboard + cancel keys + alternate screen.
 
 ## Done
-- M2 engine + session + summary + plain progress + WebSocket events
-- **DashboardView**: Figlet, overall bar, active table, status, failed list (purple theme)
-- **Program**: Live dashboard when interactive ANSI terminal; --plain/--no-color falls back to PlainView
-- DashboardViewTests (Spectre TestConsole-style render smoke)
-- **Verified:** 124 tests; --plain smoke exit 0
+- Purple Live dashboard (default interactive ANSI)
+- **ScreenGuard**: alternate buffer + hide cursor; restore on Dispose
+- **KeyListener**: `q` / `Esc` → cancel session (exit 130)
+- Ctrl+C still handled via CancelKeyPress
+- Plain/--no-color fallback unchanged
+- **Verified:** 126 tests; plain smoke exit 0
 
 ## Next
-- Dashboard key handling (q/Esc cancel)
-- Alternate screen + ScreenGuard restore
+- Width snapshot tests for DashboardView
 - Inline mode polish
-- Snapshot tests at multiple widths
+- Installer scripts (compile aria2) if desired
 
 ## Blocked
 - (none)

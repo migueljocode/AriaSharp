@@ -258,28 +258,55 @@ internal static class Program
             AllItems = [],
         };
 
-        await AnsiConsole.Live(DashboardView.Build(empty, TimeSpan.Zero))
-            .AutoClear(false)
-            .Overflow(VerticalOverflow.Ellipsis)
-            .Cropping(VerticalOverflowCropping.Bottom)
-            .StartAsync(async ctx =>
+        if (!ScreenGuard.EnsureMinimum(60, 12))
+            ScreenGuard.ShowWarning(60, 12);
+
+        var guard = ScreenGuard.TryEnter();
+        var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        try
+        {
+            var keyTask = KeyListener.WatchCancelAsync(linked, linked.Token);
+            try
             {
-                ProgressTick onTick = (state, elapsed) =>
-                {
-                    try { ctx.UpdateTarget(DashboardView.Build(state, elapsed)); }
-                    catch (InvalidOperationException) { }
-                    catch (IOException) { }
-                };
-                session = new DownloadSession(engine, new ProgressCalculator(), settings, onTick);
-                try
-                {
-                    outcome = await session.RunAsync(ct).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException)
-                {
-                    outcome = RunOutcome.Interrupted();
-                }
-            }).ConfigureAwait(false);
+                await AnsiConsole.Live(DashboardView.Build(empty, TimeSpan.Zero))
+                    .AutoClear(false)
+                    .Overflow(VerticalOverflow.Ellipsis)
+                    .Cropping(VerticalOverflowCropping.Bottom)
+                    .StartAsync(async ctx =>
+                    {
+                        ProgressTick onTick = (state, elapsed) =>
+                        {
+                            try { ctx.UpdateTarget(DashboardView.Build(state, elapsed)); }
+                            catch (InvalidOperationException) { }
+                            catch (IOException) { }
+                        };
+                        session = new DownloadSession(engine, new ProgressCalculator(), settings, onTick);
+                        try
+                        {
+                            outcome = await session.RunAsync(linked.Token).ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            try { await session.RequestStopAsync().ConfigureAwait(false); }
+                            catch (InvalidOperationException) { }
+                            catch (IOException) { }
+                            outcome = RunOutcome.Interrupted("Cancelled.");
+                        }
+                    }).ConfigureAwait(false);
+            }
+            finally
+            {
+                if (!linked.IsCancellationRequested)
+                    await linked.CancelAsync().ConfigureAwait(false);
+                try { await keyTask.ConfigureAwait(false); }
+                catch (OperationCanceledException) { }
+            }
+        }
+        finally
+        {
+            linked.Dispose();
+            guard?.Dispose();
+        }
 
         return (outcome, session?.State ?? empty, session?.Elapsed ?? TimeSpan.Zero);
     }
