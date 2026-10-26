@@ -11,8 +11,8 @@ public class Aria2ArgsBuilderTests
         {
             Aria2Path = "/usr/bin/aria2c",
             Port = port,
-            TempConfFile = conf,
-            TempInputFile = input,
+            ConfFile = conf,
+            InputFile = input,
             SessionFile = session,
             OutputDir = dir,
             Secret = secret,

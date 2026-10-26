@@ -1,4 +1,6 @@
+using System.IO;
 using System.Text.Json;
+
 using AriaSharp.Models;
 
 namespace AriaSharp.Services;
@@ -49,25 +51,44 @@ public sealed class SettingsMerger : ISettingsMerger
 
 public sealed class SettingsStore : ISettingsStore
 {
-    public async Task<AppSettings> LoadAsync(CancellationToken ct)
+    public Task<AppSettings> LoadAsync(CancellationToken ct) => LoadAsync(ct, null!);
+
+    public async Task<AppSettings> LoadAsync(CancellationToken ct, string? path = null)
     {
-        var settings = new AppSettings();
-        var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config", "ariasharp", "settings.json");
-        if (!File.Exists(path)) return settings;
+        path ??= AppPaths.SettingsFile;
+        if (!File.Exists(path)) return new AppSettings();
         try
         {
-            var json = await File.ReadAllTextAsync(path, System.Text.Encoding.UTF8, ct).ConfigureAwait(false);
-            var loaded = JsonSerializer.Deserialize<AppSettings>(json, AppSettingsJsonContext.Default.AppSettings);
-            if (loaded != null) settings = loaded;
+            await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 4096, FileOptions.Asynchronous | FileOptions.SequentialScan);
+            var loaded = await JsonSerializer.DeserializeAsync(stream, AppSettingsJsonContext.Default.AppSettings, ct).ConfigureAwait(false);
+            return loaded ?? new AppSettings();
         }
-        catch (JsonException) { }
-        return settings;
+        catch (JsonException ex)
+        {
+            await System.Console.Error.WriteLineAsync($"Warning: settings file corrupt ({ex.Message}); using defaults").ConfigureAwait(false);
+            return new AppSettings();
+        }
     }
-    public async Task SaveAsync(AppSettings settings, CancellationToken ct)
+
+    public Task SaveAsync(AppSettings settings, CancellationToken ct) => SaveAsync(settings, ct, null!);
+
+    public async Task SaveAsync(AppSettings settings, CancellationToken ct, string? path = null)
     {
-        var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config", "ariasharp");
+        path ??= AppPaths.SettingsFile;
+        var dir = Path.GetDirectoryName(path)!;
         if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
-        var path = Path.Combine(dir, "settings.json");
-        await File.WriteAllTextAsync(path, JsonSerializer.Serialize(settings, AppSettingsJsonContext.Default.AppSettings), System.Text.Encoding.UTF8, ct).ConfigureAwait(false);
+        var tmp = Path.Join(dir, $"settings-{Guid.NewGuid():N}.tmp");
+        try
+        {
+            await using var stream = new FileStream(tmp, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, FileOptions.Asynchronous);
+            await JsonSerializer.SerializeAsync(stream, settings, AppSettingsJsonContext.Default.AppSettings, ct).ConfigureAwait(false);
+            await stream.FlushAsync(ct).ConfigureAwait(false);
+            File.Move(tmp, path, overwrite: true);
+        }
+        catch
+        {
+            try { File.Delete(tmp); } catch { }
+            throw;
+        }
     }
 }

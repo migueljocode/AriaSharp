@@ -12,14 +12,12 @@ public interface IDownloadSession
 public sealed class DownloadSession : IDownloadSession
 {
     private readonly IAria2Engine _engine;
-    private readonly ISessionStore _store;
     private readonly IProgressCalculator _calculator;
     private readonly AppSettings _settings;
     private SessionState? _state;
-    public DownloadSession(IAria2Engine engine, ISessionStore store, IProgressCalculator calculator, AppSettings settings)
+    public DownloadSession(IAria2Engine engine, IProgressCalculator calculator, AppSettings settings)
     {
         _engine = engine ?? throw new ArgumentNullException(nameof(engine));
-        _store = store ?? throw new ArgumentNullException(nameof(store));
         _calculator = calculator ?? throw new ArgumentNullException(nameof(calculator));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
     }

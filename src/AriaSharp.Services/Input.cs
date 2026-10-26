@@ -1,3 +1,5 @@
+using System.Buffers;
+using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 using AriaSharp.Models;
@@ -14,79 +16,127 @@ public interface IUrlClassifier
 }
 public interface IUrlSanitizer { string Sanitize(string value); string MaskCredentials(string value); }
 
-public sealed class UrlExtractor : IUrlExtractor
+public sealed partial class UrlExtractor : IUrlExtractor
 {
-    private static readonly Regex UrlPattern = new(@"(?<scheme>https?|ftp|ftps|sftp|magnet):\/\/[^\s""'<>]+", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    [GeneratedRegex(@"(?<scheme>https?|ftp|ftps|sftp|magnet):\/\/[^\s""'<>]+", RegexOptions.IgnoreCase)]
+    private static partial Regex UrlPattern();
+
+    private static readonly SearchValues<char> TrailingPunctuation = SearchValues.Create(",;)]}'.!?");
+
     public string[] Extract(string text)
     {
-        if (string.IsNullOrEmpty(text)) return Array.Empty<string>();
+        if (string.IsNullOrEmpty(text)) return [];
         var list = new List<string>();
-        foreach (Match m in UrlPattern.Matches(text))
+        foreach (Match m in UrlPattern().Matches(text))
         {
-            var url = m.Value.TrimEnd(',', ';', ')', ']', '}', '.', '!', '?');
+            var span = m.Value.AsSpan();
+            while (!span.IsEmpty && TrailingPunctuation.Contains(span[^1])) span = span[..^1];
+            var url = span.ToString();
             if (!string.IsNullOrEmpty(url)) list.Add(url);
         }
-        return list.ToArray();
+        return [.. list];
     }
 }
 
 public sealed class UrlClassifier : IUrlClassifier
 {
-    private static readonly string[] Schemes = { "http://", "https://", "ftp://", "ftps://", "sftp://", "magnet:?" };
+    private static readonly string[] UrlSchemes =
+    {
+        "http://", "https://", "ftp://", "ftps://", "sftp://", "magnet:?"
+    };
+
+    private static readonly string[] Aria2OptionKeys =
+    {
+        "out=", "dir=", "continue=", "split=", "max-connection-per-server=",
+        "min-split-size=", "save-session=", "rpc-secret=", "max-overall-download-limit="
+    };
+
     public bool IsUrl(string value)
     {
         if (string.IsNullOrEmpty(value)) return false;
         var span = value.AsSpan();
-        foreach (var s in Schemes) if (span.StartsWith(s, StringComparison.OrdinalIgnoreCase)) return true;
+        foreach (var scheme in UrlSchemes)
+            if (span.StartsWith(scheme, StringComparison.OrdinalIgnoreCase)) return true;
         return false;
     }
+
     public bool IsListFile(string value) => File.Exists(value);
+
     public bool IsSessionFile(string value)
     {
         if (string.IsNullOrEmpty(value)) return false;
-        return Path.GetFileName(value).Equals("resume.session", StringComparison.OrdinalIgnoreCase) || value.EndsWith(".session", StringComparison.OrdinalIgnoreCase);
+        var name = Path.GetFileName(value);
+        return name.Equals("resume.session", StringComparison.OrdinalIgnoreCase) || value.EndsWith(".session", StringComparison.OrdinalIgnoreCase);
     }
+
     public bool IsAria2ListFile(string value)
     {
         if (string.IsNullOrEmpty(value) || !File.Exists(value)) return false;
         try
         {
-            foreach (var line in File.ReadLines(value))
+            var urlSeen = false;
+            using var stream = new FileStream(value, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 4096, FileOptions.Asynchronous | FileOptions.SequentialScan);
+            using var reader = new StreamReader(stream);
+            string? line;
+            while ((line = reader.ReadLine()) is { } l)
             {
-                var t = line.Trim();
-                if (t.Length == 0) continue;
-                if (t.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || t.StartsWith("https://", StringComparison.OrdinalIgnoreCase) || t.StartsWith("ftp://", StringComparison.OrdinalIgnoreCase) || t.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase)) return true;
-                if (t.StartsWith("dir=", StringComparison.OrdinalIgnoreCase) || t.StartsWith("out=", StringComparison.OrdinalIgnoreCase) || t.Contains('=', StringComparison.Ordinal)) return true;
+                var span = l.AsSpan().Trim();
+                if (span.IsEmpty) continue;
+                if (IsUrlLine(span)) { urlSeen = true; continue; }
+                if (IsRecognisedOption(span)) return true;
             }
+            return urlSeen;
         }
         catch (IOException) { return false; }
+    }
+
+    private static bool IsUrlLine(ReadOnlySpan<char> line)
+    {
+        foreach (var scheme in UrlSchemes)
+            if (line.StartsWith(scheme, StringComparison.OrdinalIgnoreCase)) return true;
+        return false;
+    }
+
+    private static bool IsRecognisedOption(ReadOnlySpan<char> line)
+    {
+        foreach (var key in Aria2OptionKeys)
+            if (line.StartsWith(key, StringComparison.OrdinalIgnoreCase)) return true;
         return false;
     }
 }
 
-public sealed class UrlSanitizer : IUrlSanitizer
+public sealed partial class UrlSanitizer : IUrlSanitizer
 {
-    private static readonly Regex CredentialPattern = new(@"(?<scheme>[a-zA-Z][a-zA-Z0-9+.-]*)://(?<user>[^:@/]+):(?<pass>[^@/]+)@", RegexOptions.Compiled);
+    [GeneratedRegex(@"(?<scheme>[a-zA-Z][a-zA-Z0-9+.-]*)://(?<user>[^:@/]+):(?<pass>[^@/]+)@")]
+    private static partial Regex CredentialPattern();
+
+    private static readonly SearchValues<char> InvalidChars = SearchValues.Create("<>&\"'");
+
     public string Sanitize(string value)
     {
         if (string.IsNullOrEmpty(value)) return string.Empty;
-        var sb = new StringBuilder(value.Length);
-        foreach (var ch in value)
+        return string.Create(value.Length, value, (span, source) =>
         {
-            if (char.IsControl(ch) || ch is '<' or '>' or '&' or '"' or '\'') sb.Append('?');
-            else sb.Append(ch);
-        }
-        return sb.ToString();
+            var i = 0;
+            foreach (var ch in source.AsSpan())
+            {
+                if (char.IsControl(ch) || InvalidChars.Contains(ch)) span[i++] = '?';
+                else span[i++] = ch;
+            }
+        });
     }
+
     public string MaskCredentials(string value)
     {
         if (string.IsNullOrEmpty(value)) return string.Empty;
-        return CredentialPattern.Replace(value, "${scheme}://***@");
+        return CredentialPattern().Replace(value, "${scheme}://***@");
     }
 }
 
 public sealed class UrlNameGuesser : IUrlNameGuesser
 {
+    private static readonly SearchValues<char> InvalidFileNameChars = SearchValues.Create(Path.GetInvalidFileNameChars());
+
     public string GuessName(Uri url)
     {
         if (url == null) return "download";
@@ -95,9 +145,19 @@ public sealed class UrlNameGuesser : IUrlNameGuesser
             var name = Path.GetFileName(url.LocalPath);
             if (string.IsNullOrEmpty(name)) name = url.Host;
             if (string.IsNullOrEmpty(name)) name = "download";
-            foreach (var c in Path.GetInvalidFileNameChars()) name = name.Replace(c.ToString(), "_", StringComparison.Ordinal);
-            return name;
+            return SanitizeFileName(name);
         }
-        catch (Exception) { return "download"; }
+        catch { return "download"; }
+    }
+
+    private static string SanitizeFileName(string name)
+    {
+        var sb = new StringBuilder(name.Length);
+        foreach (var ch in name)
+        {
+            if (InvalidFileNameChars.Contains(ch)) sb.Append('_');
+            else sb.Append(ch);
+        }
+        return sb.ToString();
     }
 }
