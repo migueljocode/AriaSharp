@@ -63,6 +63,8 @@ public sealed class SettingsMerger : ISettingsMerger
         if (!string.IsNullOrEmpty(layer.Aria2Path)) target.Aria2Path = layer.Aria2Path;
         if (!string.IsNullOrEmpty(layer.SpeedLimit)) target.SpeedLimit = layer.SpeedLimit;
         if (layer.Inputs is { Count: > 0 }) target.Inputs = layer.Inputs;
+        if (layer.FromClipboard.HasValue) target.FromClipboard = layer.FromClipboard.Value;
+        if (layer.FromFiles is { Count: > 0 }) target.FromFiles = layer.FromFiles;
         if (layer.ExtraOptions is { Count: > 0 }) target.ExtraOptions = layer.ExtraOptions;
     }
 
@@ -102,6 +104,8 @@ public sealed class SettingsMerger : ISettingsMerger
             Aria2Path = overlay.Aria2Path ?? baseline.Aria2Path,
             SpeedLimit = overlay.SpeedLimit ?? baseline.SpeedLimit,
             Inputs = overlay.Inputs?.Count > 0 ? overlay.Inputs : baseline.Inputs,
+            FromClipboard = overlay.FromClipboard ?? baseline.FromClipboard,
+            FromFiles = overlay.FromFiles is { Count: > 0 } ? overlay.FromFiles : baseline.FromFiles,
             ExtraOptions = overlay.ExtraOptions?.Count > 0 ? overlay.ExtraOptions : baseline.ExtraOptions,
         };
     }

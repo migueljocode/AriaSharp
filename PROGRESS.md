@@ -1,18 +1,16 @@
 # PROGRESS.md
 
 ## Milestone
-Help pager (less-style).
+Smart inputs + retry prompt.
 
 ## Done
-- HelpPager: alternate screen, j/k, space/b, g/G, /search, n/N, q/Esc
-- Status line with position %; wrap on width; ScreenGuard restore
-- --no-pager / redirected / non-TTY → full dump
-- HelpView routes through HelpDocument + pager
-- **Verified:** 147 tests; --help --no-pager prints full text
+- Resolve: CLI URLs · file paths (extract links) · stdin · clipboard
+- `--from-clipboard` / `--from-file <path>` force modes
+- On failure (interactive): prompt [R]etry / [Q]uit — not force-close
+- **Verified:** 154 tests; list file → extracted example.com + example.org
 
 ## Next
 - CI green on PR #1
-- Optional: Spectre colour inside pager pages
 
 ## Blocked
 - (none)

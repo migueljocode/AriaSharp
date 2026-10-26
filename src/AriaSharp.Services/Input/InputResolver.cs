@@ -1,24 +1,35 @@
 namespace AriaSharp.Services;
 
 /// <summary>
-/// Resolves download inputs in Brief order: CLI args → stdin (if piped) → clipboard (interactive).
+/// Smart input resolution: CLI URLs, list files (extract links), clipboard, stdin.
 /// </summary>
 public static class InputResolver
 {
     public static async Task<IReadOnlyList<string>> ResolveAsync(
         IReadOnlyList<string> existing,
         IUrlExtractor extractor,
+        IUrlClassifier classifier,
         IClipboardReader clipboard,
+        bool forceClipboard,
+        IReadOnlyList<string>? forceFiles,
         CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(existing);
         ArgumentNullException.ThrowIfNull(extractor);
+        ArgumentNullException.ThrowIfNull(classifier);
         ArgumentNullException.ThrowIfNull(clipboard);
 
-        if (existing.Count > 0)
-            return existing.ToArray();
+        forceFiles ??= Array.Empty<string>();
 
-        // 1. stdin when piped
+        if (forceClipboard)
+            return await FromClipboardAsync(extractor, clipboard, ct).ConfigureAwait(false);
+
+        if (forceFiles.Count > 0)
+            return await FromFilesAsync(forceFiles, extractor, ct).ConfigureAwait(false);
+
+        if (existing.Count > 0)
+            return await ExpandArgsAsync(existing, extractor, classifier, ct).ConfigureAwait(false);
+
         if (Console.IsInputRedirected)
         {
             using var reader = new StreamReader(Console.OpenStandardInput());
@@ -26,31 +37,111 @@ public static class InputResolver
             var fromStdin = extractor.Extract(text);
             if (fromStdin.Length > 0)
                 return fromStdin;
-            // whole stdin may be a single path/URL per line without needing regex
             var lines = text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             if (lines.Length > 0)
-                return lines;
+                return await ExpandArgsAsync(lines, extractor, classifier, ct).ConfigureAwait(false);
         }
 
-        // 2. clipboard when interactive
-        if (!Console.IsInputRedirected && !Console.IsOutputRedirected)
-        {
-            try
-            {
-                var clip = await clipboard.ReadTextAsync(ct).ConfigureAwait(false);
-                if (!string.IsNullOrWhiteSpace(clip))
-                {
-                    var fromClip = extractor.Extract(clip);
-                    if (fromClip.Length > 0)
-                        return fromClip;
-                }
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
-            {
-                // clipboard unavailable — fall through
-            }
-        }
+        if (!Console.IsOutputRedirected)
+            return await FromClipboardAsync(extractor, clipboard, ct).ConfigureAwait(false);
 
         return Array.Empty<string>();
+    }
+
+    private static async Task<IReadOnlyList<string>> ExpandArgsAsync(
+        IReadOnlyList<string> args,
+        IUrlExtractor extractor,
+        IUrlClassifier classifier,
+        CancellationToken ct)
+    {
+        var result = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var arg in args)
+        {
+            if (string.IsNullOrWhiteSpace(arg)) continue;
+
+            if (classifier.IsUrl(arg))
+            {
+                if (seen.Add(arg)) result.Add(arg);
+                continue;
+            }
+
+            if (File.Exists(arg))
+            {
+                var fromFile = await ReadFileUrlsAsync(arg, extractor, ct).ConfigureAwait(false);
+                foreach (var u in fromFile)
+                {
+                    if (seen.Add(u)) result.Add(u);
+                }
+                if (fromFile.Length == 0 && classifier.IsSessionFile(arg) && seen.Add(arg))
+                    result.Add(arg);
+                continue;
+            }
+
+            var extracted = extractor.Extract(arg);
+            if (extracted.Length > 0)
+            {
+                foreach (var u in extracted)
+                {
+                    if (seen.Add(u)) result.Add(u);
+                }
+                continue;
+            }
+
+            if (seen.Add(arg)) result.Add(arg);
+        }
+
+        return result;
+    }
+
+    private static async Task<IReadOnlyList<string>> FromFilesAsync(
+        IReadOnlyList<string> files,
+        IUrlExtractor extractor,
+        CancellationToken ct)
+    {
+        var result = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var path in files)
+        {
+            if (!File.Exists(path))
+                throw new FileNotFoundException($"List file not found: {path}", path);
+            foreach (var u in await ReadFileUrlsAsync(path, extractor, ct).ConfigureAwait(false))
+            {
+                if (seen.Add(u)) result.Add(u);
+            }
+        }
+        return result;
+    }
+
+    private static async Task<string[]> ReadFileUrlsAsync(string path, IUrlExtractor extractor, CancellationToken ct)
+    {
+        var text = await File.ReadAllTextAsync(path, ct).ConfigureAwait(false);
+        var urls = extractor.Extract(text);
+        if (urls.Length > 0) return urls;
+
+        return text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(static l => !l.StartsWith('#') && !string.IsNullOrWhiteSpace(l))
+            .ToArray();
+    }
+
+    private static async Task<IReadOnlyList<string>> FromClipboardAsync(
+        IUrlExtractor extractor,
+        IClipboardReader clipboard,
+        CancellationToken ct)
+    {
+        try
+        {
+            var clip = await clipboard.ReadTextAsync(ct).ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(clip))
+                return Array.Empty<string>();
+            var urls = extractor.Extract(clip);
+            if (urls.Length > 0) return urls;
+            return clip.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            return Array.Empty<string>();
+        }
     }
 }

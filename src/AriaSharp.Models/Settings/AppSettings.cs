@@ -78,6 +78,8 @@ public sealed class AppSettings
     public string? Aria2Path { get; set; }
     public string? SpeedLimit { get; set; }
     public IReadOnlyList<string> Inputs { get; set; } = Array.Empty<string>();
+    public bool FromClipboard { get; set; }
+    public IReadOnlyList<string> FromFiles { get; set; } = Array.Empty<string>();
     public IReadOnlyList<string> ExtraOptions { get; set; } = Array.Empty<string>();
 }
 
@@ -120,6 +122,8 @@ public sealed class SettingsOverlay
     public string? Aria2Path { get; set; }
     public string? SpeedLimit { get; set; }
     public IReadOnlyList<string> Inputs { get; set; } = Array.Empty<string>();
+    public bool? FromClipboard { get; set; }
+    public IReadOnlyList<string> FromFiles { get; set; } = Array.Empty<string>();
     public IReadOnlyList<string> ExtraOptions { get; set; } = Array.Empty<string>();
 }
 

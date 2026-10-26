@@ -54,6 +54,8 @@ internal static class OptionTable
         {
             // ── INPUT & OUTPUT
             new Option("input",     OptionKind.List,    "Input & Output", "Add a URL, magnet or list file (repeatable).",                                       apply: (o, v) => o.Inputs = o.Inputs.Append(v ?? string.Empty).ToArray(),                shortName: 'i'),
+            new Option("from-clipboard", OptionKind.Flag, "Input & Output", "Force read URLs from the system clipboard only.", apply: (o, _) => o.FromClipboard = true),
+            new Option("from-file", OptionKind.List, "Input & Output", "Force read URLs from a text/list file (repeatable).", valueName: "<path>", apply: (o, v) => o.FromFiles = o.FromFiles.Append(v ?? string.Empty).ToArray()),
             new Option("output",    OptionKind.String,  "Input & Output", "Output directory (default: current directory).",                                     apply: (o, v) => o.OutputDir = v,                                                     shortName: 'o'),
             new Option("session",   OptionKind.String,  "Input & Output", "Resume session file path (default: <output>/resume.session).",                    apply: (o, v) => o.SessionFile = v,                                                shortName: 's'),
             new Option("keep-list", OptionKind.Flag,    "Input & Output", "Keep list files after the run instead of prompting.",                                apply: (o, _) => o.KeepListFiles = true,                                             shortName: 'k'),

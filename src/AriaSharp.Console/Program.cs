@@ -87,36 +87,68 @@ internal static class Program
             return await RunInstallOnlyAsync(settings).ConfigureAwait(false);
         }
 
-        // CLI → stdin (pipe) → clipboard (interactive)
-        if (settings.Inputs.Count == 0)
+        // Smart resolve: URLs / files (extract links) / clipboard / stdin
+        try
         {
             var resolved = await InputResolver.ResolveAsync(
                     settings.Inputs,
                     new UrlExtractor(),
+                    new UrlClassifier(),
                     new ClipboardReader(),
+                    forceClipboard: settings.FromClipboard,
+                    forceFiles: settings.FromFiles,
                     CancellationToken.None)
                 .ConfigureAwait(false);
-            if (resolved.Count > 0)
+            settings.Inputs = resolved.ToList();
+            if (settings.Verbose && resolved.Count > 0)
             {
-                settings.Inputs = resolved.ToList();
-                if (settings.Verbose)
-                {
-                    await System.Console.Error.WriteLineAsync(
-                            $"Using {resolved.Count} input(s) from stdin/clipboard.")
-                        .ConfigureAwait(false);
-                }
+                await System.Console.Error.WriteLineAsync(
+                        $"Resolved {resolved.Count} download URL(s).")
+                    .ConfigureAwait(false);
             }
+        }
+        catch (FileNotFoundException ex)
+        {
+            await System.Console.Error.WriteLineAsync($"Error: {ex.Message}").ConfigureAwait(false);
+            return (int)ExitCode.UsageError;
         }
 
         if (settings.Inputs.Count == 0)
         {
             await System.Console.Out.WriteLineAsync(
-                    "No inputs provided (CLI, stdin, or clipboard). Use --help for usage.")
+                    "No URLs found (CLI, files, stdin, or clipboard). Use --help, --from-clipboard, or --from-file.")
                 .ConfigureAwait(false);
             return (int)ExitCode.UsageError;
         }
 
-        return await RunDownloadAsync(settings).ConfigureAwait(false);
+        while (true)
+        {
+            var code = await RunDownloadAsync(settings).ConfigureAwait(false);
+            if (code != (int)ExitCode.Failure)
+                return code;
+            if (settings.Yes || settings.Plain || System.Console.IsInputRedirected)
+                return code;
+            if (!await PromptRetryAsync().ConfigureAwait(false))
+                return code;
+            // retry: same inputs
+        }
+    }
+
+    private static async Task<bool> PromptRetryAsync()
+    {
+        try
+        {
+            await System.Console.Out.WriteAsync(
+                "Download failed. [R]etry / [Q]uit? ").ConfigureAwait(false);
+            var line = await System.Console.In.ReadLineAsync().ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(line)) return false;
+            var c = char.ToLowerInvariant(line.Trim()[0]);
+            return c is 'r' or 'y';
+        }
+        catch (IOException)
+        {
+            return false;
+        }
     }
 
     private static async Task<int> RunInstallOnlyAsync(AppSettings settings)
