@@ -1,7 +1,8 @@
 using System.Net;
 
-
 namespace AriaSharp.Services;
+
+
 
 /// <summary>
 /// Optional progress hook invoked after every poll. Lives in Services (no Spectre).
@@ -72,8 +73,9 @@ public sealed class DownloadSession : IDownloadSession
                     idleCount++;
                     if (idleCount >= idleRequired)
                     {
-                        await SettleAsync(ct);
-                        return Classify(_state);
+                        var completed = Classify(_state);
+                        await SettleAsync(completed, ct);
+                        return completed;
                     }
                 }
                 else
@@ -96,8 +98,9 @@ public sealed class DownloadSession : IDownloadSession
             _watch.Stop();
         }
 
-        await SettleAsync(CancellationToken.None);
-        return RunOutcome.Interrupted();
+        var interrupted = RunOutcome.Interrupted();
+        await SettleAsync(interrupted, CancellationToken.None);
+        return interrupted;
     }
 
     public Task RequestStopAsync()
@@ -132,7 +135,7 @@ public sealed class DownloadSession : IDownloadSession
         return RunOutcome.Completed();
     }
 
-    private async Task SettleAsync(CancellationToken ct)
+    private async Task SettleAsync(RunOutcome outcome, CancellationToken ct)
     {
         try
         {
@@ -140,11 +143,7 @@ public sealed class DownloadSession : IDownloadSession
         }
         catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or OperationCanceledException or TimeoutException or IOException)
         {
-            if (_settings.Verbose)
-            {
-                try { await System.Console.Error.WriteLineAsync($"warning: saveSession failed ({ex.Message})"); }
-                catch (IOException) { }
-            }
+            outcome.Warnings.Add($"warning: saveSession failed ({ex.Message})");
         }
     }
 

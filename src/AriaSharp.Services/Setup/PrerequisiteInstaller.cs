@@ -24,14 +24,16 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
     private readonly IArtifactInstaller _artifacts;
     private readonly IAria2Locator _locator;
     private readonly IReadOnlyList<PackageManagerEntry> _managers;
+    private readonly string _cacheRoot;
 
-    public PrerequisiteInstaller(
+    internal PrerequisiteInstaller(
         IProcessRunner processes,
         IInstallEnvironment env,
         INetworkProbe network,
         IArtifactInstaller artifacts,
         IAria2Locator locator,
-        IReadOnlyList<PackageManagerEntry>? managers = null)
+        IReadOnlyList<PackageManagerEntry>? managers = null,
+        string? cacheRoot = null)
     {
         _processes = processes ?? throw new ArgumentNullException(nameof(processes));
         _env = env ?? throw new ArgumentNullException(nameof(env));
@@ -39,6 +41,7 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
         _artifacts = artifacts ?? throw new ArgumentNullException(nameof(artifacts));
         _locator = locator ?? throw new ArgumentNullException(nameof(locator));
         _managers = managers ?? PackageManagerCatalog.Aria2Managers;
+        _cacheRoot = cacheRoot ?? AppPaths.ToolsCacheDirectory;
     }
 
     public static PrerequisiteInstaller CreateDefault(IAria2Locator? locator = null) =>
@@ -191,8 +194,7 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
         if (log is not null) await log.WriteLineAsync("falling back to pinned official artifact / source build…");
         notes.Add("falling back to pinned official artifact / source build");
 
-        AppPaths.EnsureDataDirectories();
-        var cache = Path.Join(AppPaths.ToolsCacheDirectory, $"aria2-{Guid.NewGuid():N}");
+        var cache = Path.Join(_cacheRoot, $"aria2-{Guid.NewGuid():N}");
         Directory.CreateDirectory(cache);
         try
         {
@@ -228,9 +230,6 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
         return $"{resolved.Value.File} {resolved.Value.Args}";
     }
 
-    public static string FormatInstallCommand(PackageManagerEntry mgr) =>
-        CreateDefault().FormatInstallCommand(mgr, nonInteractive: false);
-
     public static InstallFailureKind ClassifyManagerFailure(int exitCode, string stdErr)
     {
         ArgumentNullException.ThrowIfNull(stdErr);
@@ -248,12 +247,7 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
         return InstallFailureKind.Unknown;
     }
 
-    public static (string File, string Args)? ResolveInstallCommand(
-        PackageManagerEntry mgr,
-        bool nonInteractive = true) =>
-        ResolveInstallCommand(mgr, nonInteractive, new DefaultInstallEnvironment());
-
-    public static (string File, string Args)? ResolveInstallCommand(
+    internal static (string File, string Args)? ResolveInstallCommand(
         PackageManagerEntry mgr,
         bool nonInteractive,
         IInstallEnvironment env)
@@ -279,19 +273,25 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
 
     public static bool IsPrivileged() => new DefaultInstallEnvironment().IsPrivileged;
 
-    public static async Task<(bool Ok, string Message)> InstallDepsAsync(
+    /// <summary>Production entry: default-wired installer.</summary>
+    public static Task<(bool Ok, string Message)> InstallDepsAsync(
+        bool installAria2,
+        bool nonInteractive,
+        CancellationToken ct) =>
+        CreateDefault().RunInstallDepsAsync(installAria2, nonInteractive, ct);
+
+    public async Task<(bool Ok, string Message)> RunInstallDepsAsync(
         bool installAria2,
         bool nonInteractive,
         CancellationToken ct)
     {
-        var installer = CreateDefault();
         var lines = new List<string>
         {
             $"platform: {DescribeOs()}",
             $"tools: {AppPaths.ToolsBinDirectory}",
-            $"privileged: {installer._env.IsPrivileged}",
+            $"privileged: {_env.IsPrivileged}",
         };
-        var (netOk, netDetail) = await installer._network.CheckAsync(ct);
+        var (netOk, netDetail) = await _network.CheckAsync(ct);
         lines.Add($"network: {(netOk ? "ok" : "fail")} ({netDetail})");
 
         var ok = true;
@@ -299,14 +299,14 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
         {
             try
             {
-                var existing = await installer._locator.LocateAsync(ct);
+                var existing = await _locator.LocateAsync(ct);
                 lines.Add($"aria2c: already installed ({existing})");
             }
             catch (FileNotFoundException)
             {
                 lines.Add($"aria2c: installing {Aria2Manifest.Version}…");
                 using var log = new StringWriter();
-                var (installed, msg, kind) = await installer.RunInstallAria2Async(
+                var (installed, msg, kind) = await RunInstallAria2Async(
                     autoYes: true, nonInteractive: nonInteractive, ct: ct, log: log);
                 lines.Add($"aria2c: {msg} ({kind})");
                 var logText = log.ToString().TrimEnd();
@@ -317,11 +317,11 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
         }
 
         lines.Add("managers:");
-        foreach (var mgr in installer._managers.Where(m => m.IsOsMatch()))
+        foreach (var mgr in _managers.Where(m => m.IsOsMatch()))
         {
             try
             {
-                var probe = await installer._processes.RunAsync(mgr.ProbeFileName, mgr.ProbeArgs, ct);
+                var probe = await _processes.RunAsync(mgr.ProbeFileName, mgr.ProbeArgs, ct);
                 var avail = PackageManagerCatalog.IsPackageAvailable(mgr.ProbeKind, probe.ExitCode, probe.StdOut, probe.StdErr);
                 lines.Add($"  {mgr.DisplayName}: {(avail ? "package available" : "not available")}");
             }

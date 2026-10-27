@@ -12,8 +12,29 @@ public class InstallerConsentTests
         FakeNetworkProbe network,
         FakeArtifactInstaller artifacts,
         FakeLocator locator,
-        IReadOnlyList<PackageManagerEntry>? managers = null) =>
-        new(processes, env, network, artifacts, locator, managers);
+        IReadOnlyList<PackageManagerEntry>? managers = null,
+        string? cacheRoot = null) =>
+        new(processes, env, network, artifacts, locator, managers, cacheRoot);
+
+    private static TempDir TempCache()
+    {
+        var path = Path.Join(Path.GetTempPath(), $"ariasharp-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(path);
+        return new(path);
+    }
+
+    private sealed class TempDir : IDisposable
+    {
+        private readonly string _path;
+        public TempDir(string path) => _path = path;
+        public string Path => _path;
+        public void Dispose()
+        {
+            try { Directory.Delete(_path, recursive: true); }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
+    }
 
     [Fact]
     public async Task ManagerAvailable_ConfirmDeclines_ReturnsAuth_NoInstall_NoFallback()
@@ -58,6 +79,28 @@ public class InstallerConsentTests
     }
 
     [Fact]
+    public async Task ReleaseHostUnreachable_ManagerAvailable_ConsentAccepted_InstallViaManager_NoArtifact()
+    {
+        var processes = new FakeProcessRunner();
+        processes.When("apt-cache", (_, _) => new ProcessRunResult(0, "Candidate: 1.37.0\n", ""));
+        processes.When("apt-get", (_, _) => new ProcessRunResult(0, "ok", ""));
+        var artifacts = new FakeArtifactInstaller();
+        var locator = new FakeLocator { MissingUntil = 1 };
+        var env = new FakeInstallEnvironment { IsPrivileged = true, Commands = ["apt-cache", "apt-get"] };
+        var installer = Create(processes, env,
+            new FakeNetworkProbe { ReleaseOk = false, ReleaseDetail = "HEAD failed" }, artifacts, locator, [AptMgr()]);
+
+        var (ok, message, kind) = await installer.RunInstallAria2Async(
+            autoYes: false, nonInteractive: true, CancellationToken.None, confirm: _ => true);
+
+        Assert.True(ok);
+        Assert.Equal(InstallFailureKind.None, kind);
+        Assert.Equal(0, artifacts.Calls);
+        Assert.Single(processes.InstallRuns);
+        Assert.Contains("apt", message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task NoManager_FallbackDeclined_ReturnsAuth_NoArtifact()
     {
         var processes = new FakeProcessRunner();
@@ -78,11 +121,12 @@ public class InstallerConsentTests
     [Fact]
     public async Task NoManager_AutoYes_CallsArtifactWithoutPrompt()
     {
+        using var root = TempCache();
         var processes = new FakeProcessRunner();
         var artifacts = new FakeArtifactInstaller { Ok = true };
         var locator = new FakeLocator { MissingUntil = 1 };
         var installer = Create(processes, new FakeInstallEnvironment(),
-            new FakeNetworkProbe { ReleaseOk = true }, artifacts, locator, managers: []);
+            new FakeNetworkProbe { ReleaseOk = true }, artifacts, locator, managers: [], cacheRoot: root.Path);
 
         var prompts = 0;
         var (ok, message, kind) = await installer.RunInstallAria2Async(
@@ -144,6 +188,7 @@ public class InstallerConsentTests
     [Fact]
     public async Task ManagerFails_ThenFallback_Reached()
     {
+        using var root = TempCache();
         var processes = new FakeProcessRunner();
         processes.When("apt-cache", (_, _) => new ProcessRunResult(0, "Candidate: 1.37.0\n", ""));
         processes.When("apt-get", (_, _) => new ProcessRunResult(100, "", "Could not get lock"));
@@ -152,13 +197,14 @@ public class InstallerConsentTests
         using var log = new StringWriter();
         var installer = Create(processes,
             new FakeInstallEnvironment { IsPrivileged = true, Commands = ["apt-cache", "apt-get"] },
-            new FakeNetworkProbe { ReleaseOk = true }, artifacts, locator, [AptMgr()]);
+            new FakeNetworkProbe { ReleaseOk = true }, artifacts, locator, [AptMgr()], cacheRoot: root.Path);
 
         var (ok, message, kind) = await installer.RunInstallAria2Async(
             autoYes: true, nonInteractive: true, CancellationToken.None, log: log);
 
         Assert.True(ok);
         Assert.Equal(1, artifacts.Calls);
+        Assert.StartsWith(root.Path, artifacts.LastCache!, StringComparison.Ordinal);
         Assert.Contains("ManagerBusy", log.ToString(), StringComparison.Ordinal);
         Assert.Contains("falling back", log.ToString(), StringComparison.OrdinalIgnoreCase);
     }
@@ -166,6 +212,7 @@ public class InstallerConsentTests
     [Fact]
     public async Task ManagerExit0_ButAria2StillMissing_FallsBack()
     {
+        using var root = TempCache();
         var processes = new FakeProcessRunner();
         processes.When("apt-cache", (_, _) => new ProcessRunResult(0, "Candidate: 1.37.0\n", ""));
         processes.When("apt-get", (_, _) => new ProcessRunResult(0, "ok", ""));
@@ -174,14 +221,49 @@ public class InstallerConsentTests
         using var log = new StringWriter();
         var installer = Create(processes,
             new FakeInstallEnvironment { IsPrivileged = true, Commands = ["apt-cache", "apt-get"] },
-            new FakeNetworkProbe { ReleaseOk = true }, artifacts, locator, [AptMgr()]);
+            new FakeNetworkProbe { ReleaseOk = true }, artifacts, locator, [AptMgr()], cacheRoot: root.Path);
 
         var (ok, _, _) = await installer.RunInstallAria2Async(
             autoYes: true, nonInteractive: true, CancellationToken.None, log: log);
 
         Assert.True(ok);
         Assert.Equal(1, artifacts.Calls);
+        Assert.StartsWith(root.Path, artifacts.LastCache!, StringComparison.Ordinal);
         Assert.Contains("exit 0 but aria2c not found", log.ToString(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task RunInstallDepsAsync_NonInteractive_RunsSudoDashN()
+    {
+        await AssertRunInstallDepsSudoVariant(nonInteractive: true, expectsDashN: true);
+    }
+
+    [Fact]
+    public async Task RunInstallDepsAsync_Interactive_RunsPlainSudo()
+    {
+        await AssertRunInstallDepsSudoVariant(nonInteractive: false, expectsDashN: false);
+    }
+
+    private static async Task AssertRunInstallDepsSudoVariant(bool nonInteractive, bool expectsDashN)
+    {
+        using var root = TempCache();
+        var processes = new FakeProcessRunner();
+        processes.When("apt-cache", (_, _) => new ProcessRunResult(0, "Candidate: 1.37.0\n", ""));
+        processes.When("apt-get", (_, _) => new ProcessRunResult(0, "ok", ""));
+        var artifacts = new FakeArtifactInstaller { Ok = true };
+        var locator = new FakeLocator { Missing = true }; // install attempted; locate always fails
+        var env = new FakeInstallEnvironment { IsPrivileged = false, Commands = ["sudo", "apt-cache", "apt-get"] };
+        var installer = new PrerequisiteInstaller(processes, env, new FakeNetworkProbe { ReleaseOk = true },
+            artifacts, locator, [AptMgr()], cacheRoot: root.Path);
+
+        var (ok, _) = await installer.RunInstallDepsAsync(installAria2: true, nonInteractive, CancellationToken.None);
+
+        Assert.True(ok);
+        var sudoRun = Assert.Single(processes.AllRuns, r => r.File == "sudo");
+        if (expectsDashN)
+            Assert.StartsWith("-n ", sudoRun.Args, StringComparison.Ordinal);
+        else
+            Assert.False(sudoRun.Args.StartsWith("-n ", StringComparison.Ordinal));
     }
 }
 
@@ -237,10 +319,12 @@ internal sealed class FakeArtifactInstaller : IArtifactInstaller
 {
     public bool Ok { get; set; } = true;
     public int Calls { get; private set; }
+    public string? LastCache { get; private set; }
 
     public Task<(bool Ok, string Message, string? LogPath)> InstallAsync(string cacheDirectory, CancellationToken ct)
     {
         Calls++;
+        LastCache = cacheDirectory;
         return Task.FromResult(Ok
             ? (true, "fake artifact ok", (string?)null)
             : (false, "fake artifact fail", (string?)null));

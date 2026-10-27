@@ -2,7 +2,7 @@ namespace AriaSharp.Services;
 
 public readonly record struct ProcessRunResult(int ExitCode, string StdOut, string StdErr);
 
-public interface IProcessRunner
+internal interface IProcessRunner
 {
     Task<ProcessRunResult> RunAsync(
         string fileName,
@@ -11,20 +11,20 @@ public interface IProcessRunner
         string? workingDirectory = null);
 }
 
-public interface IInstallEnvironment
+internal interface IInstallEnvironment
 {
     bool IsWindows { get; }
     bool IsPrivileged { get; }
     bool CommandExists(string name);
 }
 
-public interface INetworkProbe
+internal interface INetworkProbe
 {
     Task<(bool Ok, string Detail)> CheckAsync(CancellationToken ct);
     Task<(bool Ok, string Detail)> CanReachReleaseHostAsync(CancellationToken ct);
 }
 
-public interface IArtifactInstaller
+internal interface IArtifactInstaller
 {
     Task<(bool Ok, string Message, string? LogPath)> InstallAsync(string cacheDirectory, CancellationToken ct);
 }
@@ -75,7 +75,6 @@ internal sealed class DefaultProcessRunner : IProcessRunner
         CancellationToken ct,
         string? workingDirectory = null)
     {
-        var r = await ProcessRunner.RunAsync(fileName, arguments, ct, workingDirectory);
-        return new ProcessRunResult(r.ExitCode, r.StdOut, r.StdErr);
+        return await ProcessRunner.RunAsync(fileName, arguments, ct, workingDirectory);
     }
 }
