@@ -19,7 +19,10 @@ internal static class DownloadSummary
             && !Console.IsOutputRedirected;
         var canPrompt = outcome.Kind == RunOutcomeKind.Failed && canInteract;
 
-        SummaryView.Write(state, outcome, elapsed, outputDir, sessionPath, color, showRetryPrompt: canPrompt);
+        if (outcome.Kind != RunOutcomeKind.Empty)
+        {
+            SummaryView.Write(state, outcome, elapsed, outputDir, sessionPath, color, showRetryPrompt: canPrompt);
+        }
 
         var retry = false;
         if (canPrompt)

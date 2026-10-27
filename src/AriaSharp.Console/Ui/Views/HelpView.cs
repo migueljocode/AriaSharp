@@ -53,7 +53,7 @@ internal static class HelpView
             console.WriteLine();
         console.Write(BrandLogo.Build());
         console.WriteLine();
-        console.Write(Align.Center(new Markup($"[{Theme.Accent}]aria2 client for .NET[/] — [{Theme.Magenta}]purple gradient[/]")));
+        console.Write(Align.Center(new Markup($"[{Theme.Accent}]aria2 client v1.0.0[/]")));
         console.WriteLine();
     }
 

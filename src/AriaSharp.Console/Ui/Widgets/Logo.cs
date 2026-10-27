@@ -10,7 +10,7 @@ public static readonly string[] Ascii = new[]
     "A  A   R R     II        S   HH  HH  A  A   R R     P    ",
     "A  A   R  R  IIIIII  SSSSS   HH  HH  A  A   R  R   PPPP  ",
     "                                                    ",
-    "   aria2 client for .NET                          ",
+    "   aria2 client v1.0.0                           ",
 };
 
     public static void Render(int width, bool stacked = false)
