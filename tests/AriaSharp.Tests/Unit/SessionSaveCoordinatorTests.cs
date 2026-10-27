@@ -2,6 +2,18 @@ namespace AriaSharp.Tests;
 
 public class SessionSaveCoordinatorTests
 {
+    [Theory]
+    [InlineData(EngineEventKind.Complete, true)]
+    [InlineData(EngineEventKind.Error, true)]
+    [InlineData(EngineEventKind.Stopped, true)]
+    [InlineData(EngineEventKind.Started, false)]
+    [InlineData(EngineEventKind.Paused, false)]
+    [InlineData(EngineEventKind.Progress, false)]
+    public void ShouldSaveSession_OnlyTerminalKinds(EngineEventKind kind, bool expected)
+    {
+        Assert.Equal(expected, SessionSaveCoordinator.ShouldSaveSession(kind));
+    }
+
     [Fact]
     public async Task RequestSave_InvokesSaveOnce_WhenIdle()
     {
@@ -21,7 +33,7 @@ public class SessionSaveCoordinatorTests
     }
 
     [Fact]
-    public async Task RequestSave_WhileBusy_SchedulesTrailingSave()
+    public async Task RequestSave_WhileBusy_CoalescesToOneTrailingSave()
     {
         var saves = 0;
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -40,25 +52,14 @@ public class SessionSaveCoordinatorTests
 
         coord.RequestSave();
         await entered.Task.WaitAsync(TimeSpan.FromSeconds(2));
-        // Second and third requests while first is in flight → dirty trailing flush
         coord.RequestSave();
         coord.RequestSave();
         release.TrySetResult();
 
-        // Wait for trailing save
         var deadline = DateTime.UtcNow.AddSeconds(3);
         while (Volatile.Read(ref saves) < 2 && DateTime.UtcNow < deadline)
             await Task.Delay(20);
 
-        Assert.True(saves >= 2, $"expected trailing save, got {saves}");
-    }
-
-    [Fact]
-    public void NonTerminal_WouldNotCall_ThroughEngineHook()
-    {
-        // Engine only calls RequestSave for Complete/Error/Stopped — covered by NotificationTests mapping.
-        Assert.True(Enum.IsDefined(EngineEventKind.Complete));
-        Assert.True(Enum.IsDefined(EngineEventKind.Error));
-        Assert.True(Enum.IsDefined(EngineEventKind.Stopped));
+        Assert.Equal(2, Volatile.Read(ref saves));
     }
 }

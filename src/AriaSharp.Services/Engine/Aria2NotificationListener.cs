@@ -10,7 +10,7 @@ namespace AriaSharp.Services;
 internal sealed class Aria2NotificationListener : IAsyncDisposable
 {
     private readonly ChannelWriter<EngineEvent> _events;
-    private readonly Func<EngineEvent, CancellationToken, ValueTask>? _onEvent;
+    private readonly Action<EngineEvent>? _onEvent;
     private readonly Uri _uri;
     private readonly CancellationTokenSource _cts = new();
     private ClientWebSocket? _ws;
@@ -20,7 +20,7 @@ internal sealed class Aria2NotificationListener : IAsyncDisposable
     public Aria2NotificationListener(
         int port,
         ChannelWriter<EngineEvent> events,
-        Func<EngineEvent, CancellationToken, ValueTask>? onEvent = null)
+        Action<EngineEvent>? onEvent = null)
     {
         _events = events;
         _onEvent = onEvent;
@@ -67,8 +67,7 @@ internal sealed class Aria2NotificationListener : IAsyncDisposable
                     if (TryMap(doc.RootElement, out var ev))
                     {
                         _events.TryWrite(ev);
-                        if (_onEvent is not null)
-                            await _onEvent(ev, ct);
+                        _onEvent?.Invoke(ev);
                     }
                 }
                 catch (JsonException)

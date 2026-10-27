@@ -57,7 +57,7 @@ public sealed class Aria2Engine : IAria2Engine
         catch (UnauthorizedAccessException) { }
 
         _sessionSave = new SessionSaveCoordinator(SaveSessionAsync);
-        _notifications = new Aria2NotificationListener(settings.Port, _channel.Writer, OnNotificationAsync);
+        _notifications = new Aria2NotificationListener(settings.Port, _channel.Writer, OnNotification);
         try
         {
             await _notifications.StartAsync(ct);
@@ -156,19 +156,26 @@ public sealed class Aria2Engine : IAria2Engine
         };
     }
 
-    private ValueTask OnNotificationAsync(EngineEvent ev, CancellationToken ct)
+    private void OnNotification(EngineEvent ev)
     {
-        _ = ct;
-        if (ev.Kind is not (EngineEventKind.Complete or EngineEventKind.Error or EngineEventKind.Stopped))
-            return ValueTask.CompletedTask;
+        if (!SessionSaveCoordinator.ShouldSaveSession(ev.Kind))
+            return;
         _sessionSave?.RequestSave();
-        return ValueTask.CompletedTask;
     }
 
     public async Task SaveSessionAsync(CancellationToken ct)
     {
         var rpc = _rpc ?? throw new InvalidOperationException("Engine not started.");
         await rpc.CallAsync("aria2.saveSession", null, ct);
+    }
+
+    /// <summary>End-of-run: coalesce with in-flight notification saves, then ensure one final save.</summary>
+    public async Task FlushSessionAsync(CancellationToken ct)
+    {
+        if (_sessionSave is not null)
+            await _sessionSave.FlushAsync(ct);
+        else
+            await SaveSessionAsync(ct);
     }
 
     public async Task ShutdownAsync(CancellationToken ct)

@@ -136,7 +136,10 @@ public sealed class DownloadSession : IDownloadSession
     {
         try
         {
-            await _engine.SaveSessionAsync(ct);
+            if (_engine is Aria2Engine aria)
+                await aria.FlushSessionAsync(ct);
+            else
+                await _engine.SaveSessionAsync(ct);
         }
         catch (HttpRequestException) { }
         catch (InvalidOperationException) { }

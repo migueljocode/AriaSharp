@@ -15,10 +15,25 @@ internal sealed class SessionSaveCoordinator
         _saveAsync = saveAsync ?? throw new ArgumentNullException(nameof(saveAsync));
     }
 
+    /// <summary>True for terminal download outcomes that should persist resume.session.</summary>
+    public static bool ShouldSaveSession(EngineEventKind kind) =>
+        kind is EngineEventKind.Complete or EngineEventKind.Error or EngineEventKind.Stopped;
+
     public void RequestSave()
     {
         Interlocked.Exchange(ref _dirty, 1);
         _ = RunLoopAsync();
+    }
+
+    /// <summary>Request a save and wait until idle (end-of-run settle).</summary>
+    public async Task FlushAsync(CancellationToken ct)
+    {
+        RequestSave();
+        while (Volatile.Read(ref _busy) == 1 || Volatile.Read(ref _dirty) == 1)
+        {
+            ct.ThrowIfCancellationRequested();
+            await Task.Delay(15, ct);
+        }
     }
 
     private async Task RunLoopAsync()
@@ -37,7 +52,7 @@ internal sealed class SessionSaveCoordinator
                 catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException
                     or OperationCanceledException or TimeoutException or IOException)
                 {
-                    // Best-effort; end-of-run SettleAsync still saves.
+                    // Best-effort.
                 }
             }
         }
