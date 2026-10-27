@@ -14,9 +14,11 @@
     <Copyright>Copyright (c) AriaSharp contributors</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
+  <!-- Project-wide global usings (all projects inherit). -->
   <ItemGroup>
     <Using Include="System.Globalization" />
     <Using Include="System.Text" />
+    <Using Include="System.Text.Json" />
     <Using Include="AriaSharp.Models" />
   </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">

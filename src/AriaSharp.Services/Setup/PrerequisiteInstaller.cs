@@ -1,7 +1,5 @@
 using System.IO.Compression;
-using System.Net.Http;
 
-using AriaSharp.Models;
 
 namespace AriaSharp.Services;
 

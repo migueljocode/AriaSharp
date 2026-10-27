@@ -1,7 +1,5 @@
 using System.Text.RegularExpressions;
 
-using AriaSharp.App;
-using Xunit;
 
 namespace AriaSharp.Tests;
 

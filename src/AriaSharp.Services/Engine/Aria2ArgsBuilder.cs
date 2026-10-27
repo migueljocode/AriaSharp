@@ -1,6 +1,5 @@
 using System.Threading.Tasks;
 
-using AriaSharp.Models;
 
 namespace AriaSharp.Services;
 

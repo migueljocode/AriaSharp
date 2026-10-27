@@ -1,8 +1,5 @@
 using System.Threading.Channels;
 
-using AriaSharp.Models;
-using AriaSharp.Services;
-using Xunit;
 
 namespace AriaSharp.Tests;
 

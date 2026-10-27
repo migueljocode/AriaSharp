@@ -1,7 +1,5 @@
-using System.Diagnostics;
 using System.Net;
 
-using AriaSharp.Models;
 
 namespace AriaSharp.Services;
 

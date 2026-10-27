@@ -1,7 +1,4 @@
-using Spectre.Console;
 
-using AriaSharp.Models;
-using AriaSharp.Services;
 
 namespace AriaSharp.App;
 

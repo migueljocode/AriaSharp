@@ -1,8 +1,5 @@
-using AriaSharp.App;
-using AriaSharp.Models;
 using Spectre.Console;
 using Spectre.Console.Rendering;
-using Xunit;
 
 namespace AriaSharp.Tests;
 

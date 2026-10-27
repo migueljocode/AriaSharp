@@ -1,6 +1,3 @@
-using Xunit;
-using AriaSharp.App;
-using AriaSharp.Models;
 
 namespace AriaSharp.Tests;
 
@@ -181,14 +178,14 @@ public class ArgParserTests
     [Fact]
     public async Task Program_Help_ExitsZero()
     {
-        var exitCode = await Program.Main(["-h"]);
+        var exitCode = await AppHost.RunAsync(["-h"]);
         Assert.Equal(0, exitCode);
     }
 
     [Fact]
     public async Task Program_MissingInputs_ReturnsUsageError()
     {
-        var exitCode = await Program.Main(Array.Empty<string>());
+        var exitCode = await AppHost.RunAsync(Array.Empty<string>());
         Assert.Equal(2, exitCode);
     }
 
@@ -200,7 +197,7 @@ public class ArgParserTests
         System.Console.SetError(sw);
         try
         {
-            var exitCode = await Program.Main(["--aria2-path", "/nonexistent/aria2c", "https://example.com/file"]);
+            var exitCode = await AppHost.RunAsync(["--aria2-path", "/nonexistent/aria2c", "https://example.com/file"]);
             Assert.Equal(1, exitCode);
             var err = sw.ToString();
             Assert.DoesNotContain("engine not implemented yet", err, StringComparison.Ordinal);

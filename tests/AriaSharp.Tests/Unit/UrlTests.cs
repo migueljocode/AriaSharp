@@ -1,5 +1,3 @@
-using AriaSharp.Services;
-using Xunit;
 
 namespace AriaSharp.Tests;
 

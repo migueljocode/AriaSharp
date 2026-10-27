@@ -1,8 +1,6 @@
 using System.Diagnostics;
 
-using Spectre.Console;
 
-using AriaSharp.Models;
 
 namespace AriaSharp.App;
 
