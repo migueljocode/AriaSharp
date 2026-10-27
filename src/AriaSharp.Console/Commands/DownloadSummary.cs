@@ -40,6 +40,25 @@ internal static class DownloadSummary
         catch (IOException) { }
         catch (UnauthorizedAccessException) { }
 
+        if (outcome.Kind is RunOutcomeKind.Empty
+            && Directory.Exists(outputDir)
+            && DirectoryIsEmpty(outputDir))
+        {
+            try { Directory.Delete(outputDir); }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
+
         return (outcome.ToExitCode(), retry);
+    }
+
+    private static bool DirectoryIsEmpty(string path)
+    {
+        try
+        {
+            return !Directory.EnumerateFileSystemEntries(path).Any();
+        }
+        catch (IOException) { return false; }
+        catch (UnauthorizedAccessException) { return false; }
     }
 }
