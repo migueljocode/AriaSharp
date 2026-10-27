@@ -1,16 +1,18 @@
 # PROGRESS.md
 
 ## Milestone
-PR #2 merge polish: TTY≠consent, release-host gate, drop unused InstallAsync.
+PR #2 (installer QoS) merged to main.
 
 ## Done
-- `nonInteractive` from Console.IsInputRedirected (sudo -n only without TTY); `-y` keeps plain sudo when interactive
-- Artifact fallback gated on `CanReachReleaseHostAsync`; package managers need only general online
-- Removed `IPrerequisiteInstaller.InstallAsync` (unused consent bypass)
-- Consent tests are pure (resolve/classify/format); no process-wide env race skip
+- Package-manager probe + pinned GitHub fallback (SHA-256, TLS source build)
+- TTY vs consent: `nonInteractive` required; `--install-deps` and download path both pass it
+- Release-host HEAD gates artifact fallback only
+- --doctor exit 1 without aria2/HTTPS; CI smoke asserts it
+- ScreenGuard.EmergencyRestore on second Ctrl-C
 
 ## Next
-- Merge PR #2 when CI green on tip
+- Inject process runner / network probe for deterministic consent + fallback unit tests
+  (manager declined, fallback declined, release host unreachable)
 
 ## Blocked
 - (none)
