@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Threading.Channels;
 
 namespace AriaSharp.Models;
@@ -16,7 +15,7 @@ public interface IDownloadEngine : IAsyncDisposable
 public interface IDownloadSession
 {
     SessionState State { get; }
-    ChannelReader<SessionUpdate> Updates { get; }
+    TimeSpan Elapsed { get; }
     Task<RunOutcome> RunAsync(CancellationToken ct);
     Task RequestStopAsync();
 }

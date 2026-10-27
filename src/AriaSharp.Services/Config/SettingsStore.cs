@@ -55,6 +55,7 @@ public sealed class SettingsMerger : ISettingsMerger
         if (layer.Help.HasValue) target.Help = layer.Help;
         if (layer.Version.HasValue) target.Version = layer.Version;
         if (layer.PrintConfig.HasValue) target.PrintConfig = layer.PrintConfig;
+        if (layer.Doctor.HasValue) target.Doctor = layer.Doctor;
         if (!string.IsNullOrEmpty(layer.OutputDir)) target.OutputDir = layer.OutputDir;
         if (!string.IsNullOrEmpty(layer.SessionFile)) target.SessionFile = layer.SessionFile;
         if (!string.IsNullOrEmpty(layer.ConfigFile)) target.ConfigFile = layer.ConfigFile;
@@ -96,6 +97,7 @@ public sealed class SettingsMerger : ISettingsMerger
             Help = overlay.Help ?? baseline.Help,
             Version = overlay.Version ?? baseline.Version,
             PrintConfig = overlay.PrintConfig ?? baseline.PrintConfig,
+            Doctor = overlay.Doctor ?? baseline.Doctor,
             OutputDir = overlay.OutputDir ?? baseline.OutputDir,
             SessionFile = overlay.SessionFile ?? baseline.SessionFile,
             ConfigFile = overlay.ConfigFile ?? baseline.ConfigFile,

@@ -1,21 +1,20 @@
 # PROGRESS.md
 
 ## Milestone
-Review cleanup: engine/download SRP, shared UI helpers, services console-free.
+Installer QoS: package-manager probe, SHA-256 pins, doctor, logo widget.
 
 ## Done
-- User-local aria2 bootstrap from GitHub (no sudo)
-- C# 14 extensions + global usings; top-level Program
-- Aria2ConfWriter + Aria2SnapshotMapper extracted from Aria2Engine
-- Aria2Bootstrap + DownloadSummary + DownloadPaths
-- Aria2GitHubInstaller split from PrerequisiteInstaller
-- InputResolver takes TextReader (no Console in Services)
-- Shared FormatElapsed / TerminalMetrics
-- Dashboard/Help/Summary section helpers
+- main @ 5f5384b merged; feat/rebuild removed
+- PackageManagerCatalog + NetworkProbe
+- Aria2 GitHub install: SHA-256 pin, TLS-only source build, install.log
+- RPC HTTP error body preserved; conf deleted after RPC ready
+- Second Ctrl-C hard-exits; --doctor diagnostics
+- Shared BrandLogo; Models IDownloadSession only (no SessionUpdate)
 
 ## Next
-- CI green on PR #1; merge feat/rebuild → main
-- Optional: more DownloadCommand plain-path tests with fakes
+- CI: `--install-deps -y` smoke on three OSes
+- Interactive y/N for package manager when not -y
+- Re-verify SHA-256 if upstream re-uploads
 
 ## Blocked
 - (none)

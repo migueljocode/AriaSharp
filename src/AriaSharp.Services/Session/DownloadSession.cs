@@ -3,14 +3,6 @@ using System.Net;
 
 namespace AriaSharp.Services;
 
-public interface IDownloadSession
-{
-    SessionState State { get; }
-    TimeSpan Elapsed { get; }
-    Task<RunOutcome> RunAsync(CancellationToken ct);
-    Task RequestStopAsync();
-}
-
 /// <summary>
 /// Optional progress hook invoked after every poll. Lives in Services (no Spectre).
 /// </summary>

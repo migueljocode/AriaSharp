@@ -93,6 +93,7 @@ internal static class OptionTable
             // ── META
             new Option("help",    OptionKind.Flag, "Meta", "Show this help and exit.",   apply: (o, _) => o.Help = true, shortName: 'h'),
             new Option("version", OptionKind.Flag, "Meta", "Print the version and exit.", apply: (o, _) => o.Version = true, shortName: 'V'),
+            new Option("doctor",  OptionKind.Flag, "Meta", "Diagnose network, package managers, and aria2.", apply: (o, _) => o.Doctor = true),
         };
     }
 

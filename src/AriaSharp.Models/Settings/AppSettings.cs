@@ -72,6 +72,7 @@ public sealed class AppSettings
     public bool Help { get; set; }
     public bool Version { get; set; }
     public bool PrintConfig { get; set; }
+    public bool Doctor { get; set; }
     public string? OutputDir { get; set; }
     public string? SessionFile { get; set; }
     public string? ConfigFile { get; set; }
@@ -116,6 +117,7 @@ public sealed class SettingsOverlay
     public bool? Help { get; set; }
     public bool? Version { get; set; }
     public bool? PrintConfig { get; set; }
+    public bool? Doctor { get; set; }
     public string? OutputDir { get; set; }
     public string? SessionFile { get; set; }
     public string? ConfigFile { get; set; }

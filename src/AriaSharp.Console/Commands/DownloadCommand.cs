@@ -8,9 +8,16 @@ internal static class DownloadCommand
     public static async Task<(int Code, bool Retry)> RunAsync(AppSettings settings)
     {
         using var cts = new CancellationTokenSource();
+        var cancelCount = 0;
         ConsoleCancelEventHandler onCancel = (_, e) =>
         {
             e.Cancel = true;
+            cancelCount++;
+            if (cancelCount >= 2)
+            {
+                e.Cancel = false; // second Ctrl-C: hard exit, restore terminal
+                return;
+            }
             try
             {
                 if (!cts.IsCancellationRequested)

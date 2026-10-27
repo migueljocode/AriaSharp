@@ -35,6 +35,9 @@ internal static class AppExtensions
             if (cli.PrintConfig is true)
                 return await settings.WriteConfigAsync();
 
+            if (cli.Doctor is true)
+                return await DoctorCommand.RunAsync();
+
             return await settings.RunCoreAsync();
         }
     }

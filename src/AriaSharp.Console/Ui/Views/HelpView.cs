@@ -49,14 +49,9 @@ internal static class HelpView
 
     private static void WriteHeader(IAnsiConsole console)
     {
-        console.WriteLine();
-        console.Write(Align.Center(new Markup(
-            $"[#BB86FC] █████╗ ██████╗ ██╗ █████╗ [/][#E040FB]███████╗██╗  ██╗ █████╗ ██████╗ ██████╗ [/]\n" +
-            $"[#BB86FC]██╔══██╗██╔══██╗██║██╔══██╗[/][#CE93D8]██╔════╝██║  ██║██╔══██╗██╔══██╗██╔══██╗[/]\n" +
-            $"[#BB86FC]███████║██████╔╝██║███████║[/][#E040FB]███████╗███████║███████║██████╔╝██████╔╝[/]\n" +
-            $"[#BB86FC]██╔══██║██╔══██╗██║██╔══██║[/][#CE93D8]╚════██║██╔══██║██╔══██║██╔══██╗██╔═══╝ [/]\n" +
-            $"[#BB86FC]██║  ██║██║  ██║██║██║  ██║[/][#E040FB]███████║██║  ██║██║  ██║██║  ██║██║     [/]\n" +
-            $"[#BB86FC]╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝[/][#CE93D8]╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     [/]")));
+        for (var i = 0; i < BrandLogo.TopMargin; i++)
+            console.WriteLine();
+        console.Write(BrandLogo.Build());
         console.WriteLine();
         console.Write(Align.Center(new Markup($"[{Theme.Accent}]aria2 client for .NET[/] — [{Theme.Magenta}]purple gradient[/]")));
         console.WriteLine();

@@ -17,8 +17,7 @@ public class ArchitectureTests
         Assert.True(Enum.IsDefined<DownloadState>(DownloadState.Active));
         Assert.True(Enum.IsDefined<DownloadProtocol>(DownloadProtocol.Https));
         Assert.True(Enum.IsDefined<EngineEventKind>(EngineEventKind.Started));
-        Assert.True(Enum.IsDefined<SessionUpdateKind>(SessionUpdateKind.Snapshot));
-    }
+            }
 
     [Fact]
     public void Models_Namespace_HasExpectedTypes()

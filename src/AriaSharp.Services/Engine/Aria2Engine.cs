@@ -51,6 +51,9 @@ public sealed class Aria2Engine : IAria2Engine
         _rpc = new Aria2RpcClient(CreateLoopbackClient(settings.Port), settings.Secret);
 
         await WaitForRpcAsync(ct);
+        try { File.Delete(settings.ConfFile); }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
 
         _notifications = new Aria2NotificationListener(settings.Port, _channel.Writer);
         try

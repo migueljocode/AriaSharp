@@ -14,9 +14,7 @@ internal static class DashboardView
         var width = TerminalMetrics.WindowWidth();
         var root = new Grid().Expand();
         root.AddColumn(new GridColumn().NoWrap());
-        root.AddRow(new Text(""));
-        root.AddRow(BuildLogo(frame));
-        root.AddRow(new Text(""));
+        BrandLogo.AddTo(root, frame);
         root.AddRow(BuildOverall(state, elapsed, width, frame, shown));
         root.AddRow(BuildActiveTable(state, split, frame, width));
         root.AddRow(BuildStatus(state));
@@ -185,22 +183,7 @@ internal static class DashboardView
             .Padding(1, 0)
             .Expand();
 
-    private static readonly string[] LogoLines =
-    [
-        " █████╗ ██████╗ ██╗ █████╗ ███████╗██╗  ██╗ █████╗ ██████╗ ██████╗ ",
-        "██╔══██╗██╔══██╗██║██╔══██╗██╔════╝██║  ██║██╔══██╗██╔══██╗██╔══██╗",
-        "███████║██████╔╝██║███████║███████╗███████║███████║██████╔╝██████╔╝",
-        "██╔══██║██╔══██╗██║██╔══██║╚════██║██╔══██║██╔══██║██╔══██╗██╔═══╝ ",
-        "██║  ██║██║  ██║██║██║  ██║███████║██║  ██║██║  ██║██║  ██║██║     ",
-        "╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ",
-    ];
 
-    private static Align BuildLogo(int frame)
-    {
-        var reveal = frame < 0 ? 1.0 : Math.Min(1.0, (frame + 1) / 14.0);
-        var art = new Markup(string.Join('\n', LogoLines.Select(l => Gradient.Text(l, Gradient.Violet, Math.Max(frame, 0), reveal))));
-        return Align.Center(art);
-    }
 
     private static string ItemEta(DownloadItem item)
     {
