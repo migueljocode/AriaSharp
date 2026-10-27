@@ -138,9 +138,14 @@ public sealed class DownloadSession : IDownloadSession
         {
             await _engine.SaveSessionAsync(ct);
         }
-        catch (HttpRequestException) { }
-        catch (InvalidOperationException) { }
-        catch (OperationCanceledException) { }
+        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or OperationCanceledException or TimeoutException or IOException)
+        {
+            if (_settings.Verbose)
+            {
+                try { await System.Console.Error.WriteLineAsync($"warning: saveSession failed ({ex.Message})"); }
+                catch (IOException) { }
+            }
+        }
     }
 
     private static SessionState EmptyState() => new()
