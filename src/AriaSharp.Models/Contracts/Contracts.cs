@@ -21,11 +21,12 @@ public interface IDownloadSession
 }
 
 public interface IAria2Locator { Task<string> LocateAsync(CancellationToken ct); }
+
 public interface IPrerequisiteInstaller
 {
-    Task<bool> InstallAsync(string package, CancellationToken ct);
     Task<bool> IsInstalledAsync(string package, CancellationToken ct);
 }
+
 public interface ISettingsStore
 {
     Task<AppSettings> LoadAsync(CancellationToken ct);

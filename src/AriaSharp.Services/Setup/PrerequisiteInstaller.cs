@@ -17,16 +17,6 @@ public enum InstallFailureKind
 /// </summary>
 public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
 {
-    public async Task<bool> InstallAsync(string package, CancellationToken ct)
-    {
-        var logical = package is "aria2c" or "aria2" ? "aria2" : package;
-        if (logical != "aria2")
-            return false;
-        // Interface path is non-interactive; callers that need consent use InstallAria2Async.
-        var (ok, _, _) = await InstallAria2Async(ct, autoYes: true);
-        return ok;
-    }
-
     public async Task<bool> IsInstalledAsync(string package, CancellationToken ct)
     {
         var command = package switch
@@ -64,6 +54,7 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
     public static async Task<(bool Ok, string Message, InstallFailureKind Kind)> InstallAria2Async(
         CancellationToken ct,
         bool autoYes = true,
+        bool nonInteractive = true,
         Func<string, bool>? confirm = null,
         TextWriter? log = null)
     {
@@ -74,12 +65,7 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
         }
         catch (FileNotFoundException) { }
 
-        var (netOk, netDetail) = await NetworkProbe.CheckAsync(ct);
-        if (!netOk)
-            return (false, $"Cannot install aria2: {netDetail}", InstallFailureKind.Network);
-
         var notes = new List<string>();
-        var refusedManager = false;
 
         foreach (var mgr in PackageManagerCatalog.Aria2Managers.Where(static m => m.IsOsMatch()))
         {
@@ -101,7 +87,6 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
             {
                 if (confirm is null || !confirm(cmdDisplay))
                 {
-                    refusedManager = true;
                     notes.Add($"refused {mgr.DisplayName}; not falling back after explicit decline");
                     if (log is not null) await log.WriteLineAsync(notes[^1]);
                     return (false,
@@ -110,7 +95,7 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
                 }
             }
 
-            var resolved = ResolveInstallCommand(mgr, nonInteractive: autoYes);
+            var resolved = ResolveInstallCommand(mgr, nonInteractive: nonInteractive);
             if (resolved is null)
             {
                 notes.Add($"{mgr.DisplayName}: needs root (no sudo); skipping");
@@ -145,7 +130,16 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
             }
         }
 
-        // Pinned artifact / source fallback — ask once if interactive and not autoYes
+        // Pinned artifact / source fallback needs GitHub; package managers do not.
+        var (releaseOk, releaseDetail) = await NetworkProbe.CanReachReleaseHostAsync(ct);
+        if (!releaseOk)
+        {
+            var prefix = notes.Count > 0 ? string.Join("; ", notes) + "; " : "";
+            return (false,
+                prefix + $"cannot reach aria2 release host for fallback: {releaseDetail} — install via package manager or set --aria2-path",
+                InstallFailureKind.Network);
+        }
+
         const string fallbackPlan = "download pinned official aria2 release (zip or source build)";
         if (!autoYes)
         {
@@ -185,7 +179,6 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
         finally
         {
             TryDeleteTree(cache);
-            _ = refusedManager;
         }
     }
 

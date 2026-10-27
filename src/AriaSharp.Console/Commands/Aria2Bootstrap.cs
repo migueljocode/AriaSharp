@@ -13,7 +13,6 @@ internal static class Aria2Bootstrap
         }
         catch (FileNotFoundException ex)
         {
-            // Install is allowed unless explicitly disabled — consent is separate.
             if (settings.NoInstall)
             {
                 await Console.Error.WriteLineAsync($"Error: {ex.Message}");
@@ -24,6 +23,8 @@ internal static class Aria2Bootstrap
 
             var autoYes = settings.Yes || settings.InstallDeps || settings.InstallAria2;
             var interactive = !Console.IsInputRedirected && !Console.IsOutputRedirected;
+            // TTY presence drives sudo -n vs sudo; consent is separate (autoYes).
+            var nonInteractive = Console.IsInputRedirected;
 
             Func<string, bool>? confirm = null;
             if (!autoYes && interactive)
@@ -49,7 +50,7 @@ internal static class Aria2Bootstrap
             await Console.Error.WriteLineAsync("aria2c not found — attempting install…");
             using var log = new StringWriter();
             var (ok, message, kind) = await PrerequisiteInstaller.InstallAria2Async(
-                ct, autoYes, confirm, log);
+                ct, autoYes, nonInteractive, confirm, log);
             var logText = log.ToString();
             if (logText.Length > 0)
                 await Console.Error.WriteLineAsync(logText.TrimEnd());

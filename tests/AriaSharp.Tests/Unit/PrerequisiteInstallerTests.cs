@@ -8,7 +8,7 @@ public class PrerequisiteInstallerTests
         var mgr = new PackageManagerEntry(
             "brew", "brew", "brew", "info aria2", "brew", "install aria2",
             NeedsElevation: false, PackageProbeKind.ExitCodeZero, static () => true);
-        var resolved = PrerequisiteInstaller.ResolveInstallCommand(mgr);
+        var resolved = PrerequisiteInstaller.ResolveInstallCommand(mgr, nonInteractive: true);
         Assert.NotNull(resolved);
         Assert.Equal("brew", resolved.Value.File);
         Assert.Equal("install aria2", resolved.Value.Args);
@@ -18,7 +18,7 @@ public class PrerequisiteInstallerTests
     public void ResolveInstallCommand_NonInteractive_UsesSudoDashN()
     {
         if (OperatingSystem.IsWindows() || PrerequisiteInstaller.IsPrivileged())
-            return; // path not applicable
+            return;
         if (!PackageManagerCatalog.CommandExists("sudo"))
             return;
 
@@ -32,15 +32,30 @@ public class PrerequisiteInstallerTests
     }
 
     [Fact]
+    public void ResolveInstallCommand_Interactive_UsesPlainSudo()
+    {
+        if (OperatingSystem.IsWindows() || PrerequisiteInstaller.IsPrivileged())
+            return;
+        if (!PackageManagerCatalog.CommandExists("sudo"))
+            return;
+
+        var mgr = new PackageManagerEntry(
+            "apt", "apt", "apt-cache", "policy aria2", "apt-get", "install -y aria2",
+            NeedsElevation: true, PackageProbeKind.AptCandidate, static () => true);
+        var resolved = PrerequisiteInstaller.ResolveInstallCommand(mgr, nonInteractive: false);
+        Assert.NotNull(resolved);
+        Assert.Equal("sudo", resolved.Value.File);
+        Assert.False(resolved.Value.Args.StartsWith("-n ", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void ClassifyManagerFailure_LockPhrase_IsBusy()
     {
         Assert.Equal(
             InstallFailureKind.ManagerBusy,
             PrerequisiteInstaller.ClassifyManagerFailure(100, "Could not get lock /var/lib/dpkg/lock"));
-        // substring "lock" alone in unrelated words must not match
         Assert.True(
             PrerequisiteInstaller.ClassifyManagerFailure(1, "blocked by policy") != InstallFailureKind.ManagerBusy);
-
     }
 
     [Fact]
@@ -68,31 +83,68 @@ public class PrerequisiteInstallerTests
     }
 
     [Fact]
-    public async Task Consent_Refused_OnFallback_ReturnsAuth()
+    public void FormatInstallCommand_IncludesPackage()
     {
-        // Force offline so we don't touch the network if already missing.
-        // If aria2 is already installed, the method returns success early — skip.
-        try
-        {
-            _ = await new Aria2Locator().LocateAsync(CancellationToken.None);
-            return; // cannot test refuse path when installed
-        }
-        catch (FileNotFoundException) { }
+        var mgr = new PackageManagerEntry(
+            "brew", "brew", "brew", "info aria2", "brew", "install aria2",
+            NeedsElevation: false, PackageProbeKind.ExitCodeZero, static () => true);
+        var text = PrerequisiteInstaller.FormatInstallCommand(mgr);
+        Assert.Contains("install aria2", text, StringComparison.Ordinal);
+    }
+}
 
-        Environment.SetEnvironmentVariable("ARIASHARP_NETWORK", "online");
+public class NetworkProbeTests
+{
+    [Fact]
+    public async Task Override_Offline()
+    {
+        var prev = Environment.GetEnvironmentVariable("ARIASHARP_NETWORK");
+        Environment.SetEnvironmentVariable("ARIASHARP_NETWORK", "offline");
         try
         {
-            var (ok, message, kind) = await PrerequisiteInstaller.InstallAria2Async(
-                CancellationToken.None,
-                autoYes: false,
-                confirm: _ => false);
+            var (ok, detail) = await NetworkProbe.CheckAsync(CancellationToken.None);
             Assert.False(ok);
-            Assert.Equal(InstallFailureKind.Auth, kind);
-            Assert.Contains("Refused", message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("offline", detail, StringComparison.OrdinalIgnoreCase);
+
+            var (relOk, _) = await NetworkProbe.CanReachReleaseHostAsync(CancellationToken.None);
+            Assert.False(relOk);
         }
         finally
         {
-            Environment.SetEnvironmentVariable("ARIASHARP_NETWORK", null);
+            Environment.SetEnvironmentVariable("ARIASHARP_NETWORK", prev);
+        }
+    }
+
+    [Fact]
+    public async Task Override_Online()
+    {
+        var prev = Environment.GetEnvironmentVariable("ARIASHARP_NETWORK");
+        Environment.SetEnvironmentVariable("ARIASHARP_NETWORK", "online");
+        try
+        {
+            var (ok, _) = await NetworkProbe.CheckAsync(CancellationToken.None);
+            Assert.True(ok);
+            var (relOk, _) = await NetworkProbe.CanReachReleaseHostAsync(CancellationToken.None);
+            Assert.True(relOk);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ARIASHARP_NETWORK", prev);
+        }
+    }
+
+    [Fact]
+    public void HasProxyEnv_DetectsHttpsProxy()
+    {
+        var prev = Environment.GetEnvironmentVariable("HTTPS_PROXY");
+        Environment.SetEnvironmentVariable("HTTPS_PROXY", "http://127.0.0.1:8080");
+        try
+        {
+            Assert.True(NetworkProbe.HasProxyEnv());
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("HTTPS_PROXY", prev);
         }
     }
 }

@@ -2,7 +2,7 @@ using System.Net.Sockets;
 
 namespace AriaSharp.Services;
 
-/// <summary>Connectivity check before download/install (proxy, TCP, DNS, optional release HEAD).</summary>
+/// <summary>Connectivity checks: general online, and GitHub release host for artifact fallback.</summary>
 public static class NetworkProbe
 {
     public static async Task<(bool Ok, string Detail)> CheckAsync(CancellationToken ct)
@@ -13,13 +13,8 @@ public static class NetworkProbe
         if (string.Equals(overrideEnv, "online", StringComparison.OrdinalIgnoreCase))
             return (true, "ARIASHARP_NETWORK=online");
 
-        // Prefer a real reachability check against the release host.
-        var (releaseOk, releaseDetail) = await TryReleaseHeadAsync(ct);
-        if (releaseOk)
-            return (true, releaseDetail);
-
         if (HasProxyEnv())
-            return (true, "proxy env set (HTTPS_PROXY/http_proxy/ALL_PROXY); release HEAD failed: " + releaseDetail);
+            return (true, "proxy env set (HTTPS_PROXY/http_proxy/ALL_PROXY)");
 
         var hosts = new[] { "1.1.1.1", "8.8.8.8" };
         var tasks = hosts.Select(h => TryTcpAsync(h, 443, ct)).ToArray();
@@ -27,35 +22,32 @@ public static class NetworkProbe
         for (var i = 0; i < results.Length; i++)
         {
             if (results[i])
-                return (true, $"tcp 443 → {hosts[i]} (release HEAD failed: {releaseDetail})");
+                return (true, $"tcp 443 → {hosts[i]}");
         }
 
         try
         {
             var entry = await System.Net.Dns.GetHostEntryAsync("github.com", ct);
             if (entry.AddressList.Length > 0)
-                return (true, "dns github.com (release HEAD failed: " + releaseDetail + ")");
+                return (true, "dns github.com");
         }
         catch (Exception ex) when (ex is SocketException or OperationCanceledException)
         {
-            return (false, "no network (TCP/DNS failed); " + releaseDetail);
+            return (false, "no network (TCP/DNS failed)");
         }
 
-        return (false, "no network; " + releaseDetail);
+        return (false, "no network");
     }
 
-    public static bool HasProxyEnv()
+    /// <summary>True only when the official release host answers (gates zip/source fallback).</summary>
+    public static async Task<(bool Ok, string Detail)> CanReachReleaseHostAsync(CancellationToken ct)
     {
-        foreach (var key in new[] { "HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy", "ALL_PROXY", "all_proxy" })
-        {
-            if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(key)))
-                return true;
-        }
-        return false;
-    }
+        var overrideEnv = Environment.GetEnvironmentVariable("ARIASHARP_NETWORK");
+        if (string.Equals(overrideEnv, "offline", StringComparison.OrdinalIgnoreCase))
+            return (false, "ARIASHARP_NETWORK=offline");
+        if (string.Equals(overrideEnv, "online", StringComparison.OrdinalIgnoreCase))
+            return (true, "ARIASHARP_NETWORK=online");
 
-    private static async Task<(bool Ok, string Detail)> TryReleaseHeadAsync(CancellationToken ct)
-    {
         try
         {
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
@@ -72,6 +64,16 @@ public static class NetworkProbe
         {
             return (false, "HEAD github release failed: " + ex.GetType().Name);
         }
+    }
+
+    public static bool HasProxyEnv()
+    {
+        foreach (var key in new[] { "HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy", "ALL_PROXY", "all_proxy" })
+        {
+            if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(key)))
+                return true;
+        }
+        return false;
     }
 
     private static async Task<bool> TryTcpAsync(string host, int port, CancellationToken ct)

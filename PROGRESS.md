@@ -1,15 +1,13 @@
 # PROGRESS.md
 
 ## Milestone
-PR #2 merge polish: fallback consent, sudo -n, tighter failure classify, release HEAD.
+PR #2 merge polish: TTY≠consent, release-host gate, drop unused InstallAsync.
 
 ## Done
-- Consent before package manager **and** artifact fallback; decline skips fallback with clear message
-- `sudo -n` when non-interactive; TTY/password errors → Auth
-- ClassifyManagerFailure: lock phrase only; no empty log lines
-- NetworkProbe HEAD on release URL (5s) before generic TCP/DNS
-- --doctor single HTTPS line; trim CR; exit 1 when missing/no HTTPS
-- Real consent unit test (when aria2 absent)
+- `nonInteractive` from Console.IsInputRedirected (sudo -n only without TTY); `-y` keeps plain sudo when interactive
+- Artifact fallback gated on `CanReachReleaseHostAsync`; package managers need only general online
+- Removed `IPrerequisiteInstaller.InstallAsync` (unused consent bypass)
+- Consent tests are pure (resolve/classify/format); no process-wide env race skip
 
 ## Next
 - Merge PR #2 when CI green on tip
