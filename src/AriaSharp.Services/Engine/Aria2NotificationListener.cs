@@ -10,15 +10,20 @@ namespace AriaSharp.Services;
 internal sealed class Aria2NotificationListener : IAsyncDisposable
 {
     private readonly ChannelWriter<EngineEvent> _events;
+    private readonly Func<EngineEvent, CancellationToken, ValueTask>? _onEvent;
     private readonly Uri _uri;
     private readonly CancellationTokenSource _cts = new();
     private ClientWebSocket? _ws;
     private Task? _loop;
     private bool _disposed;
 
-    public Aria2NotificationListener(int port, ChannelWriter<EngineEvent> events)
+    public Aria2NotificationListener(
+        int port,
+        ChannelWriter<EngineEvent> events,
+        Func<EngineEvent, CancellationToken, ValueTask>? onEvent = null)
     {
         _events = events;
+        _onEvent = onEvent;
         _uri = new Uri($"ws://127.0.0.1:{port}/jsonrpc");
     }
 
@@ -60,7 +65,11 @@ internal sealed class Aria2NotificationListener : IAsyncDisposable
                 {
                     using var doc = await JsonDocument.ParseAsync(ms, cancellationToken: ct);
                     if (TryMap(doc.RootElement, out var ev))
+                    {
                         _events.TryWrite(ev);
+                        if (_onEvent is not null)
+                            await _onEvent(ev, ct);
+                    }
                 }
                 catch (JsonException)
                 {

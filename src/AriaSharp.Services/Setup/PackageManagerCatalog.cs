@@ -3,8 +3,8 @@ namespace AriaSharp.Services;
 /// <summary>Official aria2 1.37.0 artifacts. Upstream publishes no checksums; we pin SHA-256.</summary>
 public static class Aria2Manifest
 {
-    public const string Version = "1.37.0";
-    public const string ReleaseTag = "release-1.37.0";
+    public const string Version = AppDefaults.Aria2Version;
+    public const string ReleaseTag = AppDefaults.Aria2ReleaseTag;
 
     public const string WindowsZipUrl64 =
         "https://github.com/aria2/aria2/releases/download/release-1.37.0/aria2-1.37.0-win-64bit-build1.zip";

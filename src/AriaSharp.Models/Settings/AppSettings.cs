@@ -29,7 +29,8 @@ public sealed class AppDefaults
     public const string SessionFileName = "resume.session";
     public const string OutputDirDefault = ".";
     public const string Aria2Version = "1.37.0";
-    public const string Aria2ReleaseTag = "aria2-1.37.0";
+    /// <summary>GitHub release tag for official aria2 artifacts.</summary>
+    public const string Aria2ReleaseTag = "release-1.37.0";
     public const string ConfigFileName = "ariasharp.json";
     public const string EnvPrefix = "ARIASHARP_";
     public const string UserAgent = "AriaSharp/1.0.0";

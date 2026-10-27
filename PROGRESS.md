@@ -1,18 +1,18 @@
 # PROGRESS.md
 
 ## Milestone
-PR #2 (installer QoS) merged to main.
+Post-merge audit: session save-on-result, constants, README, S1 decision note.
 
 ## Done
-- Package-manager probe + pinned GitHub fallback (SHA-256, TLS source build)
-- TTY vs consent: `nonInteractive` required; `--install-deps` and download path both pass it
-- Release-host HEAD gates artifact fallback only
-- --doctor exit 1 without aria2/HTTPS; CI smoke asserts it
-- ScreenGuard.EmergencyRestore on second Ctrl-C
+- Installer QoS on main (PR #2 lineage)
+- `saveSession` on Complete/Error/Stop notifications (throttled ~400ms)
+- Single version/tag source (`AppDefaults`); correct `release-1.37.0` tag
+- README: paths, tests, --doctor, installer behaviour
+- `docs/decisions/2026-10-27-aria2-jsonrpc-client.md` (keep in-repo RPC)
 
 ## Next
-- Inject process runner / network probe for deterministic consent + fallback unit tests
-  (manager declined, fallback declined, release host unreachable)
+- Inject process runner / probe for consent + fallback unit tests
+- Terminal smoke: full-screen help pager + dashboard (manual)
 
 ## Blocked
 - (none)
