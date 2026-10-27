@@ -50,7 +50,7 @@ internal static class Aria2Bootstrap
             await Console.Error.WriteLineAsync("aria2c not found — attempting install…");
             using var log = new StringWriter();
             var (ok, message, kind) = await PrerequisiteInstaller.InstallAria2Async(
-                ct, autoYes, nonInteractive, confirm, log);
+                autoYes, nonInteractive, ct, confirm, log);
             var logText = log.ToString();
             if (logText.Length > 0)
                 await Console.Error.WriteLineAsync(logText.TrimEnd());

@@ -52,9 +52,9 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
     /// <param name="confirm">Optional interactive consent for a displayed command/plan.</param>
     /// <param name="log">Optional log sink.</param>
     public static async Task<(bool Ok, string Message, InstallFailureKind Kind)> InstallAria2Async(
+        bool autoYes,
+        bool nonInteractive,
         CancellationToken ct,
-        bool autoYes = true,
-        bool nonInteractive = true,
         Func<string, bool>? confirm = null,
         TextWriter? log = null)
     {
@@ -136,7 +136,7 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
         {
             var prefix = notes.Count > 0 ? string.Join("; ", notes) + "; " : "";
             return (false,
-                prefix + $"cannot reach aria2 release host for fallback: {releaseDetail} — install via package manager or set --aria2-path",
+                prefix + $"cannot reach aria2 release host for fallback: {releaseDetail} — install via package manager, set --aria2-path, or ARIASHARP_NETWORK=online",
                 InstallFailureKind.Network);
         }
 
@@ -244,7 +244,7 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
         }
     }
 
-    public static async Task<(bool Ok, string Message)> InstallDepsAsync(bool installAria2, CancellationToken ct)
+    public static async Task<(bool Ok, string Message)> InstallDepsAsync(bool installAria2, bool nonInteractive, CancellationToken ct)
     {
         var lines = new List<string>
         {
@@ -267,7 +267,7 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
             {
                 lines.Add($"aria2c: installing {Aria2Manifest.Version}…");
                 using var log = new StringWriter();
-                var (installed, msg, kind) = await InstallAria2Async(ct, autoYes: true, log: log);
+                var (installed, msg, kind) = await InstallAria2Async(autoYes: true, nonInteractive: nonInteractive, ct: ct, log: log);
                 lines.Add($"aria2c: {msg} ({kind})");
                 var logText = log.ToString().TrimEnd();
                 if (logText.Length > 0)

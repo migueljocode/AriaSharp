@@ -9,7 +9,9 @@ internal static class InstallCommand
     {
         await Console.Out.WriteLineAsync("Installing prerequisites…");
         var installAria2 = settings.InstallDeps || settings.InstallAria2;
-        var (ok, message) = await PrerequisiteInstaller.InstallDepsAsync(installAria2, CancellationToken.None);
+        var nonInteractive = Console.IsInputRedirected;
+        var (ok, message) = await PrerequisiteInstaller.InstallDepsAsync(
+            installAria2, nonInteractive, CancellationToken.None);
         await Console.Out.WriteLineAsync(message);
         if (!ok)
         {
