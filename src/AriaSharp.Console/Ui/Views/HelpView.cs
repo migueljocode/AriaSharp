@@ -46,6 +46,8 @@ internal static class HelpView
         });
         console.Profile.Width = Math.Max(40, width);
 
+        // Top margin — logo pinned near the top of the help page
+        console.WriteLine();
         console.Write(Align.Center(new Markup(
             $"[#BB86FC] █████╗ ██████╗ ██╗ █████╗ [/][#E040FB]███████╗██╗  ██╗ █████╗ ██████╗ ██████╗ [/]\n" +
             $"[#BB86FC]██╔══██╗██╔══██╗██║██╔══██╗[/][#CE93D8]██╔════╝██║  ██║██╔══██╗██╔══██╗██╔══██╗[/]\n" +

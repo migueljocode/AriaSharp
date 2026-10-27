@@ -21,7 +21,8 @@ internal static class DashboardView
         var root = new Grid().Expand();
         root.AddColumn(new GridColumn().NoWrap());
 
-        // Compact logo band (no "download dashboard" label)
+        // Logo pinned at top with a small top margin (no "download dashboard" label)
+        root.AddRow(new Text(""));
         root.AddRow(BuildLogo(frame));
         root.AddRow(new Text(""));
 
