@@ -84,7 +84,7 @@ internal static class OptionTable
             new Option("verbose",     OptionKind.Flag,    "Display", "Verbose logging.",                            apply: (o, _) => o.Verbose = true,                                           shortName: 'v'),
 
             // ── SETUP
-            new Option("install-deps", OptionKind.Flag, "Setup", "Install prerequisites (aria2 + clipboard helpers).", apply: (o, _) => o.InstallDeps = true, shortName: 'y'),
+            new Option("install-deps", OptionKind.Flag, "Setup", "Install aria2 into a user-local tools dir (GitHub release; no admin).", apply: (o, _) => o.InstallDeps = true, shortName: 'y'),
             new Option("no-install",  OptionKind.Flag, "Setup", "Never install anything (wins over --install-deps).", apply: (o, _) => o.NoInstall = true, shortName: 'n'),
             new Option("install-aria2", OptionKind.Flag, "Setup", "Install aria2 if it is missing.", apply: (o, _) => o.InstallAria2 = true),
             new Option("aria2-path",  OptionKind.String, "Setup", "Path to the aria2c binary.", valueName: "<path>", apply: (o, v) => o.Aria2Path = v),

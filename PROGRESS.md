@@ -1,19 +1,20 @@
 # PROGRESS.md
 
 ## Milestone
-Cross-platform deps + UI polish on feat/rebuild.
+User-local aria2 bootstrap (no sudo) + review fixes.
 
 ## Done
-- Smart inputs, clipboard, dashboard, pager, retry, pause count, skip-existing
-- OS package managers: apt/dnf/yum/pacman/zypper/apk · brew/port · winget/choco/scoop
-- Clipboard helpers only on Linux; macOS/Windows use system clipboard
-- Logo top margin on dashboard + help
-- Gradient bars, render loop, session QoS (other session)
-- **Verified:** tests green locally
+- PrerequisiteInstaller downloads official aria2 1.37.0 from GitHub
+- Windows: zip → extract aria2c.exe → `AppPaths.ToolsBinDirectory`
+- Linux/macOS: source tarball → configure/make/install → copy aria2c
+- Cache cleaned after install; locator prefers bundled path
+- Windows RPC conf: icacls restrict to current user
+- Clipboard: probe only; no privileged package install
+- Logo top margin; OS-aware paths under XDG / LOCALAPPDATA
 
 ## Next
 - CI green on PR #1
-- Optional: SHA-256 pin for Windows zip fallback installer
+- Optional Program.cs split into InstallCommand / DownloadCommand
 
 ## Blocked
 - (none)

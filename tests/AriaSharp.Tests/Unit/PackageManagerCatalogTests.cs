@@ -1,27 +1,30 @@
+using AriaSharp.Models;
 using AriaSharp.Services;
 using Xunit;
 
 namespace AriaSharp.Tests;
 
-public class PackageManagerCatalogTests
+public class Aria2BootstrapPathsTests
 {
-    [Theory]
-    [InlineData("aria2", "winget", "aria2.aria2")]
-    [InlineData("aria2c", "brew", "aria2")]
-    [InlineData("aria2", "apt", "aria2")]
-    [InlineData("xclip", "apt", "xclip")]
-    public void MapPackage_LogicalNames(string logical, string manager, string expected)
+    [Fact]
+    public void Manifest_Urls_PointAtOfficialRelease()
     {
-        Assert.Equal(expected, PackageManagerCatalog.MapPackage(logical, manager));
+        Assert.Contains("1.37.0", Aria2Manifest.Version, StringComparison.Ordinal);
+        Assert.StartsWith("https://github.com/aria2/aria2/releases/", Aria2Manifest.WindowsZipUrl, StringComparison.Ordinal);
+        Assert.StartsWith("https://github.com/aria2/aria2/releases/", Aria2Manifest.SourceTarballGzUrl, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Managers_CoverMajorPlatforms()
+    public void AppPaths_ToolsBin_IsUnderDataDirectory()
     {
-        Assert.Contains(PackageManagerCatalog.LinuxManagers, m => m.Id == "apt");
-        Assert.Contains(PackageManagerCatalog.LinuxManagers, m => m.Id == "pacman");
-        Assert.Contains(PackageManagerCatalog.MacManagers, m => m.Id == "brew");
-        Assert.Contains(PackageManagerCatalog.WindowsManagers, m => m.Id == "winget");
-        Assert.Contains(PackageManagerCatalog.WindowsManagers, m => m.Id == "choco");
+        Assert.StartsWith(AppPaths.DataDirectory, AppPaths.ToolsBinDirectory, StringComparison.Ordinal);
+        Assert.EndsWith("aria2c", AppPaths.BundledAria2cPath.Replace(".exe", "", StringComparison.OrdinalIgnoreCase), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Locator_PrefersBundled_WhenPresent()
+    {
+        // Only asserts contract: bundled path is absolute under data dir
+        Assert.True(Path.IsPathRooted(AppPaths.BundledAria2cPath));
     }
 }

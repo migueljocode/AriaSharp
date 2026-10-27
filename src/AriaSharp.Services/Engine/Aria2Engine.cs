@@ -279,9 +279,26 @@ public sealed class Aria2Engine : IAria2Engine
                 await writer.FlushAsync(ct).ConfigureAwait(false);
             }
         }
+
+        await RestrictConfToCurrentUserAsync(path, ct).ConfigureAwait(false);
     }
 
-    
+    private static async Task RestrictConfToCurrentUserAsync(string path, CancellationToken ct)
+    {
+        if (!OperatingSystem.IsWindows())
+            return;
+        try
+        {
+            var user = Environment.UserName;
+            var args = string.Concat("\"", path, "\" /inheritance:r /grant:r \"", user, ":F\"");
+            _ = await ProcessRunner.RunAsync("icacls", args, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or UnauthorizedAccessException)
+        {
+            // Best-effort; loopback RPC still limits exposure.
+        }
+    }
+
     public async Task PauseAllAsync(CancellationToken ct)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
