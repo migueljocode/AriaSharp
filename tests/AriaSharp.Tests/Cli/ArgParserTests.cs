@@ -203,7 +203,11 @@ public class ArgParserTests
             Assert.Equal(1, exitCode);
             var err = sw.ToString();
             Assert.DoesNotContain("engine not implemented yet", err, StringComparison.Ordinal);
-            Assert.Contains("aria2", err, StringComparison.OrdinalIgnoreCase);
+            Assert.True(
+                err.Contains("aria2", StringComparison.OrdinalIgnoreCase)
+                || err.Contains("non-interactive", StringComparison.OrdinalIgnoreCase)
+                || err.Contains("install", StringComparison.OrdinalIgnoreCase),
+                "unexpected error: " + err);
         }
         finally
         {

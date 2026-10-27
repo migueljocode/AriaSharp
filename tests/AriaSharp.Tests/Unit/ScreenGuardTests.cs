@@ -19,4 +19,11 @@ public class ScreenGuardTests
         // No assert on null/non-null; just that dispose is safe.
         guard?.Dispose();
     }
+
+    [Fact]
+    public void EmergencyRestore_DoesNotThrow()
+    {
+        // Manual: second Ctrl-C should leave alt-screen with cursor visible.
+        ScreenGuard.EmergencyRestore();
+    }
 }

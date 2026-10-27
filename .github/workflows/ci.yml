@@ -80,8 +80,8 @@ jobs:
             BIN=./src/AriaSharp.Console/bin/Release/net10.0/${{ matrix.rid }}/publish/ariasharp
           fi
           "$BIN" --install-deps -y
-          "$BIN" --doctor
-          # Prefer locator via doctor output containing aria2c path; HTTPS when version available
           out=$("$BIN" --doctor)
+          status=$?
           echo "$out"
-          echo "$out" | grep -qi 'aria2c:'
+          test "$status" -eq 0
+          echo "$out" | grep -q 'HTTPS: yes'

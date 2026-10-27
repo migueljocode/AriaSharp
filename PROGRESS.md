@@ -1,20 +1,19 @@
 # PROGRESS.md
 
 ## Milestone
-Installer QoS: package-manager probe, SHA-256 pins, doctor, logo widget.
+Installer fix-up (PR #2): privileged process, fallback, consent, doctor exit.
 
 ## Done
-- main @ 5f5384b merged; feat/rebuild removed
-- PackageManagerCatalog + NetworkProbe
-- Aria2 GitHub install: SHA-256 pin, TLS-only source build, install.log
-- RPC HTTP error body preserved; conf deleted after RPC ready
-- Second Ctrl-C hard-exits; --doctor diagnostics
-- Shared BrandLogo; Models IDownloadSession only (no SessionUpdate)
+- IsPrivilegedProcess for root detection
+- Needs-root managers skipped → pinned zip/source fallback
+- mayInstall = !NoInstall; autoYes separate; interactive y/N
+- Package-manager failures classified + logged; fallback announced
+- --doctor exits 1 if no aria2c / no HTTPS; CI asserts exit + HTTPS: yes
+- ScreenGuard.EmergencyRestore on second Ctrl-C
 
 ## Next
-- CI: `--install-deps -y` smoke on three OSes
-- Interactive y/N for package manager when not -y
-- Re-verify SHA-256 if upstream re-uploads
+- Merge PR #2 when CI green on latest tip
+- Optional: deeper install flow tests with injected process runner
 
 ## Blocked
 - (none)

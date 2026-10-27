@@ -10,6 +10,7 @@ internal static class DoctorCommand
             $"OS: {Environment.OSVersion}",
             $"RID: {System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier}",
             $"user: {Environment.UserName}",
+            $"privileged: {PrerequisiteInstaller.IsPrivileged()}",
             $"tools: {AppPaths.ToolsBinDirectory}",
         };
 
@@ -22,20 +23,30 @@ internal static class DoctorCommand
             lines.Add($"manager {mgr.DisplayName}: {detail}");
         }
 
+        var exit = (int)ExitCode.Ok;
         try
         {
             var path = await new Aria2Locator().LocateAsync(ct);
             lines.Add($"aria2c: {path}");
-            var (_, first, https) = await Aria2Diagnostics.VersionAsync(path, ct);
+            var (ok, first, https) = await Aria2Diagnostics.VersionAsync(path, ct);
             lines.Add(first);
-            lines.Add(https ? "HTTPS: yes" : "HTTPS: no or unknown");
+            if (!ok || !https)
+            {
+                lines.Add(https ? "HTTPS: yes" : "HTTPS: no or unknown");
+                exit = (int)ExitCode.Failure;
+            }
+            else
+            {
+                lines.Add("HTTPS: yes");
+            }
         }
         catch (FileNotFoundException)
         {
             lines.Add("aria2c: not found");
+            exit = (int)ExitCode.Failure;
         }
 
         await Console.Out.WriteLineAsync(string.Join(Environment.NewLine, lines));
-        return (int)ExitCode.Ok;
+        return exit;
     }
 }

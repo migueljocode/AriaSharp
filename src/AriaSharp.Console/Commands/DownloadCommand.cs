@@ -15,7 +15,8 @@ internal static class DownloadCommand
             cancelCount++;
             if (cancelCount >= 2)
             {
-                e.Cancel = false; // second Ctrl-C: hard exit, restore terminal
+                ScreenGuard.EmergencyRestore();
+                e.Cancel = false; // second Ctrl-C: hard exit after restoring terminal
                 return;
             }
             try

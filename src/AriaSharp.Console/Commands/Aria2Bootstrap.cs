@@ -1,6 +1,6 @@
 namespace AriaSharp.App;
 
-/// <summary>Locate aria2c, optionally installing into the user tools dir.</summary>
+/// <summary>Locate aria2c, optionally installing (consent when interactive).</summary>
 internal static class Aria2Bootstrap
 {
     public static async Task<(string? Path, int? ExitCode)> LocateOrInstallAsync(
@@ -13,9 +13,8 @@ internal static class Aria2Bootstrap
         }
         catch (FileNotFoundException ex)
         {
-            var mayInstall = !settings.NoInstall
-                && (settings.InstallDeps || settings.InstallAria2 || settings.Yes);
-            if (!mayInstall)
+            // Install is allowed unless explicitly disabled — consent is separate.
+            if (settings.NoInstall)
             {
                 await Console.Error.WriteLineAsync($"Error: {ex.Message}");
                 await Console.Error.WriteLineAsync(
@@ -24,8 +23,10 @@ internal static class Aria2Bootstrap
             }
 
             var autoYes = settings.Yes || settings.InstallDeps || settings.InstallAria2;
+            var interactive = !Console.IsInputRedirected && !Console.IsOutputRedirected;
+
             Func<string, bool>? confirm = null;
-            if (!autoYes && !Console.IsInputRedirected && !Console.IsOutputRedirected)
+            if (!autoYes && interactive)
             {
                 confirm = cmd =>
                 {
@@ -41,11 +42,18 @@ internal static class Aria2Bootstrap
             else if (!autoYes)
             {
                 await Console.Error.WriteLineAsync(
-                    "Error: non-interactive session requires -y/--yes to install dependencies.");
+                    "Error: non-interactive session requires -y/--yes/--install-deps to install dependencies.");
                 return (null, (int)ExitCode.Failure);
             }
 
-            var (ok, message, kind) = await PrerequisiteInstaller.InstallAria2Async(ct, autoYes, confirm);
+            await Console.Error.WriteLineAsync("aria2c not found — attempting install…");
+            using var log = new StringWriter();
+            var (ok, message, kind) = await PrerequisiteInstaller.InstallAria2Async(
+                ct, autoYes, confirm, log);
+            var logText = log.ToString();
+            if (logText.Length > 0)
+                await Console.Error.WriteLineAsync(logText.TrimEnd());
+
             if (!ok)
             {
                 await Console.Error.WriteLineAsync($"Error: {message} ({kind})");

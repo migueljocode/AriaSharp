@@ -68,11 +68,21 @@ internal sealed class ScreenGuard : IDisposable
         if (_disposed) return;
         _disposed = true;
         if (!_entered) return;
+        EmergencyRestore();
+    }
+
+    /// <summary>
+    /// Best-effort: show cursor and leave alternate screen (second Ctrl-C / ProcessExit).
+    /// Safe to call multiple times.
+    /// </summary>
+    public static void EmergencyRestore()
+    {
         try
         {
             System.Console.Write("\x1b[?25h\x1b[?1049l");
             System.Console.Out.Flush();
         }
         catch (IOException) { }
+        catch (InvalidOperationException) { }
     }
 }
