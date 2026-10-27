@@ -73,7 +73,7 @@ internal static class SummaryView
                 $"[red]FAILED ({failed.Count})[/]",
                 Color.Red,
                 failed.Take(8).Select(static i =>
-                    $"[red]✗[/] [white]{Markup.Escape(ItemName(i).TruncateTo(28))}[/]  [grey]{Markup.Escape(ItemError(i).TruncateTo(48))}[/]")));
+                    $"[red]✗[/] [white]{Markup.Escape(ItemName(i).TruncateTo(28))}[/]  [grey]{Markup.Escape(ItemError(i))}[/]")));
         }
 
         if (showRetryPrompt)
