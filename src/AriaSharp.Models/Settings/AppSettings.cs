@@ -77,10 +77,10 @@ public sealed class AppSettings
     public string? ConfigFile { get; set; }
     public string? Aria2Path { get; set; }
     public string? SpeedLimit { get; set; }
-    public IReadOnlyList<string> Inputs { get; set; } = Array.Empty<string>();
+    public IReadOnlyList<string> Inputs { get; set; } = [];
     public bool FromClipboard { get; set; }
-    public IReadOnlyList<string> FromFiles { get; set; } = Array.Empty<string>();
-    public IReadOnlyList<string> ExtraOptions { get; set; } = Array.Empty<string>();
+    public IReadOnlyList<string> FromFiles { get; set; } = [];
+    public IReadOnlyList<string> ExtraOptions { get; set; } = [];
 }
 
 /// <summary>
@@ -121,10 +121,10 @@ public sealed class SettingsOverlay
     public string? ConfigFile { get; set; }
     public string? Aria2Path { get; set; }
     public string? SpeedLimit { get; set; }
-    public IReadOnlyList<string> Inputs { get; set; } = Array.Empty<string>();
+    public IReadOnlyList<string> Inputs { get; set; } = [];
     public bool? FromClipboard { get; set; }
-    public IReadOnlyList<string> FromFiles { get; set; } = Array.Empty<string>();
-    public IReadOnlyList<string> ExtraOptions { get; set; } = Array.Empty<string>();
+    public IReadOnlyList<string> FromFiles { get; set; } = [];
+    public IReadOnlyList<string> ExtraOptions { get; set; } = [];
 }
 
 [JsonSerializable(typeof(AppSettings))]

@@ -19,36 +19,51 @@ internal static class AppHost
             return (int)ExitCode.UsageError;
         }
 
-        if (cli.Help == true)
-        {
-            Theme.Enabled = !(settings.NoColor || settings.Ascii || settings.Plain);
-            HelpView.Render(settings);
-            return (int)ExitCode.Ok;
-        }
+        Theme.Enabled = !(settings.NoColor || settings.Ascii || settings.Plain);
 
-        if (cli.Version == true)
+        return cli switch
         {
-            await Console.Out.WriteLineAsync("AriaSharp 1.0.0").ConfigureAwait(false);
-            return (int)ExitCode.Ok;
-        }
+            { Help: true } => RenderHelp(settings),
+            { Version: true } => await WriteVersionAsync().ConfigureAwait(false),
+            { PrintConfig: true } => await WriteConfigAsync(settings).ConfigureAwait(false),
+            _ => await RunCoreAsync(settings).ConfigureAwait(false),
+        };
+    }
 
-        if (cli.PrintConfig == true)
-        {
-            var json = JsonSerializer.Serialize(settings, AppSettingsJsonContext.Default.AppSettings);
-            await Console.Out.WriteLineAsync(json).ConfigureAwait(false);
-            return (int)ExitCode.Ok;
-        }
+    private static int RenderHelp(AppSettings settings)
+    {
+        HelpView.Render(settings);
+        return (int)ExitCode.Ok;
+    }
 
+    private static async Task<int> WriteVersionAsync()
+    {
+        await Console.Out.WriteLineAsync("AriaSharp 1.0.0").ConfigureAwait(false);
+        return (int)ExitCode.Ok;
+    }
+
+    private static async Task<int> WriteConfigAsync(AppSettings settings)
+    {
+        var json = JsonSerializer.Serialize(settings, AppSettingsJsonContext.Default.AppSettings);
+        await Console.Out.WriteLineAsync(json).ConfigureAwait(false);
+        return (int)ExitCode.Ok;
+    }
+
+    private static async Task<int> RunCoreAsync(AppSettings settings)
+    {
         var wantsInstall = !settings.NoInstall
             && (settings.InstallDeps || settings.InstallAria2);
-        if (wantsInstall && settings.Inputs.Count == 0 && !settings.FromClipboard && settings.FromFiles.Count == 0)
+        if (wantsInstall
+            && settings.Inputs is { Count: 0 }
+            && !settings.FromClipboard
+            && settings.FromFiles is { Count: 0 })
             return await InstallCommand.RunAsync(settings).ConfigureAwait(false);
 
         var (exit, resolved) = await InputCommand.ResolveAsync(settings).ConfigureAwait(false);
         if (exit is int code)
             return code;
-        settings = resolved;
 
+        settings = resolved;
         while (true)
         {
             var (runCode, retry) = await DownloadCommand.RunAsync(settings).ConfigureAwait(false);

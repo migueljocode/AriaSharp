@@ -1,46 +1,37 @@
-
 namespace AriaSharp.Services;
 
-public sealed class Aria2Locator : IAria2Locator
+public sealed class Aria2Locator(string? explicitPath = null) : IAria2Locator
 {
-    private readonly string? _explicitPath;
-
-    public Aria2Locator(string? explicitPath = null) => _explicitPath = explicitPath;
-
     public Task<string> LocateAsync(CancellationToken ct)
     {
         _ = ct;
 
-        if (!string.IsNullOrEmpty(_explicitPath))
+        if (explicitPath is { Length: > 0 })
         {
-            var explicitFull = Path.IsPathRooted(_explicitPath)
-                ? _explicitPath
-                : Path.GetFullPath(_explicitPath);
-            if (File.Exists(explicitFull))
-                return Task.FromResult(explicitFull);
-            throw new FileNotFoundException("aria2 not found at the explicit path.", explicitFull);
+            var full = Path.IsPathRooted(explicitPath)
+                ? explicitPath
+                : Path.GetFullPath(explicitPath);
+            if (File.Exists(full))
+                return Task.FromResult(full);
+            throw new FileNotFoundException("aria2 not found at the explicit path.", full);
         }
 
-        // 1. User-local install performed by AriaSharp (no admin)
         if (File.Exists(AppPaths.BundledAria2cPath))
             return Task.FromResult(AppPaths.BundledAria2cPath);
 
-        // 2. PATH
-        foreach (var name in new[] { "aria2c", "aria2" })
+        foreach (var name in (string[])["aria2c", "aria2"])
         {
-            var found = FindInPath(name);
-            if (!string.IsNullOrEmpty(found))
+            if (FindInPath(name) is { } found)
                 return Task.FromResult(found);
         }
 
-        // 3. Known system absolute paths
-        foreach (var absolute in new[]
-                 {
+        foreach (var absolute in (string[])
+                 [
                      "/usr/bin/aria2c",
                      "/usr/local/bin/aria2c",
                      "/opt/homebrew/bin/aria2c",
                      "/usr/local/aria2/bin/aria2c",
-                 })
+                 ])
         {
             if (File.Exists(absolute))
                 return Task.FromResult(absolute);
@@ -53,7 +44,8 @@ public sealed class Aria2Locator : IAria2Locator
     private static string? FindInPath(string fileName)
     {
         var pathVar = Environment.GetEnvironmentVariable("PATH");
-        if (string.IsNullOrEmpty(pathVar)) return null;
+        if (pathVar is not { Length: > 0 })
+            return null;
 
         foreach (var dir in pathVar.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
         {
@@ -67,6 +59,7 @@ public sealed class Aria2Locator : IAria2Locator
                     return exe;
             }
         }
+
         return null;
     }
 }

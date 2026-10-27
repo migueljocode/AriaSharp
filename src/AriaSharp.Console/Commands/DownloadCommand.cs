@@ -102,7 +102,7 @@ internal static class DownloadCommand
                 ConfFile = workspace.ConfFile,
                 Secret = secret,
                 Port = port,
-                Args = Array.Empty<string>(),
+                Args = [],
             };
             var args = new Aria2ArgsBuilder().Build(provisional, settings);
             var engineSettings = new EngineSettings
@@ -223,14 +223,12 @@ internal static class DownloadCommand
             catch (IOException) { }
             catch (UnauthorizedAccessException) { }
 
-            var code = outcome.Kind switch
+            var code = (int)(outcome.Kind switch
             {
-                RunOutcomeKind.Completed => (int)ExitCode.Ok,
-                RunOutcomeKind.Interrupted => (int)ExitCode.Interrupted,
-                // Empty (no items) is a failure for the user, not success
-                RunOutcomeKind.Empty => (int)ExitCode.Failure,
-                _ => (int)ExitCode.Failure,
-            };
+                RunOutcomeKind.Completed => ExitCode.Ok,
+                RunOutcomeKind.Interrupted => ExitCode.Interrupted,
+                _ => ExitCode.Failure, // Empty and Failed are failures for the user
+            });
             return (code, retry);
         }
         finally

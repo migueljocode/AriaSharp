@@ -19,15 +19,15 @@ public static class InputResolver
         ArgumentNullException.ThrowIfNull(classifier);
         ArgumentNullException.ThrowIfNull(clipboard);
 
-        forceFiles ??= Array.Empty<string>();
+        forceFiles ??= [];
 
         if (forceClipboard)
             return await FromClipboardAsync(extractor, clipboard, ct).ConfigureAwait(false);
 
-        if (forceFiles.Count > 0)
+        if (forceFiles is { Count: > 0 })
             return await FromFilesAsync(forceFiles, extractor, ct).ConfigureAwait(false);
 
-        if (existing.Count > 0)
+        if (existing is { Count: > 0 })
             return await ExpandArgsAsync(existing, extractor, classifier, ct).ConfigureAwait(false);
 
         if (Console.IsInputRedirected)
@@ -35,17 +35,18 @@ public static class InputResolver
             using var reader = new StreamReader(Console.OpenStandardInput());
             var text = await reader.ReadToEndAsync(ct).ConfigureAwait(false);
             var fromStdin = extractor.Extract(text);
-            if (fromStdin.Length > 0)
+            if (fromStdin is { Length: > 0 })
                 return fromStdin;
-            var lines = text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            if (lines.Length > 0)
+
+            string[] lines = [.. text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)];
+            if (lines is { Length: > 0 })
                 return await ExpandArgsAsync(lines, extractor, classifier, ct).ConfigureAwait(false);
         }
 
         if (!Console.IsOutputRedirected)
             return await FromClipboardAsync(extractor, clipboard, ct).ConfigureAwait(false);
 
-        return Array.Empty<string>();
+        return [];
     }
 
     private static async Task<IReadOnlyList<string>> ExpandArgsAsync(
@@ -54,16 +55,18 @@ public static class InputResolver
         IUrlClassifier classifier,
         CancellationToken ct)
     {
-        var result = new List<string>();
-        var seen = new HashSet<string>(StringComparer.Ordinal);
+        List<string> result = [];
+        HashSet<string> seen = new(StringComparer.Ordinal);
 
         foreach (var arg in args)
         {
-            if (string.IsNullOrWhiteSpace(arg)) continue;
+            if (string.IsNullOrWhiteSpace(arg))
+                continue;
 
             if (classifier.IsUrl(arg))
             {
-                if (seen.Add(arg)) result.Add(arg);
+                if (seen.Add(arg))
+                    result.Add(arg);
                 continue;
             }
 
@@ -72,24 +75,27 @@ public static class InputResolver
                 var fromFile = await ReadFileUrlsAsync(arg, extractor, ct).ConfigureAwait(false);
                 foreach (var u in fromFile)
                 {
-                    if (seen.Add(u)) result.Add(u);
+                    if (seen.Add(u))
+                        result.Add(u);
                 }
-                if (fromFile.Length == 0 && classifier.IsSessionFile(arg) && seen.Add(arg))
+                if (fromFile is { Length: 0 } && classifier.IsSessionFile(arg) && seen.Add(arg))
                     result.Add(arg);
                 continue;
             }
 
             var extracted = extractor.Extract(arg);
-            if (extracted.Length > 0)
+            if (extracted is { Length: > 0 })
             {
                 foreach (var u in extracted)
                 {
-                    if (seen.Add(u)) result.Add(u);
+                    if (seen.Add(u))
+                        result.Add(u);
                 }
                 continue;
             }
 
-            if (seen.Add(arg)) result.Add(arg);
+            if (seen.Add(arg))
+                result.Add(arg);
         }
 
         return result;
@@ -100,15 +106,16 @@ public static class InputResolver
         IUrlExtractor extractor,
         CancellationToken ct)
     {
-        var result = new List<string>();
-        var seen = new HashSet<string>(StringComparer.Ordinal);
+        List<string> result = [];
+        HashSet<string> seen = new(StringComparer.Ordinal);
         foreach (var path in files)
         {
             if (!File.Exists(path))
                 throw new FileNotFoundException($"List file not found: {path}", path);
             foreach (var u in await ReadFileUrlsAsync(path, extractor, ct).ConfigureAwait(false))
             {
-                if (seen.Add(u)) result.Add(u);
+                if (seen.Add(u))
+                    result.Add(u);
             }
         }
         return result;
@@ -118,11 +125,11 @@ public static class InputResolver
     {
         var text = await File.ReadAllTextAsync(path, ct).ConfigureAwait(false);
         var urls = extractor.Extract(text);
-        if (urls.Length > 0) return urls;
+        if (urls is { Length: > 0 })
+            return urls;
 
-        return text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Where(static l => !l.StartsWith('#') && !string.IsNullOrWhiteSpace(l))
-            .ToArray();
+        return [.. text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(static l => !l.StartsWith('#') && !string.IsNullOrWhiteSpace(l))];
     }
 
     private static async Task<IReadOnlyList<string>> FromClipboardAsync(
@@ -134,14 +141,15 @@ public static class InputResolver
         {
             var clip = await clipboard.ReadTextAsync(ct).ConfigureAwait(false);
             if (string.IsNullOrWhiteSpace(clip))
-                return Array.Empty<string>();
+                return [];
             var urls = extractor.Extract(clip);
-            if (urls.Length > 0) return urls;
-            return clip.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (urls is { Length: > 0 })
+                return urls;
+            return [.. clip.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)];
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
         {
-            return Array.Empty<string>();
+            return [];
         }
     }
 }

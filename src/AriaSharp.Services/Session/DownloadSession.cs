@@ -153,14 +153,14 @@ public sealed class DownloadSession : IDownloadSession
 
     private static SessionState EmptyState() => new()
     {
-        ActiveItems = Array.Empty<DownloadItem>(),
-        WaitingItems = Array.Empty<DownloadItem>(),
-        StoppedItems = Array.Empty<DownloadItem>(),
-        PausedItems = Array.Empty<DownloadItem>(),
-        CompleteItems = Array.Empty<DownloadItem>(),
-        FailedItems = Array.Empty<DownloadItem>(),
-        SkippedItems = Array.Empty<DownloadItem>(),
-        InterruptedItems = Array.Empty<DownloadItem>(),
-        AllItems = Array.Empty<DownloadItem>(),
+        ActiveItems = [],
+        WaitingItems = [],
+        StoppedItems = [],
+        PausedItems = [],
+        CompleteItems = [],
+        FailedItems = [],
+        SkippedItems = [],
+        InterruptedItems = [],
+        AllItems = [],
     };
 }

@@ -1,4 +1,3 @@
-
 namespace AriaSharp.App;
 
 /// <summary>
@@ -19,23 +18,23 @@ internal static class InputCommand
                     forceFiles: settings.FromFiles,
                     CancellationToken.None)
                 .ConfigureAwait(false);
-            settings.Inputs = resolved.ToList();
-            if (settings.Verbose && resolved.Count > 0)
+
+            settings.Inputs = [.. resolved];
+            if (settings.Verbose && resolved is { Count: > 0 })
             {
-                await System.Console.Error.WriteLineAsync(
-                        $"Resolved {resolved.Count} download URL(s).")
+                await Console.Error.WriteLineAsync($"Resolved {resolved.Count} download URL(s).")
                     .ConfigureAwait(false);
             }
         }
         catch (FileNotFoundException ex)
         {
-            await System.Console.Error.WriteLineAsync($"Error: {ex.Message}").ConfigureAwait(false);
+            await Console.Error.WriteLineAsync($"Error: {ex.Message}").ConfigureAwait(false);
             return ((int)ExitCode.UsageError, settings);
         }
 
-        if (settings.Inputs.Count == 0)
+        if (settings.Inputs is { Count: 0 })
         {
-            await System.Console.Out.WriteLineAsync(
+            await Console.Out.WriteLineAsync(
                     "No URLs found (CLI, files, stdin, or clipboard). Use --help, --from-clipboard, or --from-file.")
                 .ConfigureAwait(false);
             return ((int)ExitCode.UsageError, settings);

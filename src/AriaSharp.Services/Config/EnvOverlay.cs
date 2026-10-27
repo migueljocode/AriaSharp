@@ -41,7 +41,7 @@ public static class EnvOverlay
         ApplyString("ARIASHARP_SESSION", v => overlay.SessionFile = v);
         ApplyString("ARIASHARP_LIMIT", v => overlay.SpeedLimit = v);
         ApplyString("ARIASHARP_ARIA2_PATH", v => overlay.Aria2Path = v);
-        ApplyString("ARIASHARP_MIN_SPLIT_SIZE", v => overlay.ExtraOptions = (overlay.ExtraOptions ?? Array.Empty<string>()).Append($"min-split-size={v}").ToArray());
+        ApplyString("ARIASHARP_MIN_SPLIT_SIZE", v => overlay.ExtraOptions = (overlay.ExtraOptions ?? []).Append($"min-split-size={v}").ToArray());
 
         ApplyFlag("ARIASHARP_INLINE", () => overlay.Inline = true);
         ApplyFlag("ARIASHARP_PLAIN", () => overlay.Plain = true);

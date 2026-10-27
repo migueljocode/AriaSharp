@@ -1,4 +1,3 @@
-
 namespace AriaSharp.App;
 
 /// <summary>
@@ -9,9 +8,9 @@ internal static class SettingsBootstrap
     public static async Task<(AppSettings Settings, SettingsOverlay Cli)> LoadAsync(string[] args)
     {
         var cli = ArgParser.Parse(args);
-
         var store = new SettingsStore();
         var configFile = cli.ConfigFile ?? AppPaths.SettingsFile;
+
         SettingsOverlay configOverlay;
         try
         {
@@ -19,17 +18,15 @@ internal static class SettingsBootstrap
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or DirectoryNotFoundException or IOException)
         {
-            await System.Console.Error.WriteLineAsync(
+            await Console.Error.WriteLineAsync(
                     $"Warning: could not read config file {configFile} ({ex.Message})")
                 .ConfigureAwait(false);
-            configOverlay = new SettingsOverlay();
+            configOverlay = new();
         }
 
-        var envOverlay = EnvOverlay.FromEnvironment();
-        var merger = new SettingsMerger();
-        var settings = merger.Merge(new AppSettings(), configOverlay, envOverlay, cli);
+        var settings = new SettingsMerger().Merge(new AppSettings(), configOverlay, EnvOverlay.FromEnvironment(), cli);
 
-        if (cli.NoInstall == true)
+        if (cli.NoInstall is true)
         {
             settings.InstallDeps = false;
             settings.InstallAria2 = false;

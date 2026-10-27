@@ -19,7 +19,7 @@ public sealed class SettingsMerger : ISettingsMerger
     public AppSettings Merge(AppSettings baseline, params SettingsOverlay[] layers)
     {
         ArgumentNullException.ThrowIfNull(baseline);
-        layers ??= Array.Empty<SettingsOverlay>();
+        layers ??= [];
         var overlay = new SettingsOverlay();
         // later layers win; merge them into one overlay first.
         foreach (var l in layers) ApplyLayer(overlay, l);
