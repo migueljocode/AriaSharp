@@ -16,8 +16,8 @@ public sealed class Aria2ArgsBuilder : IAria2ArgsBuilder
 
     public string[] Build(EngineSettings settings, AppSettings appSettings)
     {
-        ArgumentNullException.ThrowIfNull(settings);
-        ArgumentNullException.ThrowIfNull(appSettings);
+        ThrowIfNull(settings);
+        ThrowIfNull(appSettings);
 
         List<string> args =
         [

@@ -6,51 +6,51 @@ public class UnitTests
     [Fact]
     public void FormatBytes_ReturnsBytesForSmallValues()
     {
-        Assert.Equal("512 B", FormatHelpers.FormatBytes(512));
+        Assert.Equal("512 B", FormatBytes(512));
     }
 
     [Fact]
     public void FormatBytes_ReturnsKbForLargeValues()
     {
-        var result = FormatHelpers.FormatBytes(2048);
+        var result = FormatBytes(2048);
         Assert.Contains("KB", result, StringComparison.Ordinal);
     }
 
     [Fact]
     public void FormatSpeed_FormatsSpeedCorrectly()
     {
-        var result = FormatHelpers.FormatSpeed(1024);
+        var result = FormatSpeed(1024);
         Assert.Contains("/s", result, StringComparison.Ordinal);
     }
 
     [Fact]
     public void Truncate_CutsLongStrings()
     {
-        var result = FormatHelpers.Truncate("abcdefghijklmnopqrstuvwxyz", 10);
+        var result = Truncate("abcdefghijklmnopqrstuvwxyz", 10);
         Assert.Equal("abcdefg...", result);
     }
 
     [Fact]
     public void Truncate_ReturnsShortStringsUnchanged()
     {
-        var result = FormatHelpers.Truncate("short", 20);
+        var result = Truncate("short", 20);
         Assert.Equal("short", result);
     }
 
     [Fact]
     public void Truncate_SmallMaxDoesNotThrow()
     {
-        Assert.Equal(string.Empty, FormatHelpers.Truncate("abc", 0));
-        Assert.Equal("a", FormatHelpers.Truncate("abc", 1));
-        Assert.Equal("ab", FormatHelpers.Truncate("abc", 2));
-        Assert.Equal("abc", FormatHelpers.Truncate("abc", 3));
+        Assert.Equal(string.Empty, Truncate("abc", 0));
+        Assert.Equal("a", Truncate("abc", 1));
+        Assert.Equal("ab", Truncate("abc", 2));
+        Assert.Equal("abc", Truncate("abc", 3));
     }
 
     [Fact]
     public void ProtocolBadge_ReturnsCorrectLabels()
     {
-        Assert.Equal("HTTPS", FormatHelpers.ProtocolBadge(DownloadProtocol.Https));
-        Assert.Equal("HTTP", FormatHelpers.ProtocolBadge(DownloadProtocol.Http));
+        Assert.Equal("HTTPS", ProtocolBadge(DownloadProtocol.Https));
+        Assert.Equal("HTTP", ProtocolBadge(DownloadProtocol.Http));
     }
 
     [Fact]
@@ -101,14 +101,14 @@ public class UnitTests
     [Fact]
     public void ErrorCatalog_TextFor_ReturnsKnownText()
     {
-        Assert.Equal("Unknown error", ErrorCatalog.TextFor(1));
-        Assert.Contains("Unknown error", ErrorCatalog.TextFor(999), StringComparison.Ordinal);
+        Assert.Equal("Unknown error", TextFor(1));
+        Assert.Contains("Unknown error", TextFor(999), StringComparison.Ordinal);
     }
 
     [Fact]
     public void ErrorCatalog_HintFor_ReturnsHint()
     {
-        Assert.NotEmpty(ErrorCatalog.HintFor(7));
+        Assert.NotEmpty(HintFor(7));
     }
 
     [Fact]

@@ -10,8 +10,8 @@ public sealed class Aria2Process : IAsyncDisposable
 
     public Aria2Process(string aria2Path, string[] args, ChannelWriter<string> log)
     {
-        ArgumentNullException.ThrowIfNull(args);
-        ArgumentNullException.ThrowIfNull(log);
+        ThrowIfNull(args);
+        ThrowIfNull(log);
         _log = log;
         var psi = new ProcessStartInfo
         {
@@ -38,7 +38,7 @@ public sealed class Aria2Process : IAsyncDisposable
     {
         if (e.Data is { } data)
         {
-            _log.TryWrite(FormatHelpers.MaskCredentials(data));
+            _log.TryWrite(MaskCredentials(data));
         }
     }
 
@@ -46,7 +46,7 @@ public sealed class Aria2Process : IAsyncDisposable
     {
         if (e.Data is { } data)
         {
-            _log.TryWrite(FormatHelpers.MaskCredentials(data));
+            _log.TryWrite(MaskCredentials(data));
         }
     }
 

@@ -43,7 +43,7 @@ public class ErrorCatalogTests
         };
         foreach (var (code, text) in expected)
         {
-            var actual = ErrorCatalog.TextFor(code);
+            var actual = TextFor(code);
             Assert.True(actual == text, $"Code {code}: expected '{text}', actual '{actual}'");
         }
     }
@@ -51,9 +51,9 @@ public class ErrorCatalogTests
     [Fact]
     public void TextFor_UnknownCode_ReturnsDefault()
     {
-        Assert.Contains("Unknown error", ErrorCatalog.TextFor(0), StringComparison.Ordinal);
-        Assert.Contains("Unknown error", ErrorCatalog.TextFor(100), StringComparison.Ordinal);
-        Assert.Contains("Unknown error", ErrorCatalog.TextFor(-1), StringComparison.Ordinal);
+        Assert.Contains("Unknown error", TextFor(0), StringComparison.Ordinal);
+        Assert.Contains("Unknown error", TextFor(100), StringComparison.Ordinal);
+        Assert.Contains("Unknown error", TextFor(-1), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -61,7 +61,7 @@ public class ErrorCatalogTests
     {
         for (var code = 1; code <= 32; code++)
         {
-            Assert.False(string.IsNullOrWhiteSpace(ErrorCatalog.HintFor(code)), $"Code {code} hint is empty");
+            Assert.False(string.IsNullOrWhiteSpace(HintFor(code)), $"Code {code} hint is empty");
         }
     }
 

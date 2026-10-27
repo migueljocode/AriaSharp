@@ -1,2 +1,2 @@
 // Composition root — top-level statements only.
-return await AppHost.RunAsync(args).ConfigureAwait(false);
+return await args.RunAriaSharpAsync().ConfigureAwait(false);

@@ -12,7 +12,7 @@ internal static class HelpView
 
     public static void Render(AppSettings settings)
     {
-        ArgumentNullException.ThrowIfNull(settings);
+        ThrowIfNull(settings);
 
         var useColor = Theme.Enabled
             && !settings.NoColor

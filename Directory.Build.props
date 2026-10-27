@@ -1,7 +1,7 @@
 <Project>
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <LangVersion>latest</LangVersion>
+    <LangVersion>preview</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
@@ -9,7 +9,9 @@
     <!-- No warnings are suppressed by default. IL2026/IL3050 (AOT/trimming) are never suppressed per section 3 rule 4. -->
     <!-- CA1724: SessionState is a mandated type name (Brief §6); System.Web.SessionState does not exist in .NET 10. -->
     <!-- CA1822: ISettingsStore.LoadAsync/SaveAsync are interface members and must be instance methods. -->
-    <NoWarn>CA1724;CA1822</NoWarn>
+    <!-- CA1034/CA1708: C# 14 extension blocks are nested types by design. -->
+    <!-- CA1055: MaskCredentialText returns display string, not a URI. -->
+    <NoWarn>CA1724;CA1822;CA1034;CA1708;CA1055;CA1515</NoWarn>
     <RepositoryUrl>https://github.com/migueljocode/AriaSharp</RepositoryUrl>
     <Copyright>Copyright (c) AriaSharp contributors</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>

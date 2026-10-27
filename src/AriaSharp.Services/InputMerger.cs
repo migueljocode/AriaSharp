@@ -6,8 +6,8 @@ public static class InputMerger
 {
     public static async Task WriteAsync(string[] inputs, string destination, CancellationToken ct = default)
     {
-        ArgumentNullException.ThrowIfNull(inputs);
-        ArgumentNullException.ThrowIfNull(destination);
+        ThrowIfNull(inputs);
+        ThrowIfNull(destination);
         using var stream = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, FileOptions.Asynchronous | FileOptions.SequentialScan);
         using var writer = new StreamWriter(stream) { NewLine = "\n" };
         foreach (var input in inputs)

@@ -10,7 +10,7 @@ internal static class ArgParser
 {
     public static SettingsOverlay Parse(string[] args)
     {
-        ArgumentNullException.ThrowIfNull(args);
+        ThrowIfNull(args);
         var overlay = new SettingsOverlay();
         var terminate = false;
 

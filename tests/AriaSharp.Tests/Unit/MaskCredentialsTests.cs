@@ -10,5 +10,5 @@ public class MaskCredentialsTests
     [InlineData("https://example.com/f?mail=a@b.c", "https://example.com/f?mail=a@b.c")]
     [InlineData("no url here", "no url here")]
     public void MaskCredentials_MasksOnlyTheAuthority(string input, string expected) =>
-        Assert.Equal(expected, FormatHelpers.MaskCredentials(input));
+        Assert.Equal(expected, MaskCredentials(input));
 }

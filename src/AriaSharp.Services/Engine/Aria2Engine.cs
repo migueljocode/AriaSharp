@@ -31,7 +31,7 @@ public sealed class Aria2Engine : IAria2Engine
 
     public async Task StartAsync(EngineSettings settings, CancellationToken ct)
     {
-        ArgumentNullException.ThrowIfNull(settings);
+        ThrowIfNull(settings);
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (_process is not null)
             throw new InvalidOperationException("Engine already started.");
@@ -102,7 +102,7 @@ public sealed class Aria2Engine : IAria2Engine
                 case DownloadState.Complete:
                     complete.Add(item);
                     break;
-                case DownloadState.Failed when ErrorCatalog.IsSkippedCode(item.ErrorCode):
+                case DownloadState.Failed when IsSkippedCode(item.ErrorCode):
                     // 13 file already exists · 11 duplicate download → skipped, not failed
                     skipped.Add(item);
                     break;
@@ -171,7 +171,7 @@ public sealed class Aria2Engine : IAria2Engine
 
     public async Task<string> AddUriAsync(string[] uris, CancellationToken ct)
     {
-        ArgumentNullException.ThrowIfNull(uris);
+        ThrowIfNull(uris);
         var rpc = _rpc ?? throw new InvalidOperationException("Engine not started.");
         var gid = await rpc.CallAsync("aria2.addUri", [uris], ct).ConfigureAwait(false);
         return gid.ValueKind == JsonValueKind.String ? gid.GetString()! : throw new InvalidOperationException("aria2.addUri returned no GID.");

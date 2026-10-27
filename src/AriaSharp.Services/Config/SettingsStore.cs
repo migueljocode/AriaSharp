@@ -18,7 +18,7 @@ public sealed class SettingsMerger : ISettingsMerger
 {
     public AppSettings Merge(AppSettings baseline, params SettingsOverlay[] layers)
     {
-        ArgumentNullException.ThrowIfNull(baseline);
+        ThrowIfNull(baseline);
         layers ??= [];
         var overlay = new SettingsOverlay();
         // later layers win; merge them into one overlay first.
@@ -141,7 +141,7 @@ public sealed class SettingsStore : ISettingsStore
 
     public async Task SaveOverlayAsync(SettingsOverlay overlay, string? path, CancellationToken ct)
     {
-        ArgumentNullException.ThrowIfNull(overlay);
+        ThrowIfNull(overlay);
         path ??= AppPaths.SettingsFile;
         var dir = Path.GetDirectoryName(path)!;
         if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);

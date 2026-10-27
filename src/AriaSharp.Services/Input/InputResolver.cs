@@ -14,10 +14,10 @@ public static class InputResolver
         IReadOnlyList<string>? forceFiles,
         CancellationToken ct)
     {
-        ArgumentNullException.ThrowIfNull(existing);
-        ArgumentNullException.ThrowIfNull(extractor);
-        ArgumentNullException.ThrowIfNull(classifier);
-        ArgumentNullException.ThrowIfNull(clipboard);
+        ThrowIfNull(existing);
+        ThrowIfNull(extractor);
+        ThrowIfNull(classifier);
+        ThrowIfNull(clipboard);
 
         forceFiles ??= [];
 

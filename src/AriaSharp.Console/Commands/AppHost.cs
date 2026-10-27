@@ -57,16 +57,16 @@ internal static class AppHost
             && settings.Inputs is { Count: 0 }
             && !settings.FromClipboard
             && settings.FromFiles is { Count: 0 })
-            return await InstallCommand.RunAsync(settings).ConfigureAwait(false);
+            return await settings.RunInstallAsync().ConfigureAwait(false);
 
-        var (exit, resolved) = await InputCommand.ResolveAsync(settings).ConfigureAwait(false);
+        var (exit, resolved) = await settings.ResolveInputsAsync().ConfigureAwait(false);
         if (exit is int code)
             return code;
 
         settings = resolved;
         while (true)
         {
-            var (runCode, retry) = await DownloadCommand.RunAsync(settings).ConfigureAwait(false);
+            var (runCode, retry) = await settings.RunDownloadAsync().ConfigureAwait(false);
             if (!retry)
                 return runCode;
         }

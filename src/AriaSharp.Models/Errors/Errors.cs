@@ -12,7 +12,7 @@ public sealed class Aria2ErrorInfo
     public static Aria2ErrorInfo None => new();
     public static Aria2ErrorInfo FromCode(int code, string? raw = null) => new()
     {
-        Code = code, Kind = ErrorCatalog.Classify(code), Text = ErrorCatalog.TextFor(code), Hint = ErrorCatalog.HintFor(code), Raw = raw
+        Code = code, Kind = ErrorCatalog.Classify(code), Text = TextFor(code), Hint = HintFor(code), Raw = raw
     };
 }
 

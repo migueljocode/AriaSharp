@@ -13,7 +13,7 @@ public sealed class ProgressCalculator : IProgressCalculator
 
     public SessionState Compute(EngineSnapshot snapshot, long previousCompleted, long previousTotal, double previousSpeed, int ticks)
     {
-        ArgumentNullException.ThrowIfNull(snapshot);
+        ThrowIfNull(snapshot);
 
         var activeItems = snapshot.Active;
         var waitingItems = snapshot.Waiting;

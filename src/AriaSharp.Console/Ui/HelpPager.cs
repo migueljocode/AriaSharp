@@ -10,7 +10,7 @@ internal static partial class HelpPager
 {
     public static void Show(string document, bool noPager, bool preserveAnsi = false)
     {
-        ArgumentNullException.ThrowIfNull(document);
+        ThrowIfNull(document);
 
         if (noPager
             || System.Console.IsOutputRedirected

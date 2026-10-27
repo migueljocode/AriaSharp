@@ -127,7 +127,7 @@ public sealed class DownloadSession : IDownloadSession
         {
             var first = state.FailedItems[0];
             var detail = first.ErrorMessage
-                ?? (first.ErrorCode != 0 ? ErrorCatalog.TextFor(first.ErrorCode) : "download failed");
+                ?? (first.ErrorCode != 0 ? TextFor(first.ErrorCode) : "download failed");
             var msg = failed == 1
                 ? detail
                 : $"{failed} of {total} downloads failed. First: {detail}";

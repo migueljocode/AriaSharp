@@ -223,13 +223,7 @@ internal static class DownloadCommand
             catch (IOException) { }
             catch (UnauthorizedAccessException) { }
 
-            var code = (int)(outcome.Kind switch
-            {
-                RunOutcomeKind.Completed => ExitCode.Ok,
-                RunOutcomeKind.Interrupted => ExitCode.Interrupted,
-                _ => ExitCode.Failure, // Empty and Failed are failures for the user
-            });
-            return (code, retry);
+            return (outcome.ToExitCode(), retry);
         }
         finally
         {

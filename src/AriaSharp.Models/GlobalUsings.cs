@@ -1,1 +1,3 @@
-// Models stay dependency-free beyond BCL + shared AriaSharp.Models (Directory.Build.props).
+global using static System.ArgumentNullException;
+global using static AriaSharp.Models.ErrorCatalog;
+global using static AriaSharp.Models.FormatHelpers;

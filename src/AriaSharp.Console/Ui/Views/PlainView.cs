@@ -13,17 +13,17 @@ internal static class PlainView
     /// </summary>
     public static void WriteProgress(TextWriter writer, SessionState state, TimeSpan elapsed, bool interactive)
     {
-        ArgumentNullException.ThrowIfNull(writer);
-        ArgumentNullException.ThrowIfNull(state);
+        ThrowIfNull(writer);
+        ThrowIfNull(state);
 
         var active = state.NumActive;
         var waiting = state.NumWaiting;
         var complete = state.CompleteItems.Count;
         var failed = state.FailedItems.Count;
         var pct = state.OverallPercent;
-        var speed = FormatHelpers.FormatSpeed(state.TotalDownloadSpeed);
-        var done = FormatHelpers.FormatBytes(state.CompletedLength);
-        var total = state.TotalLength > 0 ? FormatHelpers.FormatBytes(state.TotalLength) : "?";
+        var speed = FormatSpeed(state.TotalDownloadSpeed);
+        var done = FormatBytes(state.CompletedLength);
+        var total = state.TotalLength > 0 ? FormatBytes(state.TotalLength) : "?";
         var eta = state.OverallEta.Format();
         var elapsedText = elapsed.TotalHours >= 1
             ? $"{(int)elapsed.TotalHours}:{elapsed.Minutes:D2}:{elapsed.Seconds:D2}"
@@ -34,7 +34,7 @@ internal static class PlainView
         {
             var item = state.ActiveItems[0];
             name = string.IsNullOrEmpty(item.Name) ? item.Gid : item.Name;
-            name = FormatHelpers.Truncate(name, 32);
+            name = Truncate(name, 32);
         }
 
         var line = string.IsNullOrEmpty(name)
@@ -56,15 +56,15 @@ internal static class PlainView
 
     public static void EndProgress(TextWriter writer, bool interactive)
     {
-        ArgumentNullException.ThrowIfNull(writer);
+        ThrowIfNull(writer);
         if (interactive)
             writer.WriteLine();
     }
 
     public static void Render(StringBuilder sb, SessionState state, int width)
     {
-        ArgumentNullException.ThrowIfNull(sb);
-        ArgumentNullException.ThrowIfNull(state);
+        ThrowIfNull(sb);
+        ThrowIfNull(state);
         var w = Math.Max(40, width - 4);
         sb.AppendLine("┌" + new string('─', w) + "┐");
         sb.AppendLine("│" + Center("PLAIN VIEW", w) + "│");
@@ -73,7 +73,7 @@ internal static class PlainView
             $"  total={state.AllItems.Count} active={state.ActiveItems.Count} waiting={state.WaitingItems.Count} complete={state.CompleteItems.Count} failed={state.FailedItems.Count}";
         sb.AppendLine("│" + line.PadRight(w) + "│");
         sb.AppendLine("│" +
-            $"  speed={FormatHelpers.FormatSpeed(state.TotalDownloadSpeed)} overall={state.OverallPercent:F1}% eta={state.OverallEta.Format()}"
+            $"  speed={FormatSpeed(state.TotalDownloadSpeed)} overall={state.OverallPercent:F1}% eta={state.OverallEta.Format()}"
                 .PadRight(w) + "│");
         sb.AppendLine("└" + new string('─', w) + "┘");
     }

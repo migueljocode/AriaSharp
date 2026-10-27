@@ -35,14 +35,14 @@ public class IntegrationTests
     [Fact]
     public void FormatHelpers_Sanitize_RemovesControlChars()
     {
-        var result = FormatHelpers.Sanitize("hello\x01world");
+        var result = Sanitize("hello\x01world");
         Assert.Equal("hello?world", result);
     }
 
     [Fact]
     public void FormatHelpers_MaskCredentials_HidesPassword()
     {
-        var masked = FormatHelpers.MaskCredentials("https://user:pass@example.com/file");
+        var masked = MaskCredentials("https://user:pass@example.com/file");
         Assert.Contains("***@", masked, StringComparison.Ordinal);
         Assert.DoesNotContain("pass", masked, StringComparison.Ordinal);
     }
@@ -50,7 +50,7 @@ public class IntegrationTests
     [Fact]
     public void FormatHelpers_ProtocolBadge_Magnet()
     {
-        Assert.Equal("MAGNET", FormatHelpers.ProtocolBadge(DownloadProtocol.Magnet));
+        Assert.Equal("MAGNET", ProtocolBadge(DownloadProtocol.Magnet));
     }
 
     [Fact]

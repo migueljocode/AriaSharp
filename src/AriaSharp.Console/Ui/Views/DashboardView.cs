@@ -12,7 +12,7 @@ internal static class DashboardView
 
     public static IRenderable Build(SessionState state, TimeSpan elapsed, int split = 16, int frame = -1, double? shown = null)
     {
-        ArgumentNullException.ThrowIfNull(state);
+        ThrowIfNull(state);
 
         var width = SafeWindowWidth();
         var root = new Grid().Expand();
@@ -36,10 +36,10 @@ internal static class DashboardView
         var overallRows = new Rows(
             new Markup(bar),
             new Markup(
-                $"[grey]{Markup.Escape(FormatHelpers.FormatBytes(state.CompletedLength))}[/] / " +
-                $"[grey]{Markup.Escape(state.TotalLength > 0 ? FormatHelpers.FormatBytes(state.TotalLength) : "?")}[/]  " +
+                $"[grey]{Markup.Escape(state.CompletedLength.AsByteSize())}[/] / " +
+                $"[grey]{Markup.Escape(state.TotalLength > 0 ? FormatBytes(state.TotalLength) : "?")}[/]  " +
                 $"[#BB86FC]{state.OverallPercent:F1}%[/]  " +
-                $"[grey]{Markup.Escape(FormatHelpers.FormatSpeed(state.TotalDownloadSpeed))}[/]  " +
+                $"[grey]{Markup.Escape(state.TotalDownloadSpeed.AsSpeed())}[/]  " +
                 $"eta [grey]{Markup.Escape(etaText)}[/]  " +
                 $"[dim]{FormatElapsed(elapsed)}[/]"));
 
@@ -79,9 +79,9 @@ internal static class DashboardView
                     : 0;
                 var eta = ItemEta(item);
                 table.AddRow(
-                    new Markup($"[#BB86FC]{(frame < 0 ? '●' : Gradient.Spinner(frame))}[/] [white]{Markup.Escape(FormatHelpers.Truncate(name, nameWidth - 2))}[/]"),
+                    new Markup($"[#BB86FC]{(frame < 0 ? '●' : Gradient.Spinner(frame))}[/] [white]{Markup.Escape(Truncate(name, nameWidth - 2))}[/]"),
                     new Markup($"{Gradient.Bar(8, itemPct / 100, Gradient.Violet, barFrame)} [#CE93D8]{itemPct,5:F1}%[/]"),
-                    new Markup($"[grey]{Markup.Escape(FormatHelpers.FormatSpeed(item.DownloadSpeed))}[/]"),
+                    new Markup($"[grey]{Markup.Escape(FormatSpeed(item.DownloadSpeed))}[/]"),
                     new Markup($"[grey]{Markup.Escape(eta)}[/]"),
                     new Markup($"[dim]{item.Connections}[/]"),
                     new Markup($"[dim]{split}[/]"));
@@ -121,9 +121,9 @@ internal static class DashboardView
             var lines = state.CompleteItems.Take(6).Select(i =>
             {
                 var name = string.IsNullOrEmpty(i.Name) ? i.Gid : i.Name;
-                var size = FormatHelpers.FormatBytes(i.CompletedLength > 0 ? i.CompletedLength : i.TotalLength);
+                var size = FormatBytes(i.CompletedLength > 0 ? i.CompletedLength : i.TotalLength);
                 return new Markup(
-                    $"[dim]{Markup.Escape(size.PadLeft(10))}[/]  [green]✓[/] [white]{Markup.Escape(FormatHelpers.Truncate(name, Math.Max(20, width - 20)))}[/]");
+                    $"[dim]{Markup.Escape(size.PadLeft(10))}[/]  [green]✓[/] [white]{Markup.Escape(Truncate(name, Math.Max(20, width - 20)))}[/]");
             });
             root.AddRow(new Panel(new Rows(lines))
                 .Header($"[green]COMPLETE ({state.CompleteItems.Count})[/]")
@@ -138,10 +138,10 @@ internal static class DashboardView
             {
                 var name = string.IsNullOrEmpty(i.Name) ? i.Gid : i.Name;
                 var err = i.ErrorMessage
-                    ?? (i.ErrorCode != 0 ? ErrorCatalog.TextFor(i.ErrorCode) : "error");
+                    ?? (i.ErrorCode != 0 ? TextFor(i.ErrorCode) : "error");
                 return new Markup(
-                    $"[red]✗[/] [white]{Markup.Escape(FormatHelpers.Truncate(name, Math.Max(16, width / 2)))}[/]  "
-                    + $"[grey]{Markup.Escape(FormatHelpers.Truncate(err, Math.Max(16, width / 3)))}[/]");
+                    $"[red]✗[/] [white]{Markup.Escape(Truncate(name, Math.Max(16, width / 2)))}[/]  "
+                    + $"[grey]{Markup.Escape(Truncate(err, Math.Max(16, width / 3)))}[/]");
             });
             root.AddRow(new Panel(new Rows(lines))
                 .Header($"[red]FAILED ({state.FailedItems.Count})[/]")
@@ -156,7 +156,7 @@ internal static class DashboardView
             {
                 var name = string.IsNullOrEmpty(i.Name) ? i.Gid : i.Name;
                 return new Markup(
-                    $"[dim]·[/] [grey]{Markup.Escape(FormatHelpers.Truncate(name, Math.Max(20, width - 12)))}[/]  [dim]already exists[/]");
+                    $"[dim]·[/] [grey]{Markup.Escape(Truncate(name, Math.Max(20, width - 12)))}[/]  [dim]already exists[/]");
             });
             root.AddRow(new Panel(new Rows(lines))
                 .Header($"[dim]SKIPPED ({state.SkippedItems.Count})[/]")

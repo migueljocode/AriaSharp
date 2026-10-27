@@ -23,5 +23,5 @@ internal static class Terminal
         };
         System.Console.Write($"\x1b[{code}m{text}\x1b[0m");
     }
-    public static string Truncate(string? text, int max) => FormatHelpers.Truncate(text, max);
+    public static string Truncate(string? text, int max) => Truncate(text, max);
 }

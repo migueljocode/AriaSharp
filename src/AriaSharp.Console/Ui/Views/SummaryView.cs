@@ -51,15 +51,15 @@ internal static class SummaryView
                     : "")));
         grid.AddRow(
             new Markup($"[{Theme.Muted}]Size[/]"),
-            new Markup($"[white]{FormatHelpers.FormatBytes(state.CompletedLength)}[/]"
+            new Markup($"[white]{FormatBytes(state.CompletedLength)}[/]"
                 + (state.TotalLength > 0
-                    ? $" [dim]/ {FormatHelpers.FormatBytes(state.TotalLength)}[/]"
+                    ? $" [dim]/ {FormatBytes(state.TotalLength)}[/]"
                     : "")));
         grid.AddRow(
             new Markup($"[{Theme.Muted}]Speed[/]"),
-            new Markup($"[white]{FormatHelpers.FormatSpeed(avgSpeed)}[/] avg"
+            new Markup($"[white]{FormatSpeed(avgSpeed)}[/] avg"
                 + (state.TotalDownloadSpeed > 0
-                    ? $", last {FormatHelpers.FormatSpeed(state.TotalDownloadSpeed)}"
+                    ? $", last {FormatSpeed(state.TotalDownloadSpeed)}"
                     : "")));
         grid.AddRow(
             new Markup($"[{Theme.Muted}]Time[/]"),
@@ -84,9 +84,9 @@ internal static class SummaryView
         {
             var lines = state.CompleteItems.Take(8).Select(i =>
                 new Markup(
-                    $"[green]✓[/] [white]{Markup.Escape(FormatHelpers.Truncate(
+                    $"[green]✓[/] [white]{Markup.Escape(Truncate(
                         string.IsNullOrEmpty(i.Name) ? i.Gid : i.Name, 40))}[/] "
-                    + $"[dim]{FormatHelpers.FormatBytes(i.CompletedLength)}[/]"));
+                    + $"[dim]{FormatBytes(i.CompletedLength)}[/]"));
             rows.Add(new Panel(new Rows(lines))
                 .Header($"[green]COMPLETE ({state.CompleteItems.Count})[/]")
                 .BorderColor(Color.Green)
@@ -100,10 +100,10 @@ internal static class SummaryView
             {
                 var name = string.IsNullOrEmpty(i.Name) ? i.Gid : i.Name;
                 var err = i.ErrorMessage
-                    ?? (i.ErrorCode != 0 ? ErrorCatalog.TextFor(i.ErrorCode) : "error");
+                    ?? (i.ErrorCode != 0 ? TextFor(i.ErrorCode) : "error");
                 return new Markup(
-                    $"[red]✗[/] [white]{Markup.Escape(FormatHelpers.Truncate(name, 28))}[/] "
-                    + $"[grey]{Markup.Escape(FormatHelpers.Truncate(err, 48))}[/]");
+                    $"[red]✗[/] [white]{Markup.Escape(Truncate(name, 28))}[/] "
+                    + $"[grey]{Markup.Escape(Truncate(err, 48))}[/]");
             });
             rows.Add(new Panel(new Rows(lines))
                 .Header($"[red]FAILED ({state.FailedItems.Count})[/]")
@@ -177,20 +177,20 @@ internal static class SummaryView
 
         sb.AppendLine("Summary");
         sb.AppendLine($"  Result   {result}");
-        sb.AppendLine($"  Size     {FormatHelpers.FormatBytes(state.CompletedLength)}"
-            + (state.TotalLength > 0 ? $" / {FormatHelpers.FormatBytes(state.TotalLength)}" : ""));
-        sb.AppendLine($"  Speed    {FormatHelpers.FormatSpeed(avgSpeed)} avg"
-            + (state.TotalDownloadSpeed > 0 ? $", {FormatHelpers.FormatSpeed(state.TotalDownloadSpeed)} last" : ""));
+        sb.AppendLine($"  Size     {FormatBytes(state.CompletedLength)}"
+            + (state.TotalLength > 0 ? $" / {FormatBytes(state.TotalLength)}" : ""));
+        sb.AppendLine($"  Speed    {FormatSpeed(avgSpeed)} avg"
+            + (state.TotalDownloadSpeed > 0 ? $", {FormatSpeed(state.TotalDownloadSpeed)} last" : ""));
         sb.AppendLine($"  Time     {FormatElapsed(elapsed)}");
         sb.AppendLine($"  Output   {outputDir}");
         if (!string.IsNullOrEmpty(sessionFile) && File.Exists(sessionFile))
             sb.AppendLine($"  Resume   {sessionFile}");
         foreach (var item in state.CompleteItems.Take(8))
-            sb.AppendLine($"  + {FormatHelpers.Truncate(string.IsNullOrEmpty(item.Name) ? item.Gid : item.Name, 40)}");
+            sb.AppendLine($"  + {Truncate(string.IsNullOrEmpty(item.Name) ? item.Gid : item.Name, 40)}");
         foreach (var item in state.FailedItems.Take(8))
         {
-            var err = item.ErrorMessage ?? ErrorCatalog.TextFor(item.ErrorCode);
-            sb.AppendLine($"  x {FormatHelpers.Truncate(string.IsNullOrEmpty(item.Name) ? item.Gid : item.Name, 28)} — {err}");
+            var err = item.ErrorMessage ?? TextFor(item.ErrorCode);
+            sb.AppendLine($"  x {Truncate(string.IsNullOrEmpty(item.Name) ? item.Gid : item.Name, 28)} — {err}");
         }
         return sb.ToString();
     }

@@ -14,7 +14,7 @@ internal static class KeyListener
 {
     public static async Task WatchCancelAsync(CancellationTokenSource cts, CancellationToken ct)
     {
-        ArgumentNullException.ThrowIfNull(cts);
+        ThrowIfNull(cts);
         try
         {
             while (!ct.IsCancellationRequested)
@@ -42,8 +42,8 @@ internal static class KeyListener
         Func<DashboardKeyAction, CancellationToken, Task> onAction,
         CancellationToken ct)
     {
-        ArgumentNullException.ThrowIfNull(cts);
-        ArgumentNullException.ThrowIfNull(onAction);
+        ThrowIfNull(cts);
+        ThrowIfNull(onAction);
         try
         {
             while (!ct.IsCancellationRequested)

@@ -17,7 +17,7 @@ internal sealed class ProgressThrottle
 
     public bool ShouldEmit(SessionState state, TimeSpan elapsed)
     {
-        ArgumentNullException.ThrowIfNull(state);
+        ThrowIfNull(state);
         var complete = state.CompleteItems.Count;
         var failed = state.FailedItems.Count;
         var now = (long)elapsed.TotalMilliseconds;

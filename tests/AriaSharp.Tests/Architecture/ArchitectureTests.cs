@@ -46,8 +46,8 @@ public class ArchitectureTests
     {
         for (var code = 1; code <= 32; code++)
         {
-            Assert.False(string.IsNullOrEmpty(ErrorCatalog.TextFor(code)), $"Code {code} text is empty");
-            Assert.False(string.IsNullOrEmpty(ErrorCatalog.HintFor(code)), $"Code {code} hint is empty");
+            Assert.False(string.IsNullOrEmpty(TextFor(code)), $"Code {code} text is empty");
+            Assert.False(string.IsNullOrEmpty(HintFor(code)), $"Code {code} hint is empty");
         }
     }
 }
