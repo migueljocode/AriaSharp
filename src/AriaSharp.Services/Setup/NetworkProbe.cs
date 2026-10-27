@@ -53,9 +53,7 @@ public static class NetworkProbe
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
             http.DefaultRequestHeaders.UserAgent.ParseAdd(AppDefaults.UserAgent);
             using var req = new HttpRequestMessage(HttpMethod.Head, Aria2Manifest.SourceTarballGzUrl);
-            using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            linked.CancelAfter(TimeSpan.FromSeconds(10));
-            using var resp = await http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, linked.Token);
+            using var resp = await http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
             if ((int)resp.StatusCode is >= 200 and < 400 or 403 or 405)
                 return (true, $"HEAD github release → {(int)resp.StatusCode}");
             return (false, $"HEAD github release → {(int)resp.StatusCode}");
