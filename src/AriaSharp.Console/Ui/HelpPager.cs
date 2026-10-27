@@ -23,7 +23,7 @@ internal static partial class HelpPager
             return;
         }
 
-        var width = SafeWidth();
+        var width = TerminalMetrics.WindowWidth(100);
         var height = SafeHeight();
         var lines = preserveAnsi
             ? SplitAnsiLines(document)
@@ -46,7 +46,7 @@ internal static partial class HelpPager
         {
             while (true)
             {
-                width = SafeWidth();
+                width = TerminalMetrics.WindowWidth(100);
                 height = SafeHeight();
                 bodyRows = Math.Max(1, height - 1);
                 if (!preserveAnsi)
@@ -217,12 +217,6 @@ internal static partial class HelpPager
         catch (InvalidOperationException) { return false; }
     }
 
-    private static int SafeWidth()
-    {
-        try { var w = System.Console.WindowWidth; return w > 0 ? w : 80; }
-        catch (IOException) { return 80; }
-        catch (InvalidOperationException) { return 80; }
-    }
 
     private static int SafeHeight()
     {

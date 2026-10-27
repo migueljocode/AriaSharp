@@ -18,4 +18,9 @@ public static class FormatHelpers
         value is null ? string.Empty : value.TruncateTo(max);
 
     public static string ProtocolBadge(DownloadProtocol protocol) => protocol.Badge();
+
+    public static string FormatElapsed(TimeSpan ts) =>
+        ts.TotalHours >= 1
+            ? $"{(int)ts.TotalHours}:{ts.Minutes:D2}:{ts.Seconds:D2}"
+            : $"{(int)ts.TotalMinutes}:{ts.Seconds:D2}";
 }

@@ -11,7 +11,7 @@ internal static class DashboardView
     public static IRenderable Build(SessionState state, TimeSpan elapsed, int split = 16, int frame = -1, double? shown = null)
     {
         ThrowIfNull(state);
-        var width = SafeWindowWidth();
+        var width = TerminalMetrics.WindowWidth();
         var root = new Grid().Expand();
         root.AddColumn(new GridColumn().NoWrap());
         root.AddRow(new Text(""));
@@ -50,7 +50,7 @@ internal static class DashboardView
                 $"[#BB86FC]{state.OverallPercent:F1}%[/]  " +
                 $"[grey]{Markup.Escape(state.TotalDownloadSpeed.AsSpeed())}[/]  " +
                 $"eta [grey]{Markup.Escape(etaText)}[/]  " +
-                $"[dim]{FormatElapsed(elapsed)}[/]"));
+                $"[dim]{elapsed.AsElapsed()}[/]"));
 
         return PurplePanel(rows, "[#E040FB]OVERALL[/]");
     }
@@ -217,19 +217,5 @@ internal static class DashboardView
             : $"{(int)ts.TotalMinutes}:{ts.Seconds:D2}";
     }
 
-    private static string FormatElapsed(TimeSpan ts) =>
-        ts.TotalHours >= 1
-            ? $"{(int)ts.TotalHours}:{ts.Minutes:D2}:{ts.Seconds:D2}"
-            : $"{(int)ts.TotalMinutes}:{ts.Seconds:D2}";
 
-    private static int SafeWindowWidth()
-    {
-        try
-        {
-            var w = System.Console.WindowWidth;
-            return w > 0 ? w : 80;
-        }
-        catch (IOException) { return 80; }
-        catch (InvalidOperationException) { return 80; }
-    }
 }

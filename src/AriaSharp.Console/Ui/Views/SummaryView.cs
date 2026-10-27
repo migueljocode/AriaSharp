@@ -46,7 +46,7 @@ internal static class SummaryView
                 + (state.TotalLength > 0 ? $" [dim]/ {FormatBytes(state.TotalLength)}[/]" : "")),
             new Markup($"[white]{FormatSpeed(avgSpeed)}[/] avg"
                 + (state.TotalDownloadSpeed > 0 ? $", last {FormatSpeed(state.TotalDownloadSpeed)}" : "")),
-            new Markup($"[dim]{FormatElapsed(elapsed)}[/]"),
+            new Markup($"[dim]{elapsed.AsElapsed()}[/]"),
             new Markup($"[dim]{Markup.Escape(outputDir)}[/]"),
         };
         if (!string.IsNullOrEmpty(sessionFile) && File.Exists(sessionFile))
@@ -136,7 +136,7 @@ internal static class SummaryView
             + (state.TotalLength > 0 ? $" / {FormatBytes(state.TotalLength)}" : ""));
         sb.AppendLine($"  Speed    {FormatSpeed(avgSpeed)} avg"
             + (state.TotalDownloadSpeed > 0 ? $", {FormatSpeed(state.TotalDownloadSpeed)} last" : ""));
-        sb.AppendLine($"  Time     {FormatElapsed(elapsed)}");
+        sb.AppendLine($"  Time     {elapsed.AsElapsed()}");
         sb.AppendLine($"  Output   {outputDir}");
         if (!string.IsNullOrEmpty(sessionFile) && File.Exists(sessionFile))
             sb.AppendLine($"  Resume   {sessionFile}");
@@ -166,8 +166,4 @@ internal static class SummaryView
     private static long AverageSpeed(SessionState state, TimeSpan elapsed) =>
         elapsed.TotalSeconds > 0 ? (long)(state.CompletedLength / elapsed.TotalSeconds) : 0L;
 
-    private static string FormatElapsed(TimeSpan ts) =>
-        ts.TotalHours >= 1
-            ? $"{(int)ts.TotalHours}:{ts.Minutes:D2}:{ts.Seconds:D2}"
-            : $"{(int)ts.TotalMinutes}:{ts.Seconds:D2}";
 }

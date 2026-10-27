@@ -23,7 +23,7 @@ internal static class HelpView
             return;
         }
 
-        HelpPager.Show(RenderAnsi(settings, SafeWidth()), noPager: settings.NoPager, preserveAnsi: true);
+        HelpPager.Show(RenderAnsi(settings, TerminalMetrics.WindowWidth(100)), noPager: settings.NoPager, preserveAnsi: true);
     }
 
     /// <summary>Build the full coloured help as an ANSI string for the pager.</summary>
@@ -158,14 +158,4 @@ internal static class HelpView
         _ => "",
     };
 
-    private static int SafeWidth()
-    {
-        try
-        {
-            var w = System.Console.WindowWidth;
-            return w > 0 ? w : 100;
-        }
-        catch (IOException) { return 100; }
-        catch (InvalidOperationException) { return 100; }
-    }
 }

@@ -36,7 +36,7 @@ public sealed class Aria2Engine : IAria2Engine
         if (_process is not null)
             throw new InvalidOperationException("Engine already started.");
 
-        await WriteConfAsync(settings.ConfFile, settings.Secret, settings.Port, ct);
+        await Aria2ConfWriter.WriteAsync(settings.ConfFile, settings.Secret, settings.Port, ct);
 
         var logChannel = Channel.CreateUnbounded<string>(new UnboundedChannelOptions
         {
@@ -84,10 +84,10 @@ public sealed class Aria2Engine : IAria2Engine
             ("aria2.getGlobalStat", null),
         ], ct);
 
-        var active = MapItems(ExtractMulticallResult(multicall, 0));
-        var (waiting, paused) = SplitPaused(MapItems(ExtractMulticallResult(multicall, 1)));
-        var stoppedRaw = MapItems(ExtractMulticallResult(multicall, 2));
-        var global = ExtractMulticallResult(multicall, 3);
+        var active = Aria2SnapshotMapper.MapItems(Aria2SnapshotMapper.ExtractMulticallResult(multicall, 0));
+        var (waiting, paused) = SplitPaused(Aria2SnapshotMapper.MapItems(Aria2SnapshotMapper.ExtractMulticallResult(multicall, 1)));
+        var stoppedRaw = Aria2SnapshotMapper.MapItems(Aria2SnapshotMapper.ExtractMulticallResult(multicall, 2));
+        var global = Aria2SnapshotMapper.ExtractMulticallResult(multicall, 3);
 
         var complete = new List<DownloadItem>();
         var failed = new List<DownloadItem>();
@@ -121,10 +121,10 @@ public sealed class Aria2Engine : IAria2Engine
         long numActive = 0, numWaiting = 0, dlSpeed = 0, ulSpeed = 0;
         if (global.ValueKind == JsonValueKind.Object)
         {
-            numActive = ReadLong(global, "numActive");
-            numWaiting = ReadLong(global, "numWaiting");
-            dlSpeed = ReadLong(global, "downloadSpeed");
-            ulSpeed = ReadLong(global, "uploadSpeed");
+            numActive = ReadGlobalLong(global, "numActive");
+            numWaiting = ReadGlobalLong(global, "numWaiting");
+            dlSpeed = ReadGlobalLong(global, "downloadSpeed");
+            ulSpeed = ReadGlobalLong(global, "uploadSpeed");
         }
 
         return new EngineSnapshot
@@ -251,51 +251,6 @@ public sealed class Aria2Engine : IAria2Engine
         return Convert.ToHexString(bytes);
     }
 
-    private static async Task WriteConfAsync(string path, string secret, int port, CancellationToken ct)
-    {
-        var options = new FileStreamOptions
-        {
-            Mode = FileMode.CreateNew,
-            Access = FileAccess.Write,
-            Share = FileShare.None,
-            Options = FileOptions.Asynchronous | FileOptions.SequentialScan,
-        };
-        if (!OperatingSystem.IsWindows())
-            options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
-
-        var stream = new FileStream(path, options);
-        await using (stream)
-        {
-            var writer = new StreamWriter(stream) { NewLine = "\n" };
-            await using (writer)
-            {
-                await writer.WriteLineAsync($"rpc-secret={secret}");
-                await writer.WriteLineAsync("enable-rpc=true");
-                await writer.WriteLineAsync("rpc-listen-all=false");
-                await writer.WriteLineAsync($"rpc-listen-port={port}");
-                await writer.FlushAsync(ct);
-            }
-        }
-
-        await RestrictConfToCurrentUserAsync(path, ct);
-    }
-
-    private static async Task RestrictConfToCurrentUserAsync(string path, CancellationToken ct)
-    {
-        if (!OperatingSystem.IsWindows())
-            return;
-        try
-        {
-            var user = Environment.UserName;
-            var args = string.Concat("\"", path, "\" /inheritance:r /grant:r \"", user, ":F\"");
-            _ = await ProcessRunner.RunAsync("icacls", args, ct);
-        }
-        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or UnauthorizedAccessException)
-        {
-            // Best-effort; loopback RPC still limits exposure.
-        }
-    }
-
     public async Task PauseAllAsync(CancellationToken ct)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -379,76 +334,7 @@ private async Task WaitForRpcAsync(CancellationToken ct)
         }
     }
 
-    private static JsonElement ExtractMulticallResult(JsonElement multicall, int index)
-    {
-        if (multicall.ValueKind != JsonValueKind.Array || index >= multicall.GetArrayLength())
-            return default;
-        var entry = multicall[index];
-        if (entry.ValueKind == JsonValueKind.Array && entry.GetArrayLength() > 0)
-            return entry[0];
-        return default;
-    }
-
-    // aria2 lists paused downloads in tellWaiting (status "paused"), never in tellStopped.
-    internal static (List<DownloadItem> Waiting, List<DownloadItem> Paused) SplitPaused(List<DownloadItem> queue) =>
-        (queue.FindAll(i => i.State != DownloadState.Paused), queue.FindAll(i => i.State == DownloadState.Paused));
-
-    private static List<DownloadItem> MapItems(JsonElement array)
-    {
-        var list = new List<DownloadItem>();
-        if (array.ValueKind != JsonValueKind.Array) return list;
-
-        foreach (var el in array.EnumerateArray())
-        {
-            if (el.ValueKind != JsonValueKind.Object) continue;
-            var status = ReadString(el, "status");
-            var state = status switch
-            {
-                "active" => DownloadState.Active,
-                "waiting" => DownloadState.Waiting,
-                "paused" => DownloadState.Paused,
-                "complete" => DownloadState.Complete,
-                "error" => DownloadState.Failed,
-                "removed" => DownloadState.Interrupted,
-                _ => DownloadState.Waiting,
-            };
-
-            var name = "";
-            if (el.TryGetProperty("files", out var files)
-                && files.ValueKind == JsonValueKind.Array
-                && files.GetArrayLength() > 0)
-            {
-                var f0 = files[0];
-                if (f0.TryGetProperty("path", out var pathEl))
-                    name = Path.GetFileName(pathEl.GetString() ?? "") ?? "";
-            }
-
-            list.Add(new DownloadItem
-            {
-                Gid = ReadString(el, "gid"),
-                Name = name,
-                Status = status,
-                State = state,
-                Directory = ReadString(el, "dir"),
-                CompletedLength = ReadLong(el, "completedLength"),
-                TotalLength = ReadLong(el, "totalLength"),
-                DownloadSpeed = ReadLong(el, "downloadSpeed"),
-                Connections = (int)ReadLong(el, "connections"),
-                ErrorCode = (int)ReadLong(el, "errorCode"),
-                ErrorMessage = string.IsNullOrEmpty(ReadString(el, "errorMessage"))
-                    ? null
-                    : ReadString(el, "errorMessage"),
-            });
-        }
-        return list;
-    }
-
-    private static string ReadString(JsonElement el, string name) =>
-        el.TryGetProperty(name, out var p) && p.ValueKind == JsonValueKind.String
-            ? p.GetString() ?? ""
-            : "";
-
-    private static long ReadLong(JsonElement el, string name)
+    private static long ReadGlobalLong(JsonElement el, string name)
     {
         if (!el.TryGetProperty(name, out var p)) return 0;
         if (p.ValueKind == JsonValueKind.String
@@ -458,4 +344,19 @@ private async Task WaitForRpcAsync(CancellationToken ct)
             return n;
         return 0;
     }
+
+    internal static (List<DownloadItem> Waiting, List<DownloadItem> Paused) SplitPaused(List<DownloadItem> items)
+    {
+        var waiting = new List<DownloadItem>();
+        var paused = new List<DownloadItem>();
+        foreach (var item in items)
+        {
+            if (item.State == DownloadState.Paused)
+                paused.Add(item);
+            else
+                waiting.Add(item);
+        }
+        return (waiting, paused);
+    }
+
 }

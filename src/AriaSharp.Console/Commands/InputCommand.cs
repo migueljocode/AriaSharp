@@ -9,18 +9,28 @@ internal static class InputCommand
     {
         try
         {
-            var resolved = await settings.Inputs.ResolveDownloadUrlsAsync(
+            TextReader? stdin = Console.IsInputRedirected
+                ? new StreamReader(Console.OpenStandardInput())
+                : null;
+            try
+            {
+                var resolved = await settings.Inputs.ResolveDownloadUrlsAsync(
                     new UrlExtractor(),
                     new UrlClassifier(),
                     new ClipboardReader(),
                     forceClipboard: settings.FromClipboard,
                     forceFiles: settings.FromFiles,
-                    CancellationToken.None);
+                    CancellationToken.None,
+                    stdin: stdin,
+                    allowClipboardFallback: !Console.IsOutputRedirected);
 
-            settings.Inputs = [.. resolved];
-            if (settings.Verbose && resolved is { Count: > 0 })
+                settings.Inputs = [.. resolved];
+                if (settings.Verbose && resolved is { Count: > 0 })
+                    await Console.Error.WriteLineAsync($"Resolved {resolved.Count} download URL(s).");
+            }
+            finally
             {
-                await Console.Error.WriteLineAsync($"Resolved {resolved.Count} download URL(s).");
+                stdin?.Dispose();
             }
         }
         catch (FileNotFoundException ex)
@@ -32,7 +42,7 @@ internal static class InputCommand
         if (settings.Inputs is { Count: 0 })
         {
             await Console.Out.WriteLineAsync(
-                    "No URLs found (CLI, files, stdin, or clipboard). Use --help, --from-clipboard, or --from-file.");
+                "No URLs found (CLI, files, stdin, or clipboard). Use --help, --from-clipboard, or --from-file.");
             return ((int)ExitCode.UsageError, settings);
         }
 

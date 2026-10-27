@@ -2,6 +2,7 @@ namespace AriaSharp.Services;
 
 /// <summary>
 /// Smart input resolution as C# 14 extension members on argument lists.
+/// Console I/O is injected by the caller (stdin / clipboard policy).
 /// </summary>
 public static class InputResolver
 {
@@ -13,7 +14,9 @@ public static class InputResolver
             IClipboardReader clipboard,
             bool forceClipboard,
             IReadOnlyList<string>? forceFiles,
-            CancellationToken ct)
+            CancellationToken ct,
+            TextReader? stdin = null,
+            bool allowClipboardFallback = false)
         {
             ThrowIfNull(extractor);
             ThrowIfNull(classifier);
@@ -30,10 +33,9 @@ public static class InputResolver
             if (existing is { Count: > 0 })
                 return await ExpandArgsAsync(existing, extractor, classifier, ct);
 
-            if (Console.IsInputRedirected)
+            if (stdin is not null)
             {
-                using var reader = new StreamReader(Console.OpenStandardInput());
-                var text = await reader.ReadToEndAsync(ct);
+                var text = await stdin.ReadToEndAsync(ct);
                 var fromStdin = extractor.Extract(text);
                 if (fromStdin is { Length: > 0 })
                     return fromStdin;
@@ -43,14 +45,13 @@ public static class InputResolver
                     return await ExpandArgsAsync(lines, extractor, classifier, ct);
             }
 
-            if (!Console.IsOutputRedirected)
+            if (allowClipboardFallback)
                 return await FromClipboardAsync(extractor, clipboard, ct);
 
             return [];
         }
     }
 
-    /// <summary>Facade for existing call sites.</summary>
     public static Task<IReadOnlyList<string>> ResolveAsync(
         IReadOnlyList<string> existing,
         IUrlExtractor extractor,
@@ -58,10 +59,13 @@ public static class InputResolver
         IClipboardReader clipboard,
         bool forceClipboard,
         IReadOnlyList<string>? forceFiles,
-        CancellationToken ct)
+        CancellationToken ct,
+        TextReader? stdin = null,
+        bool allowClipboardFallback = false)
     {
         ThrowIfNull(existing);
-        return existing.ResolveDownloadUrlsAsync(extractor, classifier, clipboard, forceClipboard, forceFiles, ct);
+        return existing.ResolveDownloadUrlsAsync(
+            extractor, classifier, clipboard, forceClipboard, forceFiles, ct, stdin, allowClipboardFallback);
     }
 
     private static async Task<IReadOnlyList<string>> ExpandArgsAsync(

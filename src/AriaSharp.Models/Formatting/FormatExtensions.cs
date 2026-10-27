@@ -70,6 +70,11 @@ public static class FormatExtensions
         }
     }
 
+    extension(TimeSpan ts)
+    {
+        public string AsElapsed() => FormatHelpers.FormatElapsed(ts);
+    }
+
     extension(DownloadProtocol protocol)
     {
         public string Badge() => protocol switch

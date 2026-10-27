@@ -130,9 +130,9 @@ public sealed class SettingsStore : ISettingsStore
             var json = await File.ReadAllTextAsync(path, ct);
             return JsonSerializer.Deserialize<SettingsOverlay>(json, AppSettingsJsonContext.Default.SettingsOverlay) ?? new SettingsOverlay();
         }
-        catch (JsonException ex)
+        catch (JsonException)
         {
-            await System.Console.Error.WriteLineAsync($"Warning: settings file corrupt ({ex.Message}); using defaults");
+            // Corrupt settings file: fall back to empty overlay (caller may log).
             return new SettingsOverlay();
         }
     }
