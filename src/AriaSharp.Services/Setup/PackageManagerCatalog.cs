@@ -7,13 +7,13 @@ public static class Aria2Manifest
     public const string ReleaseTag = AppDefaults.Aria2ReleaseTag;
 
     public const string WindowsZipUrl64 =
-        "https://github.com/aria2/aria2/releases/download/release-1.37.0/aria2-1.37.0-win-64bit-build1.zip";
+        "https://github.com/aria2/aria2/releases/download/" + ReleaseTag + "/aria2-" + Version + "-win-64bit-build1.zip";
 
     public const string WindowsZipUrl32 =
-        "https://github.com/aria2/aria2/releases/download/release-1.37.0/aria2-1.37.0-win-32bit-build1.zip";
+        "https://github.com/aria2/aria2/releases/download/" + ReleaseTag + "/aria2-" + Version + "-win-32bit-build1.zip";
 
     public const string SourceTarballGzUrl =
-        "https://github.com/aria2/aria2/releases/download/release-1.37.0/aria2-1.37.0.tar.gz";
+        "https://github.com/aria2/aria2/releases/download/" + ReleaseTag + "/aria2-" + Version + ".tar.gz";
 
     public const string WindowsZipSha256X64 =
         "67d015301eef0b612191212d564c5bb0a14b5b9c4796b76454276a4d28d9b288";

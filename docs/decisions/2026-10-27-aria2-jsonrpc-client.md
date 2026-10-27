@@ -1,10 +1,13 @@
 # S1: Aria2.JsonRpcClient vs in-repo RPC
 
-**Decision:** Keep the in-repo `Aria2RpcClient` + `Aria2NotificationListener` (HTTP JSON-RPC + WebSocket notifications). Do **not** take a dependency on NuGet package `Aria2.JsonRpcClient`.
+**Decision (provisional):** Keep the in-repo `Aria2RpcClient` + `Aria2NotificationListener` (HTTP JSON-RPC + WebSocket notifications). Do **not** take a dependency on NuGet package `Aria2.JsonRpcClient` until a PublishAot spike proves it safe.
 
-**Why**
-- The published package is not declared AOT-safe; Native AOT is a hard requirement for the Console publish.
-- Loopback-only RPC, owner-only conf secret, and multicall progress shape are controlled in-repo without trimming surprises.
-- WebSocket notification mapping (`onDownloadComplete` / `Error` / `Stop` → session save) is wired here.
+**Evidence so far**
+- The published package does not advertise AOT compatibility in its metadata (not the same as “fails under AOT”).
+- Loopback-only RPC, owner-only conf secret, multicall progress, and terminal-event → `saveSession` are controlled in-repo.
 
-**Revisit if** a future package version ships official AOT annotations and matches our secret/conf model; then re-run spike S1 and document results here.
+**Required to promote this to a final decision**
+- Spike: reference `Aria2.JsonRpcClient` in a PublishAot console, call a minimal method, record IL2026/IL3050 and runtime result.
+- If green and secret/conf model fits, prefer the package and delete the in-repo client; document the spike log here.
+
+**Owner preference:** Brief preferred the package for notification events; this note overrides only until the spike is done.

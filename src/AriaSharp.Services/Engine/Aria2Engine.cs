@@ -26,7 +26,7 @@ public sealed class Aria2Engine : IAria2Engine
     private Aria2NotificationListener? _notifications;
     private string _version = string.Empty;
     private bool _disposed;
-    private long _lastSessionSaveTick;
+    private SessionSaveCoordinator? _sessionSave;
 
     public ChannelReader<EngineEvent> Events => _channel.Reader;
 
@@ -56,6 +56,7 @@ public sealed class Aria2Engine : IAria2Engine
         catch (IOException) { }
         catch (UnauthorizedAccessException) { }
 
+        _sessionSave = new SessionSaveCoordinator(SaveSessionAsync);
         _notifications = new Aria2NotificationListener(settings.Port, _channel.Writer, OnNotificationAsync);
         try
         {
@@ -155,25 +156,13 @@ public sealed class Aria2Engine : IAria2Engine
         };
     }
 
-    private async ValueTask OnNotificationAsync(EngineEvent ev, CancellationToken ct)
+    private ValueTask OnNotificationAsync(EngineEvent ev, CancellationToken ct)
     {
+        _ = ct;
         if (ev.Kind is not (EngineEventKind.Complete or EngineEventKind.Error or EngineEventKind.Stopped))
-            return;
-
-        var now = Environment.TickCount64;
-        var prev = Interlocked.Read(ref _lastSessionSaveTick);
-        if (now - prev < 400)
-            return;
-        Interlocked.Exchange(ref _lastSessionSaveTick, now);
-
-        try
-        {
-            await SaveSessionAsync(ct);
-        }
-        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or OperationCanceledException or TimeoutException or IOException)
-        {
-            // Best-effort; SettleAsync still saves at end of run.
-        }
+            return ValueTask.CompletedTask;
+        _sessionSave?.RequestSave();
+        return ValueTask.CompletedTask;
     }
 
     public async Task SaveSessionAsync(CancellationToken ct)
