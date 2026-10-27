@@ -8,6 +8,10 @@ Installer seams + consent/fallback unit tests (PR).
 - PrerequisiteInstaller instance flow + CreateDefault production wiring
 - Consent/fallback/sudo/classify tests with hand-written fakes (no network/process)
 - End-of-run saveSession failure: one verbose warning line, no throw
+- Hermetic installer tests with temp cache injection
+- InstallDepsAsync as instance method + sudo -n / plain sudo variants
+- Tidy: single ProcessRunResult type, internal interfaces/adapters, remove FormatInstallCommand/ResolveInstallCommand duplicate overloads
+- Release host unreachable + manager + consent test: install succeeds via manager, artifacts.Calls == 0
 
 ## Next
 - Optional S1 spike: Aria2.JsonRpcClient under PublishAot
