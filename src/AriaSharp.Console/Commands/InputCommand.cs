@@ -9,8 +9,7 @@ internal static class InputCommand
     {
         try
         {
-            var resolved = await InputResolver.ResolveAsync(
-                    settings.Inputs,
+            var resolved = await settings.Inputs.ResolveDownloadUrlsAsync(
                     new UrlExtractor(),
                     new UrlClassifier(),
                     new ClipboardReader(),

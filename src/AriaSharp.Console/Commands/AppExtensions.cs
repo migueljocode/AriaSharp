@@ -42,7 +42,7 @@ internal static class AppExtensions
     {
         public int RenderHelp()
         {
-            HelpView.Render(settings);
+            settings.ShowHelp();
             return (int)ExitCode.Ok;
         }
 

@@ -1,11 +1,57 @@
 namespace AriaSharp.Services;
 
 /// <summary>
-/// Smart input resolution: CLI URLs, list files (extract links), clipboard, stdin.
+/// Smart input resolution as C# 14 extension members on argument lists.
 /// </summary>
 public static class InputResolver
 {
-    public static async Task<IReadOnlyList<string>> ResolveAsync(
+    extension(IReadOnlyList<string> existing)
+    {
+        public async Task<IReadOnlyList<string>> ResolveDownloadUrlsAsync(
+            IUrlExtractor extractor,
+            IUrlClassifier classifier,
+            IClipboardReader clipboard,
+            bool forceClipboard,
+            IReadOnlyList<string>? forceFiles,
+            CancellationToken ct)
+        {
+            ThrowIfNull(extractor);
+            ThrowIfNull(classifier);
+            ThrowIfNull(clipboard);
+
+            forceFiles ??= [];
+
+            if (forceClipboard)
+                return await FromClipboardAsync(extractor, clipboard, ct).ConfigureAwait(false);
+
+            if (forceFiles is { Count: > 0 })
+                return await FromFilesAsync(forceFiles, extractor, ct).ConfigureAwait(false);
+
+            if (existing is { Count: > 0 })
+                return await ExpandArgsAsync(existing, extractor, classifier, ct).ConfigureAwait(false);
+
+            if (Console.IsInputRedirected)
+            {
+                using var reader = new StreamReader(Console.OpenStandardInput());
+                var text = await reader.ReadToEndAsync(ct).ConfigureAwait(false);
+                var fromStdin = extractor.Extract(text);
+                if (fromStdin is { Length: > 0 })
+                    return fromStdin;
+
+                string[] lines = [.. text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)];
+                if (lines is { Length: > 0 })
+                    return await ExpandArgsAsync(lines, extractor, classifier, ct).ConfigureAwait(false);
+            }
+
+            if (!Console.IsOutputRedirected)
+                return await FromClipboardAsync(extractor, clipboard, ct).ConfigureAwait(false);
+
+            return [];
+        }
+    }
+
+    /// <summary>Facade for existing call sites.</summary>
+    public static Task<IReadOnlyList<string>> ResolveAsync(
         IReadOnlyList<string> existing,
         IUrlExtractor extractor,
         IUrlClassifier classifier,
@@ -15,38 +61,7 @@ public static class InputResolver
         CancellationToken ct)
     {
         ThrowIfNull(existing);
-        ThrowIfNull(extractor);
-        ThrowIfNull(classifier);
-        ThrowIfNull(clipboard);
-
-        forceFiles ??= [];
-
-        if (forceClipboard)
-            return await FromClipboardAsync(extractor, clipboard, ct).ConfigureAwait(false);
-
-        if (forceFiles is { Count: > 0 })
-            return await FromFilesAsync(forceFiles, extractor, ct).ConfigureAwait(false);
-
-        if (existing is { Count: > 0 })
-            return await ExpandArgsAsync(existing, extractor, classifier, ct).ConfigureAwait(false);
-
-        if (Console.IsInputRedirected)
-        {
-            using var reader = new StreamReader(Console.OpenStandardInput());
-            var text = await reader.ReadToEndAsync(ct).ConfigureAwait(false);
-            var fromStdin = extractor.Extract(text);
-            if (fromStdin is { Length: > 0 })
-                return fromStdin;
-
-            string[] lines = [.. text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)];
-            if (lines is { Length: > 0 })
-                return await ExpandArgsAsync(lines, extractor, classifier, ct).ConfigureAwait(false);
-        }
-
-        if (!Console.IsOutputRedirected)
-            return await FromClipboardAsync(extractor, clipboard, ct).ConfigureAwait(false);
-
-        return [];
+        return existing.ResolveDownloadUrlsAsync(extractor, classifier, clipboard, forceClipboard, forceFiles, ct);
     }
 
     private static async Task<IReadOnlyList<string>> ExpandArgsAsync(

@@ -8,9 +8,10 @@ namespace AriaSharp.App;
 /// </summary>
 internal static class ArgParser
 {
-    public static SettingsOverlay Parse(string[] args)
+    extension(string[] args)
     {
-        ThrowIfNull(args);
+        public SettingsOverlay ParseCli()
+        {
         var overlay = new SettingsOverlay();
         var terminate = false;
 
@@ -45,6 +46,13 @@ internal static class ArgParser
         }
 
         return overlay;
+        }
+    }
+
+    public static SettingsOverlay Parse(string[] args)
+    {
+        ThrowIfNull(args);
+        return args.ParseCli();
     }
 
     private static int HandleLong(ReadOnlySpan<char> body, SettingsOverlay overlay, int i, string[] argv)

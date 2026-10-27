@@ -7,7 +7,7 @@ internal static class SettingsBootstrap
 {
     public static async Task<(AppSettings Settings, SettingsOverlay Cli)> LoadAsync(string[] args)
     {
-        var cli = ArgParser.Parse(args);
+        var cli = args.ParseCliOverlay();
         var store = new SettingsStore();
         var configFile = cli.ConfigFile ?? AppPaths.SettingsFile;
 
