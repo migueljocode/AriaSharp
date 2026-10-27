@@ -60,6 +60,7 @@ public class SessionSaveCoordinatorTests
         while (Volatile.Read(ref saves) < 2 && DateTime.UtcNow < deadline)
             await Task.Delay(20);
 
+        await Task.Delay(100); // catch a late third save if coalescing is broken
         Assert.Equal(2, Volatile.Read(ref saves));
     }
 }
