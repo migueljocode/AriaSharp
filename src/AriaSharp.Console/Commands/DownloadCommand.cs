@@ -106,6 +106,12 @@ internal static class DownloadCommand
                         engine, settings, cts.Token);
                 }
 
+                // Screen (dashboard alternate buffer / inline progress) is restored by now;
+                // surface save-session warnings only in verbose mode.
+                if (settings.Verbose)
+                    foreach (var warning in outcome.Warnings)
+                        await Console.Error.WriteLineAsync(warning);
+
                 return await DownloadSummary.FinishAsync(
                     finalState, outcome, elapsed,
                     Path.GetFullPath(outputDir), Path.GetFullPath(sessionPath), settings);

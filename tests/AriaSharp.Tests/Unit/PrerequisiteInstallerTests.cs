@@ -8,7 +8,7 @@ public class PrerequisiteInstallerTests
         var mgr = new PackageManagerEntry(
             "brew", "brew", "brew", "info aria2", "brew", "install aria2",
             NeedsElevation: false, PackageProbeKind.ExitCodeZero, static () => true);
-        var resolved = PrerequisiteInstaller.ResolveInstallCommand(mgr, nonInteractive: true);
+        var resolved = PrerequisiteInstaller.ResolveInstallCommand(mgr, nonInteractive: true, new FakeInstallEnvironment());
         Assert.NotNull(resolved);
         Assert.Equal("brew", resolved.Value.File);
         Assert.Equal("install aria2", resolved.Value.Args);
@@ -17,15 +17,11 @@ public class PrerequisiteInstallerTests
     [Fact]
     public void ResolveInstallCommand_NonInteractive_UsesSudoDashN()
     {
-        if (OperatingSystem.IsWindows() || PrerequisiteInstaller.IsPrivileged())
-            return;
-        if (!PackageManagerCatalog.CommandExists("sudo"))
-            return;
-
         var mgr = new PackageManagerEntry(
             "apt", "apt", "apt-cache", "policy aria2", "apt-get", "install -y aria2",
             NeedsElevation: true, PackageProbeKind.AptCandidate, static () => true);
-        var resolved = PrerequisiteInstaller.ResolveInstallCommand(mgr, nonInteractive: true);
+        var env = new FakeInstallEnvironment { IsPrivileged = false, Commands = ["sudo", "apt-get"] };
+        var resolved = PrerequisiteInstaller.ResolveInstallCommand(mgr, nonInteractive: true, env);
         Assert.NotNull(resolved);
         Assert.Equal("sudo", resolved.Value.File);
         Assert.StartsWith("-n ", resolved.Value.Args, StringComparison.Ordinal);
@@ -34,18 +30,24 @@ public class PrerequisiteInstallerTests
     [Fact]
     public void ResolveInstallCommand_Interactive_UsesPlainSudo()
     {
-        if (OperatingSystem.IsWindows() || PrerequisiteInstaller.IsPrivileged())
-            return;
-        if (!PackageManagerCatalog.CommandExists("sudo"))
-            return;
-
         var mgr = new PackageManagerEntry(
             "apt", "apt", "apt-cache", "policy aria2", "apt-get", "install -y aria2",
             NeedsElevation: true, PackageProbeKind.AptCandidate, static () => true);
-        var resolved = PrerequisiteInstaller.ResolveInstallCommand(mgr, nonInteractive: false);
+        var env = new FakeInstallEnvironment { IsPrivileged = false, Commands = ["sudo", "apt-get"] };
+        var resolved = PrerequisiteInstaller.ResolveInstallCommand(mgr, nonInteractive: false, env);
         Assert.NotNull(resolved);
         Assert.Equal("sudo", resolved.Value.File);
         Assert.False(resolved.Value.Args.StartsWith("-n ", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ResolveInstallCommand_NoSudo_ReturnsNull()
+    {
+        var mgr = new PackageManagerEntry(
+            "apt", "apt", "apt-cache", "policy aria2", "apt-get", "install -y aria2",
+            NeedsElevation: true, PackageProbeKind.AptCandidate, static () => true);
+        var env = new FakeInstallEnvironment { IsPrivileged = false, Commands = ["apt-get"] };
+        Assert.Null(PrerequisiteInstaller.ResolveInstallCommand(mgr, nonInteractive: true, env));
     }
 
     [Fact]
@@ -88,7 +90,10 @@ public class PrerequisiteInstallerTests
         var mgr = new PackageManagerEntry(
             "brew", "brew", "brew", "info aria2", "brew", "install aria2",
             NeedsElevation: false, PackageProbeKind.ExitCodeZero, static () => true);
-        var text = PrerequisiteInstaller.FormatInstallCommand(mgr);
+        var installer = new PrerequisiteInstaller(
+            new FakeProcessRunner(), new FakeInstallEnvironment(), new FakeNetworkProbe(),
+            new FakeArtifactInstaller(), new FakeLocator());
+        var text = installer.FormatInstallCommand(mgr);
         Assert.Contains("install aria2", text, StringComparison.Ordinal);
     }
 }

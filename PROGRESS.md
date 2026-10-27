@@ -1,18 +1,21 @@
 # PROGRESS.md
 
 ## Milestone
-Post-merge audit: session save-on-result, constants, README, S1 decision note.
+Installer seams + consent/fallback unit tests (PR).
 
 ## Done
-- Installer QoS on main (PR #2 lineage)
-- `saveSession` on Complete/Error/Stop notifications (throttled ~400ms)
-- Single version/tag source (`AppDefaults`); correct `release-1.37.0` tag
-- README: paths, tests, --doctor, installer behaviour
-- `docs/decisions/2026-10-27-aria2-jsonrpc-client.md` (keep in-repo RPC)
+- IProcessRunner, IInstallEnvironment, INetworkProbe, IArtifactInstaller seams
+- PrerequisiteInstaller instance flow + CreateDefault production wiring
+- Consent/fallback/sudo/classify tests with hand-written fakes (no network/process)
+- End-of-run saveSession failure: one verbose warning line, no throw
+- Hermetic installer tests with temp cache injection
+- InstallDepsAsync as instance method + sudo -n / plain sudo variants
+- Tidy: single ProcessRunResult type, internal interfaces/adapters, remove FormatInstallCommand/ResolveInstallCommand duplicate overloads
+- Release host unreachable + manager + consent test: install succeeds via manager, artifacts.Calls == 0
 
 ## Next
-- Inject process runner / probe for consent + fallback unit tests
-- Terminal smoke: full-screen help pager + dashboard (manual)
+- Optional S1 spike: Aria2.JsonRpcClient under PublishAot
+- Terminal check: full-screen help and dashboard on a real TTY
 
 ## Blocked
 - (none)

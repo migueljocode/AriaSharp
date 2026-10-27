@@ -100,6 +100,29 @@ public class DownloadSessionTests
     }
 
     [Fact]
+    public async Task RunAsync_SaveSessionThrows_WarningSurfaced_OutcomeUnchanged()
+    {
+        var engine = new ScriptedEngine(
+        [
+            Snapshot(complete: [Item("a", DownloadState.Complete, 100, 100)]),
+            Snapshot(complete: [Item("a", DownloadState.Complete, 100, 100)]),
+        ])
+        { SaveSessionThrows = true };
+        try
+        {
+            var session = new DownloadSession(engine, new ProgressCalculator(), new AppSettings { RefreshIntervalMs = 10 });
+            var outcome = await session.RunAsync(CancellationToken.None);
+            Assert.Equal(RunOutcomeKind.Completed, outcome.Kind);
+            Assert.Single(outcome.Warnings);
+            Assert.Contains("saveSession failed", outcome.Warnings[0], StringComparison.Ordinal);
+        }
+        finally
+        {
+            await engine.DisposeAsync();
+        }
+    }
+
+    [Fact]
     public async Task RunAsync_NoItems_ReturnsEmpty()
     {
         var engine = new ScriptedEngine([Snapshot(), Snapshot()]);
@@ -155,9 +178,15 @@ public class DownloadSessionTests
         public ScriptedEngine(IEnumerable<EngineSnapshot> script) => _script = new Queue<EngineSnapshot>(script);
 
         public Action? OnSnapshot { get; init; }
+        public bool SaveSessionThrows { get; init; }
         public ChannelReader<EngineEvent> Events => _events.Reader;
         public Task StartAsync(EngineSettings settings, CancellationToken ct) => Task.CompletedTask;
-        public Task SaveSessionAsync(CancellationToken ct) => Task.CompletedTask;
+        public Task SaveSessionAsync(CancellationToken ct)
+        {
+            if (SaveSessionThrows)
+                throw new InvalidOperationException("save session boom");
+            return Task.CompletedTask;
+        }
         public Task ShutdownAsync(CancellationToken ct) => Task.CompletedTask;
         public Task<string> AddUriAsync(string[] uris, CancellationToken ct) => Task.FromResult(string.Empty);
         public Task<string> GetVersionAsync(CancellationToken ct) => Task.FromResult("1.37.0");

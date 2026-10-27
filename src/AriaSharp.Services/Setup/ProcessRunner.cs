@@ -7,9 +7,7 @@ namespace AriaSharp.Services;
 /// </summary>
 internal static class ProcessRunner
 {
-    internal sealed record Result(int ExitCode, string StdOut, string StdErr);
-
-    public static async Task<Result> RunAsync(
+    public static async Task<ProcessRunResult> RunAsync(
         string fileName,
         string arguments,
         CancellationToken ct,
@@ -32,20 +30,20 @@ internal static class ProcessRunner
         {
             using var process = Process.Start(psi);
             if (process is null)
-                return new Result(-1, "", "failed to start process");
+                return new ProcessRunResult(-1, "", "failed to start process");
 
             var outTask = process.StandardOutput.ReadToEndAsync(ct);
             var errTask = process.StandardError.ReadToEndAsync(ct);
             await process.WaitForExitAsync(ct);
 
-            return new Result(
+            return new ProcessRunResult(
                 process.ExitCode,
                 await outTask,
                 await errTask);
         }
         catch (Exception ex) when (ex is Win32Exception or InvalidOperationException)
         {
-            return new Result(-1, "", ex.Message);
+            return new ProcessRunResult(-1, "", ex.Message);
         }
     }
 }
