@@ -102,7 +102,7 @@ public sealed class Aria2Engine : IAria2Engine
                 case DownloadState.Complete:
                     complete.Add(item);
                     break;
-                case DownloadState.Failed when item.ErrorCode is 13 or 11:
+                case DownloadState.Failed when ErrorCatalog.IsSkippedCode(item.ErrorCode):
                     // 13 file already exists · 11 duplicate download → skipped, not failed
                     skipped.Add(item);
                     break;

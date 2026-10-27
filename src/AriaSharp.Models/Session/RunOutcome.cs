@@ -4,11 +4,19 @@ public enum RunOutcomeKind { Completed, Interrupted, Failed, Empty }
 
 public sealed class RunOutcome
 {
-    private RunOutcome(RunOutcomeKind kind, string? message = null) { Kind = kind; Message = message; }
+    private RunOutcome(RunOutcomeKind kind, string? message = null)
+    {
+        Kind = kind;
+        Message = message;
+    }
+
     public RunOutcomeKind Kind { get; }
     public string? Message { get; }
-    public static RunOutcome Completed(string? m = null) => new(RunOutcomeKind.Completed, m);
-    public static RunOutcome Interrupted(string? m = null) => new(RunOutcomeKind.Interrupted, m);
-    public static RunOutcome Failed(string? m = null) => new(RunOutcomeKind.Failed, m);
-    public static RunOutcome Empty(string? m = null) => new(RunOutcomeKind.Empty, m);
+
+    public static RunOutcome Completed(string? message = null) => new(RunOutcomeKind.Completed, message);
+    public static RunOutcome Interrupted(string? message = null) => new(RunOutcomeKind.Interrupted, message);
+    public static RunOutcome Failed(string? message = null) => new(RunOutcomeKind.Failed, message);
+    public static RunOutcome Empty(string? message = null) => new(RunOutcomeKind.Empty, message);
+
+    public bool IsSuccess => Kind is RunOutcomeKind.Completed or RunOutcomeKind.Empty;
 }

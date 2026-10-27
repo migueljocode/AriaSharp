@@ -34,26 +34,18 @@ internal static class ProcessRunner
             if (process is null)
                 return new Result(-1, "", "failed to start process");
 
-            var stdout = new StringBuilder();
-            var stderr = new StringBuilder();
             var outTask = process.StandardOutput.ReadToEndAsync(ct);
             var errTask = process.StandardError.ReadToEndAsync(ct);
             await process.WaitForExitAsync(ct).ConfigureAwait(false);
-            stdout.Append(await outTask.ConfigureAwait(false));
-            stderr.Append(await errTask.ConfigureAwait(false));
-            return new Result(process.ExitCode, stdout.ToString(), stderr.ToString());
+
+            return new Result(
+                process.ExitCode,
+                await outTask.ConfigureAwait(false),
+                await errTask.ConfigureAwait(false));
         }
-        catch (Win32Exception ex)
+        catch (Exception ex) when (ex is Win32Exception or InvalidOperationException)
         {
             return new Result(-1, "", ex.Message);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return new Result(-1, "", ex.Message);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
         }
     }
 }

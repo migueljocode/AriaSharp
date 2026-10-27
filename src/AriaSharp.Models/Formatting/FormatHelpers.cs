@@ -22,7 +22,7 @@ public static class FormatHelpers
 
     public static string Sanitize(string? value)
     {
-        if (string.IsNullOrEmpty(value)) return string.Empty;
+        if (value is null || value.Length == 0) return string.Empty;
         var span = value.AsSpan();
         var rent = ArrayPool<char>.Shared.Rent(span.Length);
         try
@@ -46,7 +46,7 @@ public static class FormatHelpers
 
     public static string MaskCredentials(string? value)
     {
-        if (string.IsNullOrEmpty(value)) return string.Empty;
+        if (value is null || value.Length == 0) return string.Empty;
         var schemeEnd = value.IndexOf("://", StringComparison.Ordinal);
         if (schemeEnd < 0) return value;
         var start = schemeEnd + 3;
@@ -58,7 +58,7 @@ public static class FormatHelpers
 
     public static string Truncate(string? value, int max)
     {
-        if (string.IsNullOrEmpty(value)) return string.Empty;
+        if (value is null || value.Length == 0) return string.Empty;
         if (value.Length <= max) return value;
         return max <= 3 ? value[..max] : value[..(max - 3)] + "...";
     }

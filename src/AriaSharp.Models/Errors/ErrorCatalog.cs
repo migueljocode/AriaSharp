@@ -87,4 +87,6 @@ public static class ErrorCatalog
         5 or 7 or 10 or 11 or 12 or 28 => Aria2ErrorKind.Unknown,
         _ => Aria2ErrorKind.Unknown
     };
+
+    public static bool IsSkippedCode(int code) => code is 11 or 13;
 }

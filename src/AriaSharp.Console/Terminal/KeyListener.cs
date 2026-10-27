@@ -1,4 +1,5 @@
 using System.Net.Http;
+
 namespace AriaSharp.App;
 
 internal enum DashboardKeyAction
@@ -18,27 +19,23 @@ internal static class KeyListener
         {
             while (!ct.IsCancellationRequested)
             {
-                if (System.Console.KeyAvailable)
+                if (Console.KeyAvailable && Console.ReadKey(intercept: true).Key is ConsoleKey.Q or ConsoleKey.Escape)
                 {
-                    var key = System.Console.ReadKey(intercept: true);
-                    if (key.Key is ConsoleKey.Q or ConsoleKey.Escape)
-                    {
-                        try { await cts.CancelAsync().ConfigureAwait(false); }
-                        catch (ObjectDisposedException) { }
-                        return;
-                    }
+                    try { await cts.CancelAsync().ConfigureAwait(false); }
+                    catch (ObjectDisposedException) { }
+                    return;
                 }
+
                 await Task.Delay(50, ct).ConfigureAwait(false);
             }
         }
-        catch (OperationCanceledException) { }
-        catch (InvalidOperationException) { }
-        catch (IOException) { }
+        catch (Exception ex) when (ex is OperationCanceledException or InvalidOperationException or IOException)
+        {
+        }
     }
 
     /// <summary>
     /// Dashboard control loop: Q/Esc quit, P pause all, R resume all.
-    /// Invokes actions; cancels CTS on quit.
     /// </summary>
     public static async Task WatchDashboardAsync(
         CancellationTokenSource cts,
@@ -51,36 +48,51 @@ internal static class KeyListener
         {
             while (!ct.IsCancellationRequested)
             {
-                if (System.Console.KeyAvailable)
+                if (Console.KeyAvailable)
                 {
-                    var key = System.Console.ReadKey(intercept: true);
-                    if (key.Key is ConsoleKey.Q or ConsoleKey.Escape)
+                    var key = Console.ReadKey(intercept: true);
+                    var action = key.Key switch
                     {
-                        try { await onAction(DashboardKeyAction.Quit, ct).ConfigureAwait(false); }
-                        catch (Exception ex) when (ex is InvalidOperationException or IOException or ObjectDisposedException or HttpRequestException) { }
+                        ConsoleKey.Q or ConsoleKey.Escape => DashboardKeyAction.Quit,
+                        ConsoleKey.P => DashboardKeyAction.PauseAll,
+                        ConsoleKey.R => DashboardKeyAction.ResumeAll,
+                        _ => char.ToLowerInvariant(key.KeyChar) switch
+                        {
+                            'p' => DashboardKeyAction.PauseAll,
+                            'r' => DashboardKeyAction.ResumeAll,
+                            'q' => DashboardKeyAction.Quit,
+                            _ => DashboardKeyAction.None,
+                        },
+                    };
+
+                    if (action is DashboardKeyAction.None)
+                    {
+                        await Task.Delay(50, ct).ConfigureAwait(false);
+                        continue;
+                    }
+
+                    try
+                    {
+                        await onAction(action, ct).ConfigureAwait(false);
+                    }
+                    catch (Exception ex) when (ex is InvalidOperationException or IOException or ObjectDisposedException or HttpRequestException)
+                    {
+                    }
+
+                    if (action is DashboardKeyAction.Quit)
+                    {
                         try { await cts.CancelAsync().ConfigureAwait(false); }
                         catch (ObjectDisposedException) { }
                         return;
                     }
-
-                    var c = char.ToLowerInvariant(key.KeyChar);
-                    if (c == 'p' || key.Key == ConsoleKey.P)
-                    {
-                        try { await onAction(DashboardKeyAction.PauseAll, ct).ConfigureAwait(false); }
-                        catch (Exception ex) when (ex is InvalidOperationException or IOException or ObjectDisposedException or HttpRequestException) { }
-                    }
-                    else if (c == 'r' || key.Key == ConsoleKey.R)
-                    {
-                        try { await onAction(DashboardKeyAction.ResumeAll, ct).ConfigureAwait(false); }
-                        catch (Exception ex) when (ex is InvalidOperationException or IOException or ObjectDisposedException or HttpRequestException) { }
-                    }
                 }
+
                 await Task.Delay(50, ct).ConfigureAwait(false);
             }
         }
-        catch (OperationCanceledException) { }
-        catch (InvalidOperationException) { }
-        catch (IOException) { }
+        catch (Exception ex) when (ex is OperationCanceledException or InvalidOperationException or IOException)
+        {
+        }
     }
 
     public static bool WaitRetryOrQuit()
@@ -89,24 +101,34 @@ internal static class KeyListener
         {
             while (true)
             {
-                if (!System.Console.KeyAvailable)
+                if (!Console.KeyAvailable)
                 {
                     Thread.Sleep(30);
                     continue;
                 }
-                var key = System.Console.ReadKey(intercept: true);
-                if (key.Key is ConsoleKey.Q or ConsoleKey.Escape or ConsoleKey.N)
-                    return false;
-                if (key.Key is ConsoleKey.R or ConsoleKey.Y)
-                    return true;
-                var c = char.ToLowerInvariant(key.KeyChar);
-                if (c is 'q' or 'n') return false;
-                if (c is 'r' or 'y') return true;
+
+                var key = Console.ReadKey(intercept: true);
+                switch (key.Key)
+                {
+                    case ConsoleKey.Q or ConsoleKey.Escape or ConsoleKey.N:
+                        return false;
+                    case ConsoleKey.R or ConsoleKey.Y:
+                        return true;
+                }
+                switch (char.ToLowerInvariant(key.KeyChar))
+                {
+                    case 'q' or 'n':
+                        return false;
+                    case 'r' or 'y':
+                        return true;
+                }
+                // ignore other keys
             }
         }
-        catch (InvalidOperationException) { }
-        catch (IOException) { }
-        return false;
+        catch (Exception ex) when (ex is InvalidOperationException or IOException)
+        {
+            return false;
+        }
     }
 
     public static void WaitDismiss()
@@ -115,16 +137,18 @@ internal static class KeyListener
         {
             while (true)
             {
-                if (!System.Console.KeyAvailable)
+                if (!Console.KeyAvailable)
                 {
                     Thread.Sleep(30);
                     continue;
                 }
-                _ = System.Console.ReadKey(intercept: true);
+
+                _ = Console.ReadKey(intercept: true);
                 return;
             }
         }
-        catch (InvalidOperationException) { }
-        catch (IOException) { }
+        catch (Exception ex) when (ex is InvalidOperationException or IOException)
+        {
+        }
     }
 }
