@@ -10,7 +10,7 @@ internal static class ArgParser
 {
     extension(string[] args)
     {
-        public SettingsOverlay ParseCli()
+        public SettingsOverlay Parse()
         {
         var overlay = new SettingsOverlay();
         var terminate = false;
@@ -47,12 +47,6 @@ internal static class ArgParser
 
         return overlay;
         }
-    }
-
-    public static SettingsOverlay Parse(string[] args)
-    {
-        ThrowIfNull(args);
-        return args.ParseCli();
     }
 
     private static int HandleLong(ReadOnlySpan<char> body, SettingsOverlay overlay, int i, string[] argv)

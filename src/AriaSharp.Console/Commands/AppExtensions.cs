@@ -22,19 +22,20 @@ internal static class AppExtensions
 
             Theme.Enabled = !(settings.NoColor || settings.Ascii || settings.Plain);
 
-            return cli switch
-            {
-                { Help: true } => settings.RenderHelp(),
-                { Version: true } => await WriteVersionAsync(),
-                { PrintConfig: true } => await settings.WriteConfigAsync(),
-                _ => await settings.RunCoreAsync(),
-            };
-        }
+            if (cli.Help is true)
+                return settings.RenderHelp();
 
-        private static async Task<int> WriteVersionAsync()
-        {
-            await Console.Out.WriteLineAsync("AriaSharp 1.0.0");
-            return (int)ExitCode.Ok;
+            if (cli.Version is true)
+            {
+                // Single line identity string — no private helper needed.
+                await Console.Out.WriteLineAsync("AriaSharp 1.0.0");
+                return (int)ExitCode.Ok;
+            }
+
+            if (cli.PrintConfig is true)
+                return await settings.WriteConfigAsync();
+
+            return await settings.RunCoreAsync();
         }
     }
 

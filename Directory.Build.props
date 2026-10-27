@@ -23,6 +23,7 @@
     <Using Include="System.Text" />
     <Using Include="System.Text.Json" />
     <Using Include="AriaSharp.Models" />
+    <Using Include="System.Linq" />
   </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <DebugType>embedded</DebugType>

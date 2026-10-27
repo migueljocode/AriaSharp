@@ -3,28 +3,30 @@ namespace AriaSharp.Tests;
 
 public class ArgParserTests
 {
+    private static SettingsOverlay Parse(params string[] args) => args.Parse();
+
     [Fact]
     public void Help_SetsHelpFlag()
     {
-        var settings = ArgParser.Parse(["-h"]);
+        var settings = Parse(["-h"]);
         Assert.True(settings.Help == true);
-        settings = ArgParser.Parse(["--help"]);
+        settings = Parse(["--help"]);
         Assert.True(settings.Help == true);
     }
 
     [Fact]
     public void Version_SetsVersionFlag()
     {
-        var settings = ArgParser.Parse(["-V"]);
+        var settings = Parse(["-V"]);
         Assert.True(settings.Version == true);
-        settings = ArgParser.Parse(["--version"]);
+        settings = Parse(["--version"]);
         Assert.True(settings.Version == true);
     }
 
     [Fact]
     public void Input_Repeatable()
     {
-        var settings = ArgParser.Parse(["-i", "https://a/file", "--input", "https://b/file", "https://c/file"]);
+        var settings = Parse(["-i", "https://a/file", "--input", "https://b/file", "https://c/file"]);
         Assert.Equal(3, settings.Inputs.Count);
         Assert.Contains("https://a/file", settings.Inputs);
         Assert.Contains("https://b/file", settings.Inputs);
@@ -34,16 +36,16 @@ public class ArgParserTests
     [Fact]
     public void Output_MapsToOutputDir()
     {
-        var settings = ArgParser.Parse(["-o", "/tmp/out"]);
+        var settings = Parse(["-o", "/tmp/out"]);
         Assert.Equal("/tmp/out", settings.OutputDir);
-        settings = ArgParser.Parse(["--output", "/tmp/out2"]);
+        settings = Parse(["--output", "/tmp/out2"]);
         Assert.Equal("/tmp/out2", settings.OutputDir);
     }
 
     [Fact]
     public void Force_IsFlagNotValue()
     {
-        var settings = ArgParser.Parse(["-f", "https://example.com/file"]);
+        var settings = Parse(["-f", "https://example.com/file"]);
         Assert.True(settings.Force == true);
         Assert.Single(settings.Inputs);
         Assert.Equal("https://example.com/file", settings.Inputs[0]);
@@ -52,41 +54,41 @@ public class ArgParserTests
     [Fact]
     public void Jobs_ValidatedRange()
     {
-        var settings = ArgParser.Parse(["-j", "4"]);
+        var settings = Parse(["-j", "4"]);
         Assert.True(settings.MaxConcurrentDownloads == 4);
-        var ex = Assert.Throws<CliException>(() => ArgParser.Parse(["-j", "0"]));
+        var ex = Assert.Throws<CliException>(() => Parse(["-j", "0"]));
         Assert.Contains("1 to 16", ex.Message, StringComparison.Ordinal);
-        ex = Assert.Throws<CliException>(() => ArgParser.Parse(["-j", "17"]));
+        ex = Assert.Throws<CliException>(() => Parse(["-j", "17"]));
         Assert.Contains("1 to 16", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
     public void Connections_ValidatedRange()
     {
-        var settings = ArgParser.Parse(["-c", "8"]);
+        var settings = Parse(["-c", "8"]);
         Assert.True(settings.Connections == 8);
-        var ex = Assert.Throws<CliException>(() => ArgParser.Parse(["-c", "100"]));
+        var ex = Assert.Throws<CliException>(() => Parse(["-c", "100"]));
         Assert.Contains("1 to 16", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
     public void Limit_Set()
     {
-        var settings = ArgParser.Parse(["-l", "2M"]);
+        var settings = Parse(["-l", "2M"]);
         Assert.Equal("2M", settings.SpeedLimit);
     }
 
     [Fact]
     public void Session_Set()
     {
-        var settings = ArgParser.Parse(["-s", "/tmp/resume.session"]);
+        var settings = Parse(["-s", "/tmp/resume.session"]);
         Assert.Equal("/tmp/resume.session", settings.SessionFile);
     }
 
     [Fact]
     public void Yes_LongOnly()
     {
-        var settings = ArgParser.Parse(["--yes"]);
+        var settings = Parse(["--yes"]);
         Assert.True(settings.Yes == true);
         Assert.Null(settings.InstallDeps);
     }
@@ -95,25 +97,25 @@ public class ArgParserTests
     public void InstallDeps_ShortY_AndNoInstall_ShortN()
     {
         // dneat / Brief: -y == --install-deps
-        var settings = ArgParser.Parse(["-y"]);
+        var settings = Parse(["-y"]);
         Assert.True(settings.InstallDeps == true);
-        settings = ArgParser.Parse(["--install-deps"]);
+        settings = Parse(["--install-deps"]);
         Assert.True(settings.InstallDeps == true);
-        settings = ArgParser.Parse(["-n"]);
+        settings = Parse(["-n"]);
         Assert.True(settings.NoInstall == true);
     }
 
     [Fact]
     public void Verbose_Set()
     {
-        var settings = ArgParser.Parse(["-v"]);
+        var settings = Parse(["-v"]);
         Assert.True(settings.Verbose == true);
     }
 
     [Fact]
     public void LongOpt_EqualsForm()
     {
-        var settings = ArgParser.Parse(["--jobs=5", "--connections=4"]);
+        var settings = Parse(["--jobs=5", "--connections=4"]);
         Assert.True(settings.MaxConcurrentDownloads == 5);
         Assert.True(settings.Connections == 4);
     }
@@ -121,14 +123,14 @@ public class ArgParserTests
     [Fact]
     public void LongOpt_SpaceForm()
     {
-        var settings = ArgParser.Parse(["--jobs", "5"]);
+        var settings = Parse(["--jobs", "5"]);
         Assert.True(settings.MaxConcurrentDownloads == 5);
     }
 
     [Fact]
     public void DashDash_TerminatesOptions()
     {
-        var settings = ArgParser.Parse(["--", "https://example.com/file", "-h"]);
+        var settings = Parse(["--", "https://example.com/file", "-h"]);
         Assert.Equal(2, settings.Inputs.Count);
         Assert.Equal("https://example.com/file", settings.Inputs[0]);
         Assert.Equal("-h", settings.Inputs[1]);
@@ -138,24 +140,24 @@ public class ArgParserTests
     [Fact]
     public void UnknownOption_Throws()
     {
-        var ex = Assert.Throws<CliException>(() => ArgParser.Parse(["--bogus"]));
+        var ex = Assert.Throws<CliException>(() => Parse(["--bogus"]));
         Assert.Contains("--bogus", ex.Message, StringComparison.Ordinal);
         Assert.Contains("--help", ex.Message, StringComparison.Ordinal);
-        ex = Assert.Throws<CliException>(() => ArgParser.Parse(["-z"]));
+        ex = Assert.Throws<CliException>(() => Parse(["-z"]));
         Assert.Contains("-z", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
     public void MissingValue_Throws()
     {
-        var ex = Assert.Throws<CliException>(() => ArgParser.Parse(["-j"]));
+        var ex = Assert.Throws<CliException>(() => Parse(["-j"]));
         Assert.Contains("Missing value", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
     public void ShortCluster_Flags()
     {
-        var settings = ArgParser.Parse(["-fkv"]);
+        var settings = Parse(["-fkv"]);
         Assert.True(settings.Force == true);
         Assert.True(settings.KeepListFiles == true);
         Assert.True(settings.Verbose == true);
@@ -164,14 +166,14 @@ public class ArgParserTests
     [Fact]
     public void ShortCluster_WithValue()
     {
-        var settings = ArgParser.Parse(["-j3"]);
+        var settings = Parse(["-j3"]);
         Assert.True(settings.MaxConcurrentDownloads == 3);
     }
 
     [Fact]
     public void NoColor_LongOnly()
     {
-        var settings = ArgParser.Parse(["--no-color"]);
+        var settings = Parse(["--no-color"]);
         Assert.True(settings.NoColor == true);
     }
 
@@ -213,7 +215,7 @@ public class ArgParserTests
     public void AllShortFlags_ParseWithoutError()
     {
         // Every short letter currently claimed by OptionTable
-        var settings = ArgParser.Parse(["-y", "-n", "-f", "-k", "-v", "-h"]);
+        var settings = Parse(["-y", "-n", "-f", "-k", "-v", "-h"]);
         Assert.True(settings.InstallDeps == true);
         Assert.True(settings.NoInstall == true);
         Assert.True(settings.Force == true);
@@ -225,7 +227,7 @@ public class ArgParserTests
     [Fact]
     public void LongFlags_CoreSet()
     {
-        var settings = ArgParser.Parse([
+        var settings = Parse([
             "--plain", "--inline", "--no-color", "--ascii", "--no-pager",
             "--resume", "--force", "--auto-file-renaming",
             "--install-deps", "--install-aria2", "--print-config",
@@ -246,14 +248,14 @@ public class ArgParserTests
     [Fact]
     public void ValueOptions_AttachedAndSeparated()
     {
-        var a = ArgParser.Parse(["-o", "/tmp/a", "-j", "3", "-c", "8", "-l", "2M", "-s", "/tmp/s.session"]);
+        var a = Parse(["-o", "/tmp/a", "-j", "3", "-c", "8", "-l", "2M", "-s", "/tmp/s.session"]);
         Assert.Equal("/tmp/a", a.OutputDir);
         Assert.Equal(3, a.MaxConcurrentDownloads);
         Assert.Equal(8, a.Connections);
         Assert.Equal("2M", a.SpeedLimit);
         Assert.Equal("/tmp/s.session", a.SessionFile);
 
-        var b = ArgParser.Parse(["-j3", "-c8", "--output=/tmp/b", "--limit=500K"]);
+        var b = Parse(["-j3", "-c8", "--output=/tmp/b", "--limit=500K"]);
         Assert.Equal(3, b.MaxConcurrentDownloads);
         Assert.Equal(8, b.Connections);
         Assert.Equal("/tmp/b", b.OutputDir);

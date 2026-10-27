@@ -1,22 +1,18 @@
-
-
-
 namespace AriaSharp.App;
 
 /// <summary>
-/// Post-run summary: purple Spectre panels, or plain text for --plain.
+/// End-of-run summary: Spectre panels or plain text. Shared label helpers (DRY).
 /// </summary>
 internal static class SummaryView
 {
     private static readonly Color Purple = new(155, 89, 182);
-    private static readonly Color PurpleDeep = new(108, 52, 131);
 
     public static string Render(
         SessionState state,
         RunOutcome outcome,
         TimeSpan elapsed,
         string outputDir,
-        string? sessionFile) =>
+        string? sessionFile = null) =>
         BuildPlain(state, outcome, elapsed, outputDir, sessionFile);
 
     public static IRenderable Build(
@@ -24,107 +20,70 @@ internal static class SummaryView
         RunOutcome outcome,
         TimeSpan elapsed,
         string outputDir,
-        string? sessionFile,
+        string? sessionFile = null,
         bool showRetryPrompt = false)
     {
-        var rows = new List<IRenderable>();
+        ThrowIfNull(state);
+        ThrowIfNull(outcome);
 
-        var (title, style) = outcome.Kind switch
+        var root = new Grid().Expand();
+        root.AddColumn(new GridColumn().NoWrap());
+
+        var title = outcome.Kind switch
         {
-            RunOutcomeKind.Completed => ("COMPLETED", "green"),
-            RunOutcomeKind.Failed => ("FAILED", "red"),
-            RunOutcomeKind.Interrupted => ("INTERRUPTED", "yellow"),
-            RunOutcomeKind.Empty => ("EMPTY", "grey"),
-            _ => ("DONE", Theme.PurpleBright),
+            RunOutcomeKind.Completed => "[green]COMPLETE[/]",
+            RunOutcomeKind.Failed => "[red]FAILED[/]",
+            RunOutcomeKind.Interrupted => "[yellow]INTERRUPTED[/]",
+            RunOutcomeKind.Empty => "[grey]EMPTY[/]",
+            _ => "[grey]DONE[/]",
         };
 
-        var avgSpeed = elapsed.TotalSeconds > 0
-            ? (long)(state.CompletedLength / elapsed.TotalSeconds)
-            : 0L;
-
-        var grid = new Grid().AddColumn(new GridColumn().NoWrap()).AddColumn();
-        grid.AddRow(
-            new Markup($"[{Theme.Muted}]Result[/]"),
-            new Markup($"[{style}]{title}[/]"
-                + (outcome.Kind == RunOutcomeKind.Failed && !string.IsNullOrEmpty(outcome.Message)
-                    ? $"  [grey]{Markup.Escape(TrimMsg(outcome.Message))}[/]"
-                    : "")));
-        grid.AddRow(
-            new Markup($"[{Theme.Muted}]Size[/]"),
-            new Markup($"[white]{FormatBytes(state.CompletedLength)}[/]"
-                + (state.TotalLength > 0
-                    ? $" [dim]/ {FormatBytes(state.TotalLength)}[/]"
-                    : "")));
-        grid.AddRow(
-            new Markup($"[{Theme.Muted}]Speed[/]"),
-            new Markup($"[white]{FormatSpeed(avgSpeed)}[/] avg"
-                + (state.TotalDownloadSpeed > 0
-                    ? $", last {FormatSpeed(state.TotalDownloadSpeed)}"
-                    : "")));
-        grid.AddRow(
-            new Markup($"[{Theme.Muted}]Time[/]"),
-            new Markup($"[white]{FormatElapsed(elapsed)}[/]"));
-        grid.AddRow(
-            new Markup($"[{Theme.Muted}]Output[/]"),
-            new Markup($"[{Theme.Accent}]{Markup.Escape(outputDir)}[/]"));
-        if (!string.IsNullOrEmpty(sessionFile) && File.Exists(sessionFile))
+        var avgSpeed = AverageSpeed(state, elapsed);
+        var rows = new List<IRenderable>
         {
-            grid.AddRow(
-                new Markup($"[{Theme.Muted}]Resume[/]"),
-                new Markup($"[dim]{Markup.Escape(sessionFile)}[/]"));
-        }
+            new Markup($"[white]{Markup.Escape(ResultLabel(outcome))}[/]"),
+            new Markup($"[grey]{FormatBytes(state.CompletedLength)}[/]"
+                + (state.TotalLength > 0 ? $" [dim]/ {FormatBytes(state.TotalLength)}[/]" : "")),
+            new Markup($"[white]{FormatSpeed(avgSpeed)}[/] avg"
+                + (state.TotalDownloadSpeed > 0 ? $", last {FormatSpeed(state.TotalDownloadSpeed)}" : "")),
+            new Markup($"[dim]{FormatElapsed(elapsed)}[/]"),
+            new Markup($"[dim]{Markup.Escape(outputDir)}[/]"),
+        };
+        if (!string.IsNullOrEmpty(sessionFile) && File.Exists(sessionFile))
+            rows.Add(new Markup($"[dim]resume {Markup.Escape(sessionFile)}[/]"));
 
-        rows.Add(new Panel(grid)
-            .Header($"[{Theme.Magenta}]SUMMARY[/]")
+        root.AddRow(new Panel(new Rows(rows))
+            .Header(title)
             .BorderColor(Purple)
             .Padding(1, 0)
             .Expand());
 
-        if (state.CompleteItems.Count > 0)
+        if (state.CompleteItems is { Count: > 0 } complete)
         {
-            var lines = state.CompleteItems.Take(8).Select(i =>
-                new Markup(
-                    $"[green]✓[/] [white]{Markup.Escape(Truncate(
-                        string.IsNullOrEmpty(i.Name) ? i.Gid : i.Name, 40))}[/] "
-                    + $"[dim]{FormatBytes(i.CompletedLength)}[/]"));
-            rows.Add(new Panel(new Rows(lines))
-                .Header($"[green]COMPLETE ({state.CompleteItems.Count})[/]")
-                .BorderColor(Color.Green)
-                .Padding(1, 0)
-                .Expand());
+            root.AddRow(ItemPanel(
+                $"[green]COMPLETE ({complete.Count})[/]",
+                Color.Green,
+                complete.Take(8).Select(static i =>
+                    $"[green]✓[/] [white]{Markup.Escape(ItemName(i).TruncateTo(40))}[/]  [dim]{FormatBytes(i.CompletedLength)}[/]")));
         }
 
-        if (state.FailedItems.Count > 0)
+        if (state.FailedItems is { Count: > 0 } failed)
         {
-            var lines = state.FailedItems.Take(8).Select(i =>
-            {
-                var name = string.IsNullOrEmpty(i.Name) ? i.Gid : i.Name;
-                var err = i.ErrorMessage
-                    ?? (i.ErrorCode != 0 ? TextFor(i.ErrorCode) : "error");
-                return new Markup(
-                    $"[red]✗[/] [white]{Markup.Escape(Truncate(name, 28))}[/] "
-                    + $"[grey]{Markup.Escape(Truncate(err, 48))}[/]");
-            });
-            rows.Add(new Panel(new Rows(lines))
-                .Header($"[red]FAILED ({state.FailedItems.Count})[/]")
-                .BorderColor(Color.Red)
-                .Padding(1, 0)
-                .Expand());
+            root.AddRow(ItemPanel(
+                $"[red]FAILED ({failed.Count})[/]",
+                Color.Red,
+                failed.Take(8).Select(static i =>
+                    $"[red]✗[/] [white]{Markup.Escape(ItemName(i).TruncateTo(28))}[/]  [grey]{Markup.Escape(ItemError(i).TruncateTo(48))}[/]")));
         }
 
         if (showRetryPrompt)
         {
-            rows.Add(new Panel(new Markup(
-                    $"[{Theme.PurpleBright}]R[/] [{Theme.Muted}]retry[/]    "
-                    + $"[{Theme.PurpleBright}]Q[/] [{Theme.Muted}]quit[/]    "
-                    + $"[dim](single key — no Enter)[/]"))
-                .Header($"[{Theme.Magenta}]NEXT[/]")
-                .BorderColor(PurpleDeep)
-                .Padding(1, 0)
-                .Expand());
+            root.AddRow(new Markup(
+                $"[{Theme.PurpleBright}]R[/] [{Theme.Muted}]retry[/]   "
+                + $"[{Theme.PurpleBright}]Q[/] [{Theme.Muted}]quit[/]"));
         }
 
-        return new Rows(rows);
+        return root;
     }
 
     public static void Write(
@@ -136,6 +95,9 @@ internal static class SummaryView
         bool color,
         bool showRetryPrompt = false)
     {
+        ThrowIfNull(state);
+        ThrowIfNull(outcome);
+
         if (color && !System.Console.IsOutputRedirected)
         {
             try
@@ -143,14 +105,20 @@ internal static class SummaryView
                 AnsiConsole.Write(Build(state, outcome, elapsed, outputDir, sessionFile, showRetryPrompt));
                 return;
             }
-            catch (InvalidOperationException) { }
-            catch (IOException) { }
+            catch (Exception ex) when (ex is InvalidOperationException or IOException) { }
         }
 
         System.Console.Out.Write(BuildPlain(state, outcome, elapsed, outputDir, sessionFile));
         if (showRetryPrompt)
             System.Console.Out.WriteLine("  [R]etry / [Q]uit  (single key)");
     }
+
+    private static Panel ItemPanel(string header, Color border, IEnumerable<string> lines) =>
+        new Panel(new Rows(lines.Select(static l => new Markup(l))))
+            .Header(header)
+            .BorderColor(border)
+            .Padding(1, 0)
+            .Expand();
 
     private static string BuildPlain(
         SessionState state,
@@ -160,23 +128,10 @@ internal static class SummaryView
         string? sessionFile)
     {
         var sb = new StringBuilder(512);
-        var result = outcome.Kind switch
-        {
-            RunOutcomeKind.Completed => "ok",
-            RunOutcomeKind.Failed => "failed",
-            RunOutcomeKind.Interrupted => "interrupted",
-            RunOutcomeKind.Empty => "empty",
-            _ => "unknown",
-        };
-        if (outcome.Kind == RunOutcomeKind.Failed && !string.IsNullOrEmpty(outcome.Message))
-            result = $"failed — {outcome.Message}";
-
-        var avgSpeed = elapsed.TotalSeconds > 0
-            ? (long)(state.CompletedLength / elapsed.TotalSeconds)
-            : 0L;
+        var avgSpeed = AverageSpeed(state, elapsed);
 
         sb.AppendLine("Summary");
-        sb.AppendLine($"  Result   {result}");
+        sb.AppendLine($"  Result   {ResultLabel(outcome)}");
         sb.AppendLine($"  Size     {FormatBytes(state.CompletedLength)}"
             + (state.TotalLength > 0 ? $" / {FormatBytes(state.TotalLength)}" : ""));
         sb.AppendLine($"  Speed    {FormatSpeed(avgSpeed)} avg"
@@ -186,17 +141,30 @@ internal static class SummaryView
         if (!string.IsNullOrEmpty(sessionFile) && File.Exists(sessionFile))
             sb.AppendLine($"  Resume   {sessionFile}");
         foreach (var item in state.CompleteItems.Take(8))
-            sb.AppendLine($"  + {Truncate(string.IsNullOrEmpty(item.Name) ? item.Gid : item.Name, 40)}");
+            sb.AppendLine($"  + {ItemName(item).TruncateTo(40)}");
         foreach (var item in state.FailedItems.Take(8))
-        {
-            var err = item.ErrorMessage ?? TextFor(item.ErrorCode);
-            sb.AppendLine($"  x {Truncate(string.IsNullOrEmpty(item.Name) ? item.Gid : item.Name, 28)} — {err}");
-        }
+            sb.AppendLine($"  x {ItemName(item).TruncateTo(28)} — {ItemError(item)}");
         return sb.ToString();
     }
 
-    private static string TrimMsg(string msg) =>
-        msg.Length <= 60 ? msg : msg[..57] + "...";
+    private static string ResultLabel(RunOutcome outcome) => outcome.Kind switch
+    {
+        RunOutcomeKind.Completed => "ok",
+        RunOutcomeKind.Failed when outcome.Message is { Length: > 0 } m => $"failed — {m}",
+        RunOutcomeKind.Failed => "failed",
+        RunOutcomeKind.Interrupted => "interrupted",
+        RunOutcomeKind.Empty => "empty",
+        _ => "unknown",
+    };
+
+    private static string ItemName(DownloadItem item) =>
+        string.IsNullOrEmpty(item.Name) ? item.Gid : item.Name;
+
+    private static string ItemError(DownloadItem item) =>
+        item.ErrorMessage ?? TextFor(item.ErrorCode);
+
+    private static long AverageSpeed(SessionState state, TimeSpan elapsed) =>
+        elapsed.TotalSeconds > 0 ? (long)(state.CompletedLength / elapsed.TotalSeconds) : 0L;
 
     private static string FormatElapsed(TimeSpan ts) =>
         ts.TotalHours >= 1

@@ -1,5 +1,3 @@
-
-
 namespace AriaSharp.App;
 
 /// <summary>
@@ -25,9 +23,7 @@ internal static class HelpView
             return;
         }
 
-        var width = SafeWidth();
-        var ansi = RenderAnsi(settings, width);
-        HelpPager.Show(ansi, noPager: settings.NoPager, preserveAnsi: true);
+        HelpPager.Show(RenderAnsi(settings, SafeWidth()), noPager: settings.NoPager, preserveAnsi: true);
     }
 
     /// <summary>Build the full coloured help as an ANSI string for the pager.</summary>
@@ -43,7 +39,16 @@ internal static class HelpView
         });
         console.Profile.Width = Math.Max(40, width);
 
-        // Top margin — logo pinned near the top of the help page
+        WriteHeader(console);
+        WriteUsage(console);
+        WriteOptionCategories(console);
+        WriteFooter(console);
+
+        return sw.ToString();
+    }
+
+    private static void WriteHeader(IAnsiConsole console)
+    {
         console.WriteLine();
         console.Write(Align.Center(new Markup(
             $"[#BB86FC] █████╗ ██████╗ ██╗ █████╗ [/][#E040FB]███████╗██╗  ██╗ █████╗ ██████╗ ██████╗ [/]\n" +
@@ -55,13 +60,17 @@ internal static class HelpView
         console.WriteLine();
         console.Write(Align.Center(new Markup($"[{Theme.Accent}]aria2 client for .NET[/] — [{Theme.Magenta}]purple gradient[/]")));
         console.WriteLine();
+    }
 
+    private static void WriteUsage(IAnsiConsole console) =>
         console.Write(SectionPanel(
             "USAGE",
             new Markup(
                 $"[white]ariasharp[/] [{Theme.Muted}][[OPTIONS]][/] [{Theme.PurpleBright}]<url>...[/]\n" +
                 $"[{Theme.Muted}]-i/--input[/] is repeatable · stdin · clipboard · list files accepted")));
 
+    private static void WriteOptionCategories(IAnsiConsole console)
+    {
         foreach (var category in OptionTable.Categories)
         {
             var options = OptionTable.All.Where(o => o.Category == category).ToArray();
@@ -77,26 +86,25 @@ internal static class HelpView
 
             foreach (var o in options)
             {
-                var key = FormatKey(o);
                 var def = DefaultHint(o);
                 var help = string.IsNullOrEmpty(def)
                     ? $"[{Theme.Muted}]{Markup.Escape(o.Help)}[/]"
                     : $"[{Theme.Muted}]{Markup.Escape(o.Help)}[/] [dim]({Markup.Escape(def)})[/]";
                 table.AddRow(
-                    new Markup($"[{Theme.PurpleBright}]{Markup.Escape(key)}[/]"),
+                    new Markup($"[{Theme.PurpleBright}]{Markup.Escape(FormatKey(o))}[/]"),
                     new Markup(help));
             }
 
             console.Write(SectionPanel(category.ToUpperInvariant(), table));
         }
+    }
 
+    private static void WriteFooter(IAnsiConsole console)
+    {
         console.Write(SectionPanel(
             "EXIT CODES",
             new Markup(
-                $"[{Theme.Success}]0[/]  ok    " +
-                $"[red]1[/]  failure    " +
-                $"[yellow]2[/]  usage    " +
-                $"[{Theme.Accent}]130[/]  interrupted")));
+                $"[white]0[/]  ok   [white]1[/]  failure   [white]2[/]  usage   [white]130[/]  interrupted")));
 
         console.Write(SectionPanel(
             "CONFIG",
@@ -117,8 +125,6 @@ internal static class HelpView
         console.Write(new Rule($"[{Theme.Magenta}]·[/]")
             .RuleStyle(new Style(PurpleDeep))
             .Centered());
-
-        return sw.ToString();
     }
 
     private static Panel SectionPanel(string title, IRenderable body) =>

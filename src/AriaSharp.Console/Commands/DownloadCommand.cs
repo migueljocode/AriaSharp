@@ -26,15 +26,7 @@ internal static class DownloadCommand
         Console.CancelKeyPress += onCancel;
         try
         {
-        var outputDir = string.IsNullOrWhiteSpace(settings.OutputDir)
-            ? AppDefaults.OutputDirDefault
-            : settings.OutputDir;
-        if (!Directory.Exists(outputDir))
-            Directory.CreateDirectory(outputDir);
-
-        var sessionPath = string.IsNullOrWhiteSpace(settings.SessionFile)
-            ? Path.Join(outputDir, AppDefaults.SessionFileName)
-            : settings.SessionFile;
+        var (outputDir, sessionPath) = DownloadPaths.Resolve(settings);
 
         var workspace = await RunWorkspace.CreateAsync(cts.Token);
         var engine = new Aria2Engine();

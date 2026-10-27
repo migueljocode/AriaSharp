@@ -1,5 +1,3 @@
-using System.Linq;
-
 namespace AriaSharp.App;
 
 internal enum OptionKind { Flag, Integer, String, List }

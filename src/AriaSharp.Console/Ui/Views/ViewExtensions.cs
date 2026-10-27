@@ -38,9 +38,4 @@ internal static class ViewExtensions
 
         public string HelpDocumentText() => HelpDocument.Render(settings);
     }
-
-    extension(string[] args)
-    {
-        public SettingsOverlay ParseCliOverlay() => ArgParser.Parse(args);
-    }
 }

@@ -1,3 +1,4 @@
+global using System.Linq;
 global using AriaSharp.App;
 global using AriaSharp.Services;
 global using Spectre.Console;

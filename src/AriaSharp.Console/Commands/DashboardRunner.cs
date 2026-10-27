@@ -1,7 +1,7 @@
 namespace AriaSharp.App;
 
 /// <summary>
-/// Live Spectre dashboard session (alt-screen, keys, render loop).
+/// Live Spectre dashboard session (keys + render loop). Kept small via helpers.
 /// </summary>
 internal static class DashboardRunner
 {
@@ -12,54 +12,22 @@ internal static class DashboardRunner
         string sessionPath,
         CancellationToken ct)
     {
-        RunOutcome outcome = RunOutcome.Interrupted();
-        DownloadSession? session = null;
-
-        var empty = new SessionState
-        {
-            ActiveItems = [],
-            WaitingItems = [],
-            StoppedItems = [],
-            PausedItems = [],
-            CompleteItems = [],
-            FailedItems = [],
-            SkippedItems = [],
-            InterruptedItems = [],
-            AllItems = [],
-        };
-
+        var empty = EmptyState();
         if (!ScreenGuard.EnsureMinimum(60, 12))
             ScreenGuard.ShowWarning(60, 12);
 
-        // Defer alt-screen until we actually have downloads — avoids empty flash on bad clipboard.
         ScreenGuard? guard = null;
+        DownloadSession? session = null;
+        RunOutcome outcome = RunOutcome.Interrupted();
+
         var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var keyTask = KeyListener.WatchDashboardAsync(
+            linked,
+            (action, token) => HandleKeyAsync(engine, action, token),
+            linked.Token);
+
         try
         {
-            var keyTask = KeyListener.WatchDashboardAsync(
-                linked,
-                async (action, token) =>
-                {
-                    try
-                    {
-                        switch (action)
-                        {
-                            case DashboardKeyAction.PauseAll:
-                                await engine.PauseAllAsync(token);
-                                break;
-                            case DashboardKeyAction.ResumeAll:
-                                await engine.UnpauseAllAsync(token);
-                                break;
-                            case DashboardKeyAction.Quit:
-                                break;
-                        }
-                    }
-                    catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or IOException or ObjectDisposedException)
-                    {
-                        // best-effort controls
-                    }
-                },
-                linked.Token);
             try
             {
                 await AnsiConsole.Live(DashboardView.Build(empty, TimeSpan.Zero, settings.Split))
@@ -68,43 +36,13 @@ internal static class DashboardRunner
                     .Cropping(VerticalOverflowCropping.Bottom)
                     .StartAsync(async ctx =>
                     {
-                        var loop = new DashboardLoop(ctx, settings.Split);
-                        using var renderCts = CancellationTokenSource.CreateLinkedTokenSource(linked.Token);
-                        var render = loop.RunAsync(renderCts.Token);
-                        session = new DownloadSession(engine, new ProgressCalculator(), settings, loop.Publish);
-                        try
-                        {
-                            outcome = await session.RunAsync(linked.Token);
-                        }
-                        catch (OperationCanceledException)
-                        {
-                            try { await session.RequestStopAsync(); }
-                            catch (InvalidOperationException) { }
-                            catch (IOException) { }
-                            outcome = RunOutcome.Interrupted("Cancelled.");
-                        }
-                        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or IOException)
-                        {
-                            outcome = RunOutcome.Failed(ex.Message);
-                        }
-                        finally
-                        {
-                            await renderCts.CancelAsync();
-                            await render;
-                            guard = loop.Guard;
-                        }
-                        // Do not hold summary inside Live/alt-screen — leaves a clean buffer.
+                        (outcome, session, guard) = await RunLiveAsync(
+                            ctx, engine, settings, linked.Token);
                     });
             }
             finally
             {
-                if (!linked.IsCancellationRequested)
-                {
-                    try { await linked.CancelAsync(); }
-                    catch (ObjectDisposedException) { }
-                }
-                try { await keyTask; }
-                catch (OperationCanceledException) { }
+                await StopKeysAsync(linked, keyTask);
             }
         }
         finally
@@ -113,7 +51,87 @@ internal static class DashboardRunner
             guard?.Dispose();
         }
 
-        // Retry is decided on the normal screen after return (single correct summary).
         return (outcome, session?.State ?? empty, session?.Elapsed ?? TimeSpan.Zero, false);
+    }
+
+    private static SessionState EmptyState() => new()
+    {
+        ActiveItems = [],
+        WaitingItems = [],
+        StoppedItems = [],
+        PausedItems = [],
+        CompleteItems = [],
+        FailedItems = [],
+        SkippedItems = [],
+        InterruptedItems = [],
+        AllItems = [],
+    };
+
+    private static async Task HandleKeyAsync(Aria2Engine engine, DashboardKeyAction action, CancellationToken token)
+    {
+        try
+        {
+            switch (action)
+            {
+                case DashboardKeyAction.PauseAll:
+                    await engine.PauseAllAsync(token);
+                    break;
+                case DashboardKeyAction.ResumeAll:
+                    await engine.UnpauseAllAsync(token);
+                    break;
+                case DashboardKeyAction.Quit:
+                    break;
+            }
+        }
+        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or IOException or ObjectDisposedException)
+        {
+            // best-effort controls
+        }
+    }
+
+    private static async Task<(RunOutcome Outcome, DownloadSession? Session, ScreenGuard? Guard)> RunLiveAsync(
+        LiveDisplayContext ctx,
+        Aria2Engine engine,
+        AppSettings settings,
+        CancellationToken ct)
+    {
+        var loop = new DashboardLoop(ctx, settings.Split);
+        using var renderCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var render = loop.RunAsync(renderCts.Token);
+        var session = new DownloadSession(engine, new ProgressCalculator(), settings, loop.Publish);
+        RunOutcome outcome;
+        try
+        {
+            outcome = await session.RunAsync(ct);
+        }
+        catch (OperationCanceledException)
+        {
+            try { await session.RequestStopAsync(); }
+            catch (Exception ex) when (ex is InvalidOperationException or IOException) { }
+            outcome = RunOutcome.Interrupted("Cancelled.");
+        }
+        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or IOException)
+        {
+            outcome = RunOutcome.Failed(ex.Message);
+        }
+        finally
+        {
+            await renderCts.CancelAsync();
+            await render;
+        }
+
+        return (outcome, session, loop.Guard);
+    }
+
+    private static async Task StopKeysAsync(CancellationTokenSource linked, Task keyTask)
+    {
+        if (!linked.IsCancellationRequested)
+        {
+            try { await linked.CancelAsync(); }
+            catch (ObjectDisposedException) { }
+        }
+
+        try { await keyTask; }
+        catch (OperationCanceledException) { }
     }
 }
