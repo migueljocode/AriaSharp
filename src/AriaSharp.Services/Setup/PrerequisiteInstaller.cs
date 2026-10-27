@@ -22,6 +22,7 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
         var logical = package is "aria2c" or "aria2" ? "aria2" : package;
         if (logical != "aria2")
             return false;
+        // Interface path is non-interactive; callers that need consent use InstallAria2Async.
         var (ok, _, _) = await InstallAria2Async(ct, autoYes: true);
         return ok;
     }
@@ -58,8 +59,8 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
     }
 
     /// <param name="autoYes">Skip interactive consent when true.</param>
-    /// <param name="confirm">Optional interactive consent for a displayed command.</param>
-    /// <param name="log">Optional log sink (package-manager stdout/stderr and fallback notices).</param>
+    /// <param name="confirm">Optional interactive consent for a displayed command/plan.</param>
+    /// <param name="log">Optional log sink.</param>
     public static async Task<(bool Ok, string Message, InstallFailureKind Kind)> InstallAria2Async(
         CancellationToken ct,
         bool autoYes = true,
@@ -78,6 +79,7 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
             return (false, $"Cannot install aria2: {netDetail}", InstallFailureKind.Network);
 
         var notes = new List<string>();
+        var refusedManager = false;
 
         foreach (var mgr in PackageManagerCatalog.Aria2Managers.Where(static m => m.IsOsMatch()))
         {
@@ -94,17 +96,24 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
             if (!PackageManagerCatalog.IsPackageAvailable(mgr.ProbeKind, probe.ExitCode, probe.StdOut, probe.StdErr))
                 continue;
 
-            var cmdDisplay = $"{mgr.InstallFileName} {mgr.InstallArgs}";
+            var cmdDisplay = FormatInstallCommand(mgr);
             if (!autoYes)
             {
                 if (confirm is null || !confirm(cmdDisplay))
-                    return (false, $"Refused install via {mgr.DisplayName}. Re-run with -y or run: {cmdDisplay}", InstallFailureKind.Auth);
+                {
+                    refusedManager = true;
+                    notes.Add($"refused {mgr.DisplayName}; not falling back after explicit decline");
+                    if (log is not null) await log.WriteLineAsync(notes[^1]);
+                    return (false,
+                        $"Refused install via {mgr.DisplayName}. Re-run with -y or run: {cmdDisplay} (fallback not used after decline)",
+                        InstallFailureKind.Auth);
+                }
             }
 
-            var resolved = ResolveInstallCommand(mgr);
+            var resolved = ResolveInstallCommand(mgr, nonInteractive: autoYes);
             if (resolved is null)
             {
-                notes.Add($"{mgr.DisplayName}: needs root (no sudo); skipping to next option");
+                notes.Add($"{mgr.DisplayName}: needs root (no sudo); skipping");
                 if (log is not null) await log.WriteLineAsync(notes[^1]);
                 continue;
             }
@@ -112,8 +121,8 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
             var (file, args) = resolved.Value;
             if (log is not null) await log.WriteLineAsync($"running: {file} {args}");
             var install = await ProcessRunner.RunAsync(file, args, ct);
-            if (log is not null) await log.WriteLineAsync(install.StdOut);
-            if (log is not null) await log.WriteLineAsync(install.StdErr);
+            await WriteNonEmptyAsync(log, install.StdOut);
+            await WriteNonEmptyAsync(log, install.StdErr);
 
             if (install.ExitCode == 0)
             {
@@ -136,6 +145,18 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
             }
         }
 
+        // Pinned artifact / source fallback — ask once if interactive and not autoYes
+        const string fallbackPlan = "download pinned official aria2 release (zip or source build)";
+        if (!autoYes)
+        {
+            if (confirm is null || !confirm(fallbackPlan))
+            {
+                return (false,
+                    $"Refused {fallbackPlan}. Re-run with -y/--install-deps or install aria2 manually.",
+                    InstallFailureKind.Auth);
+            }
+        }
+
         if (log is not null) await log.WriteLineAsync("falling back to pinned official artifact / source build…");
         notes.Add("falling back to pinned official artifact / source build");
 
@@ -148,7 +169,8 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
             if (!ok)
             {
                 var kind = message.Contains("SHA-256", StringComparison.Ordinal) ? InstallFailureKind.HashMismatch
-                    : message.Contains("build tools", StringComparison.OrdinalIgnoreCase) || message.Contains("headers", StringComparison.OrdinalIgnoreCase)
+                    : message.Contains("build tools", StringComparison.OrdinalIgnoreCase)
+                      || message.Contains("headers", StringComparison.OrdinalIgnoreCase)
                         ? InstallFailureKind.BuildTools
                         : InstallFailureKind.Unknown;
                 var prefix = notes.Count > 0 ? string.Join("; ", notes) + "; " : "";
@@ -163,17 +185,29 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
         finally
         {
             TryDeleteTree(cache);
+            _ = refusedManager;
         }
+    }
+
+    public static string FormatInstallCommand(PackageManagerEntry mgr)
+    {
+        ArgumentNullException.ThrowIfNull(mgr);
+        var resolved = ResolveInstallCommand(mgr, nonInteractive: false);
+        if (resolved is null)
+            return $"{mgr.InstallFileName} {mgr.InstallArgs} (needs root)";
+        return $"{resolved.Value.File} {resolved.Value.Args}";
     }
 
     public static InstallFailureKind ClassifyManagerFailure(int exitCode, string stdErr)
     {
         ArgumentNullException.ThrowIfNull(stdErr);
-        if (stdErr.Contains("lock", StringComparison.OrdinalIgnoreCase)
-            || stdErr.Contains("could not get lock", StringComparison.OrdinalIgnoreCase))
+        if (stdErr.Contains("could not get lock", StringComparison.OrdinalIgnoreCase)
+            || stdErr.Contains("Unable to acquire the dpkg frontend lock", StringComparison.OrdinalIgnoreCase))
             return InstallFailureKind.ManagerBusy;
-        if (stdErr.Contains("permission", StringComparison.OrdinalIgnoreCase)
-            || stdErr.Contains("denied", StringComparison.OrdinalIgnoreCase)
+        if (stdErr.Contains("a terminal is required", StringComparison.OrdinalIgnoreCase)
+            || stdErr.Contains("no tty", StringComparison.OrdinalIgnoreCase)
+            || stdErr.Contains("password is required", StringComparison.OrdinalIgnoreCase)
+            || stdErr.Contains("permission denied", StringComparison.OrdinalIgnoreCase)
             || exitCode is 126 or 127)
             return InstallFailureKind.Auth;
         if (exitCode is 1 or 100)
@@ -182,10 +216,10 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
     }
 
     /// <summary>
-    /// Returns (file, args) or null when elevation is required but unavailable
-    /// (caller should skip to the next manager / artifact fallback).
+    /// Returns (file, args) or null when elevation is required but unavailable.
+    /// Uses <c>sudo -n</c> when non-interactive so sudo never blocks on a password prompt.
     /// </summary>
-    public static (string File, string Args)? ResolveInstallCommand(PackageManagerEntry mgr)
+    public static (string File, string Args)? ResolveInstallCommand(PackageManagerEntry mgr, bool nonInteractive = true)
     {
         ArgumentNullException.ThrowIfNull(mgr);
         if (!mgr.NeedsElevation || OperatingSystem.IsWindows())
@@ -195,7 +229,12 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
             return (mgr.InstallFileName, mgr.InstallArgs);
 
         if (PackageManagerCatalog.CommandExists("sudo"))
-            return ("sudo", $"{mgr.InstallFileName} {mgr.InstallArgs}");
+        {
+            var sudoArgs = nonInteractive
+                ? $"-n {mgr.InstallFileName} {mgr.InstallArgs}"
+                : $"{mgr.InstallFileName} {mgr.InstallArgs}";
+            return ("sudo", sudoArgs);
+        }
 
         return null;
     }
@@ -237,9 +276,9 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
                 using var log = new StringWriter();
                 var (installed, msg, kind) = await InstallAria2Async(ct, autoYes: true, log: log);
                 lines.Add($"aria2c: {msg} ({kind})");
-                var logText = log.ToString();
+                var logText = log.ToString().TrimEnd();
                 if (logText.Length > 0)
-                    lines.Add(logText.TrimEnd());
+                    lines.Add(logText);
                 ok = installed;
             }
         }
@@ -260,6 +299,13 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
         }
 
         return (ok, string.Join(Environment.NewLine, lines));
+    }
+
+    private static async Task WriteNonEmptyAsync(TextWriter? log, string text)
+    {
+        if (log is null || string.IsNullOrWhiteSpace(text))
+            return;
+        await log.WriteLineAsync(text.TrimEnd());
     }
 
     private static string DescribeOs()

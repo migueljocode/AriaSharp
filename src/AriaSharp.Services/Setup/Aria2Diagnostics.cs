@@ -24,7 +24,7 @@ public static class Aria2Diagnostics
     public static async Task<(bool Ok, string FirstLine, bool Https)> VersionAsync(string aria2Path, CancellationToken ct)
     {
         var ver = await ProcessRunner.RunAsync(aria2Path, "--version", ct);
-        var first = ver.StdOut.Split('\n')[0];
+        var first = ver.StdOut.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).FirstOrDefault() ?? "";
         var https = ver.StdOut.Contains("HTTPS", StringComparison.OrdinalIgnoreCase);
         return (ver.ExitCode == 0, first, https);
     }

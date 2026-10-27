@@ -1,19 +1,18 @@
 # PROGRESS.md
 
 ## Milestone
-Installer fix-up (PR #2): privileged process, fallback, consent, doctor exit.
+PR #2 merge polish: fallback consent, sudo -n, tighter failure classify, release HEAD.
 
 ## Done
-- IsPrivilegedProcess for root detection
-- Needs-root managers skipped → pinned zip/source fallback
-- mayInstall = !NoInstall; autoYes separate; interactive y/N
-- Package-manager failures classified + logged; fallback announced
-- --doctor exits 1 if no aria2c / no HTTPS; CI asserts exit + HTTPS: yes
-- ScreenGuard.EmergencyRestore on second Ctrl-C
+- Consent before package manager **and** artifact fallback; decline skips fallback with clear message
+- `sudo -n` when non-interactive; TTY/password errors → Auth
+- ClassifyManagerFailure: lock phrase only; no empty log lines
+- NetworkProbe HEAD on release URL (5s) before generic TCP/DNS
+- --doctor single HTTPS line; trim CR; exit 1 when missing/no HTTPS
+- Real consent unit test (when aria2 absent)
 
 ## Next
-- Merge PR #2 when CI green on latest tip
-- Optional: deeper install flow tests with injected process runner
+- Merge PR #2 when CI green on tip
 
 ## Blocked
 - (none)

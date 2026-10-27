@@ -29,20 +29,15 @@ internal static class DoctorCommand
             var path = await new Aria2Locator().LocateAsync(ct);
             lines.Add($"aria2c: {path}");
             var (ok, first, https) = await Aria2Diagnostics.VersionAsync(path, ct);
-            lines.Add(first);
+            lines.Add(first.TrimEnd('\r', '\n'));
+            lines.Add(https ? "HTTPS: yes" : "HTTPS: no or unknown");
             if (!ok || !https)
-            {
-                lines.Add(https ? "HTTPS: yes" : "HTTPS: no or unknown");
                 exit = (int)ExitCode.Failure;
-            }
-            else
-            {
-                lines.Add("HTTPS: yes");
-            }
         }
         catch (FileNotFoundException)
         {
             lines.Add("aria2c: not found");
+            lines.Add("HTTPS: no or unknown");
             exit = (int)ExitCode.Failure;
         }
 
