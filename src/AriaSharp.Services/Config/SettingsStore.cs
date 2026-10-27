@@ -127,12 +127,12 @@ public sealed class SettingsStore : ISettingsStore
         if (!File.Exists(path)) return new SettingsOverlay();
         try
         {
-            var json = await File.ReadAllTextAsync(path, ct).ConfigureAwait(false);
+            var json = await File.ReadAllTextAsync(path, ct);
             return JsonSerializer.Deserialize<SettingsOverlay>(json, AppSettingsJsonContext.Default.SettingsOverlay) ?? new SettingsOverlay();
         }
         catch (JsonException ex)
         {
-            await System.Console.Error.WriteLineAsync($"Warning: settings file corrupt ({ex.Message}); using defaults").ConfigureAwait(false);
+            await System.Console.Error.WriteLineAsync($"Warning: settings file corrupt ({ex.Message}); using defaults");
             return new SettingsOverlay();
         }
     }
@@ -149,7 +149,7 @@ public sealed class SettingsStore : ISettingsStore
         try
         {
             var json = JsonSerializer.Serialize(overlay, AppSettingsJsonContext.Default.SettingsOverlay);
-            await File.WriteAllTextAsync(tmp, json, ct).ConfigureAwait(false);
+            await File.WriteAllTextAsync(tmp, json, ct);
             File.Move(tmp, path, overwrite: true);
         }
         catch

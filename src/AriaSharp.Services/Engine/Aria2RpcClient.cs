@@ -70,13 +70,13 @@ internal sealed class Aria2RpcClient : IAsyncDisposable
     {
         using var content = new ByteArrayContent(json);
         content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
-        using var response = await _http.PostAsync(new Uri("jsonrpc", UriKind.Relative), content, ct).ConfigureAwait(false);
+        using var response = await _http.PostAsync(new Uri("jsonrpc", UriKind.Relative), content, ct);
         response.EnsureSuccessStatusCode();
 
-        var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-        await using (stream.ConfigureAwait(false))
+        var stream = await response.Content.ReadAsStreamAsync(ct);
+        await using (stream)
         {
-            using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct).ConfigureAwait(false);
+            using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
             var root = doc.RootElement;
             if (root.TryGetProperty("error", out var err)
                 && err.ValueKind is not JsonValueKind.Null and not JsonValueKind.Undefined)

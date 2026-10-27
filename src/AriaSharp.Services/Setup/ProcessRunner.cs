@@ -36,12 +36,12 @@ internal static class ProcessRunner
 
             var outTask = process.StandardOutput.ReadToEndAsync(ct);
             var errTask = process.StandardError.ReadToEndAsync(ct);
-            await process.WaitForExitAsync(ct).ConfigureAwait(false);
+            await process.WaitForExitAsync(ct);
 
             return new Result(
                 process.ExitCode,
-                await outTask.ConfigureAwait(false),
-                await errTask.ConfigureAwait(false));
+                await outTask,
+                await errTask);
         }
         catch (Exception ex) when (ex is Win32Exception or InvalidOperationException)
         {

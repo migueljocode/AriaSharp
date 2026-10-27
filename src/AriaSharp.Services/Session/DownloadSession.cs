@@ -61,7 +61,7 @@ public sealed class DownloadSession : IDownloadSession
                 EngineSnapshot snapshot;
                 try
                 {
-                    snapshot = await _engine.GetSnapshotAsync(ct).ConfigureAwait(false);
+                    snapshot = await _engine.GetSnapshotAsync(ct);
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
                 {
@@ -80,7 +80,7 @@ public sealed class DownloadSession : IDownloadSession
                     idleCount++;
                     if (idleCount >= idleRequired)
                     {
-                        await SettleAsync(ct).ConfigureAwait(false);
+                        await SettleAsync(ct);
                         return Classify(_state);
                     }
                 }
@@ -91,7 +91,7 @@ public sealed class DownloadSession : IDownloadSession
 
                 try
                 {
-                    await Task.Delay(pollMs, ct).ConfigureAwait(false);
+                    await Task.Delay(pollMs, ct);
                 }
                 catch (OperationCanceledException)
                 {
@@ -104,7 +104,7 @@ public sealed class DownloadSession : IDownloadSession
             _watch.Stop();
         }
 
-        await SettleAsync(CancellationToken.None).ConfigureAwait(false);
+        await SettleAsync(CancellationToken.None);
         return RunOutcome.Interrupted();
     }
 
@@ -144,7 +144,7 @@ public sealed class DownloadSession : IDownloadSession
     {
         try
         {
-            await _engine.SaveSessionAsync(ct).ConfigureAwait(false);
+            await _engine.SaveSessionAsync(ct);
         }
         catch (HttpRequestException) { }
         catch (InvalidOperationException) { }

@@ -22,29 +22,29 @@ public static class InputResolver
             forceFiles ??= [];
 
             if (forceClipboard)
-                return await FromClipboardAsync(extractor, clipboard, ct).ConfigureAwait(false);
+                return await FromClipboardAsync(extractor, clipboard, ct);
 
             if (forceFiles is { Count: > 0 })
-                return await FromFilesAsync(forceFiles, extractor, ct).ConfigureAwait(false);
+                return await FromFilesAsync(forceFiles, extractor, ct);
 
             if (existing is { Count: > 0 })
-                return await ExpandArgsAsync(existing, extractor, classifier, ct).ConfigureAwait(false);
+                return await ExpandArgsAsync(existing, extractor, classifier, ct);
 
             if (Console.IsInputRedirected)
             {
                 using var reader = new StreamReader(Console.OpenStandardInput());
-                var text = await reader.ReadToEndAsync(ct).ConfigureAwait(false);
+                var text = await reader.ReadToEndAsync(ct);
                 var fromStdin = extractor.Extract(text);
                 if (fromStdin is { Length: > 0 })
                     return fromStdin;
 
                 string[] lines = [.. text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)];
                 if (lines is { Length: > 0 })
-                    return await ExpandArgsAsync(lines, extractor, classifier, ct).ConfigureAwait(false);
+                    return await ExpandArgsAsync(lines, extractor, classifier, ct);
             }
 
             if (!Console.IsOutputRedirected)
-                return await FromClipboardAsync(extractor, clipboard, ct).ConfigureAwait(false);
+                return await FromClipboardAsync(extractor, clipboard, ct);
 
             return [];
         }
@@ -87,7 +87,7 @@ public static class InputResolver
 
             if (File.Exists(arg))
             {
-                var fromFile = await ReadFileUrlsAsync(arg, extractor, ct).ConfigureAwait(false);
+                var fromFile = await ReadFileUrlsAsync(arg, extractor, ct);
                 foreach (var u in fromFile)
                 {
                     if (seen.Add(u))
@@ -127,7 +127,7 @@ public static class InputResolver
         {
             if (!File.Exists(path))
                 throw new FileNotFoundException($"List file not found: {path}", path);
-            foreach (var u in await ReadFileUrlsAsync(path, extractor, ct).ConfigureAwait(false))
+            foreach (var u in await ReadFileUrlsAsync(path, extractor, ct))
             {
                 if (seen.Add(u))
                     result.Add(u);
@@ -138,7 +138,7 @@ public static class InputResolver
 
     private static async Task<string[]> ReadFileUrlsAsync(string path, IUrlExtractor extractor, CancellationToken ct)
     {
-        var text = await File.ReadAllTextAsync(path, ct).ConfigureAwait(false);
+        var text = await File.ReadAllTextAsync(path, ct);
         var urls = extractor.Extract(text);
         if (urls is { Length: > 0 })
             return urls;
@@ -154,7 +154,7 @@ public static class InputResolver
     {
         try
         {
-            var clip = await clipboard.ReadTextAsync(ct).ConfigureAwait(false);
+            var clip = await clipboard.ReadTextAsync(ct);
             if (string.IsNullOrWhiteSpace(clip))
                 return [];
             var urls = extractor.Extract(clip);

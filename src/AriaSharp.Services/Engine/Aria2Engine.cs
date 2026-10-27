@@ -36,7 +36,7 @@ public sealed class Aria2Engine : IAria2Engine
         if (_process is not null)
             throw new InvalidOperationException("Engine already started.");
 
-        await WriteConfAsync(settings.ConfFile, settings.Secret, settings.Port, ct).ConfigureAwait(false);
+        await WriteConfAsync(settings.ConfFile, settings.Secret, settings.Port, ct);
 
         var logChannel = Channel.CreateUnbounded<string>(new UnboundedChannelOptions
         {
@@ -50,17 +50,17 @@ public sealed class Aria2Engine : IAria2Engine
 
         _rpc = new Aria2RpcClient(CreateLoopbackClient(settings.Port), settings.Secret);
 
-        await WaitForRpcAsync(ct).ConfigureAwait(false);
+        await WaitForRpcAsync(ct);
 
         _notifications = new Aria2NotificationListener(settings.Port, _channel.Writer);
         try
         {
-            await _notifications.StartAsync(ct).ConfigureAwait(false);
+            await _notifications.StartAsync(ct);
         }
         catch (Exception ex) when (ex is System.Net.WebSockets.WebSocketException or HttpRequestException or IOException or TimeoutException)
         {
             // Notifications are best-effort; HTTP polling still works.
-            await _notifications.DisposeAsync().ConfigureAwait(false);
+            await _notifications.DisposeAsync();
             _notifications = null;
         }
     }
@@ -82,7 +82,7 @@ public sealed class Aria2Engine : IAria2Engine
             ("aria2.tellWaiting", [0, 1000, keys]),
             ("aria2.tellStopped", [0, 1000, keys]),
             ("aria2.getGlobalStat", null),
-        ], ct).ConfigureAwait(false);
+        ], ct);
 
         var active = MapItems(ExtractMulticallResult(multicall, 0));
         var (waiting, paused) = SplitPaused(MapItems(ExtractMulticallResult(multicall, 1)));
@@ -154,7 +154,7 @@ public sealed class Aria2Engine : IAria2Engine
     public async Task SaveSessionAsync(CancellationToken ct)
     {
         var rpc = _rpc ?? throw new InvalidOperationException("Engine not started.");
-        await rpc.CallAsync("aria2.saveSession", null, ct).ConfigureAwait(false);
+        await rpc.CallAsync("aria2.saveSession", null, ct);
     }
 
     public async Task ShutdownAsync(CancellationToken ct)
@@ -162,7 +162,7 @@ public sealed class Aria2Engine : IAria2Engine
         if (_rpc is null) return;
         try
         {
-            await _rpc.CallAsync("aria2.shutdown", null, ct).ConfigureAwait(false);
+            await _rpc.CallAsync("aria2.shutdown", null, ct);
         }
         catch (HttpRequestException) { }
         catch (InvalidOperationException) { }
@@ -173,7 +173,7 @@ public sealed class Aria2Engine : IAria2Engine
     {
         ThrowIfNull(uris);
         var rpc = _rpc ?? throw new InvalidOperationException("Engine not started.");
-        var gid = await rpc.CallAsync("aria2.addUri", [uris], ct).ConfigureAwait(false);
+        var gid = await rpc.CallAsync("aria2.addUri", [uris], ct);
         return gid.ValueKind == JsonValueKind.String ? gid.GetString()! : throw new InvalidOperationException("aria2.addUri returned no GID.");
     }
 
@@ -181,7 +181,7 @@ public sealed class Aria2Engine : IAria2Engine
     {
         if (!string.IsNullOrEmpty(_version)) return _version;
         var rpc = _rpc ?? throw new InvalidOperationException("Engine not started.");
-        var result = await rpc.CallAsync("aria2.getVersion", null, ct).ConfigureAwait(false);
+        var result = await rpc.CallAsync("aria2.getVersion", null, ct);
         if (result.ValueKind == JsonValueKind.Object && result.TryGetProperty("version", out var v))
             _version = v.GetString() ?? AppDefaults.Aria2Version;
         else
@@ -197,7 +197,7 @@ public sealed class Aria2Engine : IAria2Engine
         {
             if (_rpc is not null)
             {
-                try { await ShutdownAsync(CancellationToken.None).ConfigureAwait(false); }
+                try { await ShutdownAsync(CancellationToken.None); }
                 catch (HttpRequestException) { }
                 catch (InvalidOperationException) { }
                 catch (TaskCanceledException) { }
@@ -208,13 +208,13 @@ public sealed class Aria2Engine : IAria2Engine
         finally
         {
             if (_notifications is not null)
-                await _notifications.DisposeAsync().ConfigureAwait(false);
+                await _notifications.DisposeAsync();
             if (_process is not null)
-                await _process.DisposeAsync().ConfigureAwait(false);
+                await _process.DisposeAsync();
             if (_rpc is not null)
-                await _rpc.DisposeAsync().ConfigureAwait(false);
+                await _rpc.DisposeAsync();
             _logWriter?.TryComplete();
-            await _logTask.ConfigureAwait(false);
+            await _logTask;
             _channel.Writer.TryComplete();
         }
     }
@@ -264,20 +264,20 @@ public sealed class Aria2Engine : IAria2Engine
             options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
 
         var stream = new FileStream(path, options);
-        await using (stream.ConfigureAwait(false))
+        await using (stream)
         {
             var writer = new StreamWriter(stream) { NewLine = "\n" };
-            await using (writer.ConfigureAwait(false))
+            await using (writer)
             {
-                await writer.WriteLineAsync($"rpc-secret={secret}").ConfigureAwait(false);
-                await writer.WriteLineAsync("enable-rpc=true").ConfigureAwait(false);
-                await writer.WriteLineAsync("rpc-listen-all=false").ConfigureAwait(false);
-                await writer.WriteLineAsync($"rpc-listen-port={port}").ConfigureAwait(false);
-                await writer.FlushAsync(ct).ConfigureAwait(false);
+                await writer.WriteLineAsync($"rpc-secret={secret}");
+                await writer.WriteLineAsync("enable-rpc=true");
+                await writer.WriteLineAsync("rpc-listen-all=false");
+                await writer.WriteLineAsync($"rpc-listen-port={port}");
+                await writer.FlushAsync(ct);
             }
         }
 
-        await RestrictConfToCurrentUserAsync(path, ct).ConfigureAwait(false);
+        await RestrictConfToCurrentUserAsync(path, ct);
     }
 
     private static async Task RestrictConfToCurrentUserAsync(string path, CancellationToken ct)
@@ -288,7 +288,7 @@ public sealed class Aria2Engine : IAria2Engine
         {
             var user = Environment.UserName;
             var args = string.Concat("\"", path, "\" /inheritance:r /grant:r \"", user, ":F\"");
-            _ = await ProcessRunner.RunAsync("icacls", args, ct).ConfigureAwait(false);
+            _ = await ProcessRunner.RunAsync("icacls", args, ct);
         }
         catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or UnauthorizedAccessException)
         {
@@ -300,21 +300,21 @@ public sealed class Aria2Engine : IAria2Engine
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         var rpc = _rpc ?? throw new InvalidOperationException("Engine not started.");
-        await rpc.CallAsync("aria2.pauseAll", null, ct).ConfigureAwait(false);
+        await rpc.CallAsync("aria2.pauseAll", null, ct);
     }
 
     public async Task UnpauseAllAsync(CancellationToken ct)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         var rpc = _rpc ?? throw new InvalidOperationException("Engine not started.");
-        await rpc.CallAsync("aria2.unpauseAll", null, ct).ConfigureAwait(false);
+        await rpc.CallAsync("aria2.unpauseAll", null, ct);
     }
 
     public async Task ForcePauseAllAsync(CancellationToken ct)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         var rpc = _rpc ?? throw new InvalidOperationException("Engine not started.");
-        await rpc.CallAsync("aria2.forcePauseAll", null, ct).ConfigureAwait(false);
+        await rpc.CallAsync("aria2.forcePauseAll", null, ct);
     }
 
 private async Task WaitForRpcAsync(CancellationToken ct)
@@ -328,14 +328,14 @@ private async Task WaitForRpcAsync(CancellationToken ct)
                 throw new InvalidOperationException("aria2c exited before RPC became ready.");
             try
             {
-                _version = await GetVersionAsync(ct).ConfigureAwait(false);
+                _version = await GetVersionAsync(ct);
                 return;
             }
             catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException
                 or TaskCanceledException or IOException)
             {
                 last = ex;
-                await Task.Delay(100, ct).ConfigureAwait(false);
+                await Task.Delay(100, ct);
             }
         }
         throw new TimeoutException($"aria2 RPC not ready within {AppDefaults.RpcReadyTimeoutMs} ms.", last);
@@ -367,13 +367,13 @@ private async Task WaitForRpcAsync(CancellationToken ct)
     private static async Task DrainLogsAsync(ChannelReader<string> reader, string? path)
     {
         var writer = OpenLog(path);
-        await using (writer.ConfigureAwait(false))
+        await using (writer)
         {
             var ok = true;
-            await foreach (var line in reader.ReadAllAsync().ConfigureAwait(false))
+            await foreach (var line in reader.ReadAllAsync())
             {
                 if (!ok) continue;
-                try { await writer.WriteLineAsync(line).ConfigureAwait(false); }
+                try { await writer.WriteLineAsync(line); }
                 catch (IOException) { ok = false; }
             }
         }

@@ -22,7 +22,7 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
         };
         if (logical != "aria2")
             return false; // clipboard helpers: system-only, no privileged install
-        return await InstallAria2Async(ct).ConfigureAwait(false);
+        return await InstallAria2Async(ct);
     }
 
     public async Task<bool> IsInstalledAsync(string package, CancellationToken ct)
@@ -41,7 +41,7 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
         {
             try
             {
-                _ = await new Aria2Locator().LocateAsync(ct).ConfigureAwait(false);
+                _ = await new Aria2Locator().LocateAsync(ct);
                 return true;
             }
             catch (FileNotFoundException)
@@ -53,7 +53,7 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
         if (OperatingSystem.IsWindows())
             return false;
 
-        var result = await ProcessRunner.RunAsync("which", command, ct).ConfigureAwait(false);
+        var result = await ProcessRunner.RunAsync("which", command, ct);
         return result.ExitCode == 0;
     }
 
@@ -61,7 +61,7 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
     {
         try
         {
-            _ = await new Aria2Locator().LocateAsync(ct).ConfigureAwait(false);
+            _ = await new Aria2Locator().LocateAsync(ct);
             return true; // already present
         }
         catch (FileNotFoundException)
@@ -75,8 +75,8 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
         try
         {
             if (OperatingSystem.IsWindows())
-                return await InstallWindowsAsync(cache, ct).ConfigureAwait(false);
-            return await InstallFromSourceAsync(cache, ct).ConfigureAwait(false);
+                return await InstallWindowsAsync(cache, ct);
+            return await InstallFromSourceAsync(cache, ct);
         }
         finally
         {
@@ -97,13 +97,13 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
         {
             try
             {
-                var existing = await new Aria2Locator().LocateAsync(ct).ConfigureAwait(false);
+                var existing = await new Aria2Locator().LocateAsync(ct);
                 lines.Add($"aria2c: already installed ({existing})");
             }
             catch (FileNotFoundException)
             {
                 lines.Add($"aria2c: downloading {Aria2Manifest.Version} from GitHub…");
-                var installed = await InstallAria2Async(ct).ConfigureAwait(false);
+                var installed = await InstallAria2Async(ct);
                 if (installed && File.Exists(AppPaths.BundledAria2cPath))
                     lines.Add($"aria2c: installed → {AppPaths.BundledAria2cPath}");
                 else if (installed)
@@ -120,7 +120,7 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
         {
             foreach (var (pkg, tool) in new[] { ("wl-clipboard", "wl-paste"), ("xclip", "xclip"), ("xsel", "xsel") })
             {
-                var probe = await ProcessRunner.RunAsync("which", tool, ct).ConfigureAwait(false);
+                var probe = await ProcessRunner.RunAsync("which", tool, ct);
                 lines.Add(probe.ExitCode == 0
                     ? $"{pkg}: available"
                     : $"{pkg}: not found (optional; install via your package manager if needed)");
@@ -139,11 +139,11 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
     private static async Task<bool> InstallWindowsAsync(string cache, CancellationToken ct)
     {
         var zipPath = Path.Join(cache, "aria2-win.zip");
-        await DownloadAsync(Aria2Manifest.WindowsZipUrl, zipPath, ct).ConfigureAwait(false);
+        await DownloadAsync(Aria2Manifest.WindowsZipUrl, zipPath, ct);
 
         var extractDir = Path.Join(cache, "extract");
         Directory.CreateDirectory(extractDir);
-        await ZipFile.ExtractToDirectoryAsync(zipPath, extractDir, overwriteFiles: true, cancellationToken: ct).ConfigureAwait(false);
+        await ZipFile.ExtractToDirectoryAsync(zipPath, extractDir, overwriteFiles: true, cancellationToken: ct);
 
         var exe = Directory.EnumerateFiles(extractDir, "aria2c.exe", SearchOption.AllDirectories)
             .FirstOrDefault();
@@ -162,12 +162,12 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
         var tarball = Path.Join(cache, "aria2-src.tar.gz");
         try
         {
-            await DownloadAsync(Aria2Manifest.SourceTarballGzUrl, tarball, ct).ConfigureAwait(false);
+            await DownloadAsync(Aria2Manifest.SourceTarballGzUrl, tarball, ct);
         }
         catch (HttpRequestException)
         {
             tarball = Path.Join(cache, "aria2-src.tar.xz");
-            await DownloadAsync(Aria2Manifest.SourceTarballUrl, tarball, ct).ConfigureAwait(false);
+            await DownloadAsync(Aria2Manifest.SourceTarballUrl, tarball, ct);
         }
 
         var extractDir = Path.Join(cache, "src");
@@ -176,13 +176,11 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
                 "tar",
                 $"-xf \"{tarball}\" -C \"{extractDir}\" --strip-components=1",
                 ct,
-                workingDirectory: cache)
-            .ConfigureAwait(false);
+                workingDirectory: cache);
         if (tar.ExitCode != 0)
         {
             // retry without strip
-            tar = await ProcessRunner.RunAsync("tar", $"-xf \"{tarball}\" -C \"{extractDir}\"", ct)
-                .ConfigureAwait(false);
+            tar = await ProcessRunner.RunAsync("tar", $"-xf \"{tarball}\" -C \"{extractDir}\"", ct);
             if (tar.ExitCode != 0)
                 return false;
             // find nested source root
@@ -198,8 +196,7 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
                 "/bin/sh",
                 $"./configure --prefix=\"{prefix}\" --disable-nls --without-libxml2 --without-libexpat",
                 ct,
-                workingDirectory: extractDir)
-            .ConfigureAwait(false);
+                workingDirectory: extractDir);
         if (configure.ExitCode != 0)
         {
             // simpler configure for minimal hosts
@@ -207,20 +204,17 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
                     "/bin/sh",
                     $"./configure --prefix=\"{prefix}\"",
                     ct,
-                    workingDirectory: extractDir)
-                .ConfigureAwait(false);
+                    workingDirectory: extractDir);
             if (configure.ExitCode != 0)
                 return false;
         }
 
         var jobs = Math.Max(1, Environment.ProcessorCount);
-        var make = await ProcessRunner.RunAsync("make", $"-j{jobs}", ct, workingDirectory: extractDir)
-            .ConfigureAwait(false);
+        var make = await ProcessRunner.RunAsync("make", $"-j{jobs}", ct, workingDirectory: extractDir);
         if (make.ExitCode != 0)
             return false;
 
-        var install = await ProcessRunner.RunAsync("make", "install", ct, workingDirectory: extractDir)
-            .ConfigureAwait(false);
+        var install = await ProcessRunner.RunAsync("make", "install", ct, workingDirectory: extractDir);
         if (install.ExitCode != 0)
             return false;
 
@@ -240,18 +234,17 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
         File.Copy(built, dest, overwrite: true);
         if (!OperatingSystem.IsWindows())
         {
-            _ = await ProcessRunner.RunAsync("chmod", $"+x \"{dest}\"", ct).ConfigureAwait(false);
+            _ = await ProcessRunner.RunAsync("chmod", $"+x \"{dest}\"", ct);
         }
         return File.Exists(dest);
     }
 
     private static async Task DownloadAsync(string url, string dest, CancellationToken ct)
     {
-        using var resp = await Http.GetAsync(new Uri(url), HttpCompletionOption.ResponseHeadersRead, ct)
-            .ConfigureAwait(false);
+        using var resp = await Http.GetAsync(new Uri(url), HttpCompletionOption.ResponseHeadersRead, ct);
         resp.EnsureSuccessStatusCode();
-        var stream = await resp.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-        await using (stream.ConfigureAwait(false))
+        var stream = await resp.Content.ReadAsStreamAsync(ct);
+        await using (stream)
         {
             var file = new FileStream(
                 dest,
@@ -262,9 +255,9 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
                     Share = FileShare.None,
                     Options = FileOptions.Asynchronous | FileOptions.SequentialScan,
                 });
-            await using (file.ConfigureAwait(false))
+            await using (file)
             {
-                await stream.CopyToAsync(file, ct).ConfigureAwait(false);
+                await stream.CopyToAsync(file, ct);
             }
         }
     }

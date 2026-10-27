@@ -25,23 +25,22 @@ public sealed class ClipboardReader : IClipboardReader
             var r = await ProcessRunner.RunAsync(
                     "powershell",
                     "-NoProfile -Command Get-Clipboard",
-                    ct)
-                .ConfigureAwait(false);
+                    ct);
             return r.ExitCode == 0 ? NullIfEmpty(r.StdOut) : null;
         }
 
         if (OperatingSystem.IsMacOS())
         {
-            var r = await ProcessRunner.RunAsync("pbpaste", "", ct).ConfigureAwait(false);
+            var r = await ProcessRunner.RunAsync("pbpaste", "", ct);
             return r.ExitCode == 0 ? NullIfEmpty(r.StdOut) : null;
         }
 
         foreach (var (cmd, args) in LinuxTools)
         {
-            var which = await ProcessRunner.RunAsync("which", cmd, ct).ConfigureAwait(false);
+            var which = await ProcessRunner.RunAsync("which", cmd, ct);
             if (which.ExitCode != 0)
                 continue;
-            var r = await ProcessRunner.RunAsync(cmd, args, ct).ConfigureAwait(false);
+            var r = await ProcessRunner.RunAsync(cmd, args, ct);
             if (r.ExitCode == 0 && r.StdOut is { Length: > 0 })
                 return NullIfEmpty(r.StdOut);
         }

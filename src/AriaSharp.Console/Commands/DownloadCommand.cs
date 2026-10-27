@@ -36,18 +36,17 @@ internal static class DownloadCommand
             ? Path.Join(outputDir, AppDefaults.SessionFileName)
             : settings.SessionFile;
 
-        var workspace = await RunWorkspace.CreateAsync(cts.Token).ConfigureAwait(false);
+        var workspace = await RunWorkspace.CreateAsync(cts.Token);
         var engine = new Aria2Engine();
         try
         {
             try
             {
-                await InputMerger.WriteAsync(settings.Inputs.ToArray(), workspace.InputFile, cts.Token)
-                    .ConfigureAwait(false);
+                await InputMerger.WriteAsync(settings.Inputs.ToArray(), workspace.InputFile, cts.Token);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                await System.Console.Error.WriteLineAsync($"Error: could not write input file ({ex.Message})").ConfigureAwait(false);
+                await System.Console.Error.WriteLineAsync($"Error: could not write input file ({ex.Message})");
                 return ((int)ExitCode.Failure, false);
             }
 
@@ -55,7 +54,7 @@ internal static class DownloadCommand
             try
             {
                 var locator = new Aria2Locator(settings.Aria2Path);
-                aria2Path = await locator.LocateAsync(cts.Token).ConfigureAwait(false);
+                aria2Path = await locator.LocateAsync(cts.Token);
             }
             catch (FileNotFoundException ex)
             {
@@ -63,30 +62,30 @@ internal static class DownloadCommand
                     && (settings.InstallDeps || settings.InstallAria2 || settings.Yes);
                 if (mayInstall)
                 {
-                    await System.Console.Error.WriteLineAsync("aria2c not found — attempting install…").ConfigureAwait(false);
-                    var installed = await PrerequisiteInstaller.InstallAria2Async(cts.Token).ConfigureAwait(false);
+                    await System.Console.Error.WriteLineAsync("aria2c not found — attempting install…");
+                    var installed = await PrerequisiteInstaller.InstallAria2Async(cts.Token);
                     if (installed)
                     {
                         try
                         {
-                            aria2Path = await new Aria2Locator(settings.Aria2Path).LocateAsync(cts.Token).ConfigureAwait(false);
+                            aria2Path = await new Aria2Locator(settings.Aria2Path).LocateAsync(cts.Token);
                         }
                         catch (FileNotFoundException retryEx)
                         {
-                            await System.Console.Error.WriteLineAsync($"Error: install reported success but aria2c still missing ({retryEx.Message})").ConfigureAwait(false);
+                            await System.Console.Error.WriteLineAsync($"Error: install reported success but aria2c still missing ({retryEx.Message})");
                             return ((int)ExitCode.Failure, false);
                         }
                     }
                     else
                     {
-                        await System.Console.Error.WriteLineAsync($"Error: {ex.Message}").ConfigureAwait(false);
+                        await System.Console.Error.WriteLineAsync($"Error: {ex.Message}");
                         return ((int)ExitCode.Failure, false);
                     }
                 }
                 else
                 {
-                    await System.Console.Error.WriteLineAsync($"Error: {ex.Message}").ConfigureAwait(false);
-                    await System.Console.Error.WriteLineAsync("Hint: pass -y / --install-deps / --install-aria2 to install, or --aria2-path.").ConfigureAwait(false);
+                    await System.Console.Error.WriteLineAsync($"Error: {ex.Message}");
+                    await System.Console.Error.WriteLineAsync("Hint: pass -y / --install-deps / --install-aria2 to install, or --aria2-path.");
                     return ((int)ExitCode.Failure, false);
                 }
             }
@@ -120,16 +119,16 @@ internal static class DownloadCommand
 
             try
             {
-                await engine.StartAsync(engineSettings, cts.Token).ConfigureAwait(false);
+                await engine.StartAsync(engineSettings, cts.Token);
                 if (settings.Verbose)
                 {
-                    var version = await engine.GetVersionAsync(cts.Token).ConfigureAwait(false);
-                    await System.Console.Error.WriteLineAsync($"aria2 {version} on 127.0.0.1:{port}").ConfigureAwait(false);
+                    var version = await engine.GetVersionAsync(cts.Token);
+                    await System.Console.Error.WriteLineAsync($"aria2 {version} on 127.0.0.1:{port}");
                 }
             }
             catch (Exception ex) when (ex is InvalidOperationException or TimeoutException or HttpRequestException or IOException)
             {
-                await System.Console.Error.WriteLineAsync($"Error: failed to start aria2 ({ex.Message})").ConfigureAwait(false);
+                await System.Console.Error.WriteLineAsync($"Error: failed to start aria2 ({ex.Message})");
                 return ((int)ExitCode.Failure, false);
             }
 
@@ -146,8 +145,8 @@ internal static class DownloadCommand
             if (useDashboard)
             {
                 Theme.Enabled = true;
-                (outcome, finalState, elapsed, dashboardRetry) = await RunWithDashboardAsync(
-                    engine, settings, Path.GetFullPath(outputDir), Path.GetFullPath(sessionPath), cts.Token).ConfigureAwait(false);
+                (outcome, finalState, elapsed, dashboardRetry) = await DashboardRunner.RunWithDashboardAsync(
+                    engine, settings, Path.GetFullPath(outputDir), Path.GetFullPath(sessionPath), cts.Token);
             }
             else
             {
@@ -171,7 +170,7 @@ internal static class DownloadCommand
                 var session = new DownloadSession(engine, new ProgressCalculator(), settings, onTick);
                 try
                 {
-                    outcome = await session.RunAsync(cts.Token).ConfigureAwait(false);
+                    outcome = await session.RunAsync(cts.Token);
                 }
                 catch (OperationCanceledException)
                 {
@@ -181,7 +180,7 @@ internal static class DownloadCommand
                 {
                     if (useInline) InlineView.EndProgress(System.Console.Error);
                     else PlainView.EndProgress(System.Console.Error, interactive);
-                    await System.Console.Error.WriteLineAsync($"Error: {ex.Message}").ConfigureAwait(false);
+                    await System.Console.Error.WriteLineAsync($"Error: {ex.Message}");
                     return ((int)ExitCode.Failure, false);
                 }
                 if (useInline) InlineView.EndProgress(System.Console.Error);
@@ -210,15 +209,15 @@ internal static class DownloadCommand
                 retry = KeyListener.WaitRetryOrQuit();
 
             if (outcome.Kind == RunOutcomeKind.Failed && !string.IsNullOrEmpty(outcome.Message))
-                await System.Console.Error.WriteLineAsync($"Error: {outcome.Message}").ConfigureAwait(false);
+                await System.Console.Error.WriteLineAsync($"Error: {outcome.Message}");
             else if (outcome.Kind == RunOutcomeKind.Empty && !string.IsNullOrEmpty(outcome.Message))
-                await System.Console.Error.WriteLineAsync($"Error: {outcome.Message}").ConfigureAwait(false);
+                await System.Console.Error.WriteLineAsync($"Error: {outcome.Message}");
 
             // Drop empty resume.session (agreed: no empty session left behind)
             try
             {
                 if (!string.IsNullOrEmpty(sess) && File.Exists(sess) && !SessionFile.HasEntries(sess))
-                    await SessionFile.DeleteAsync(sess).ConfigureAwait(false);
+                    await SessionFile.DeleteAsync(sess);
             }
             catch (IOException) { }
             catch (UnauthorizedAccessException) { }
@@ -227,8 +226,8 @@ internal static class DownloadCommand
         }
         finally
         {
-            await engine.DisposeAsync().ConfigureAwait(false);
-            await workspace.DisposeAsync().ConfigureAwait(false);
+            await engine.DisposeAsync();
+            await workspace.DisposeAsync();
         }
         }
         finally
@@ -236,116 +235,4 @@ internal static class DownloadCommand
             Console.CancelKeyPress -= onCancel;
         }
     }
-
-    private static async Task<(RunOutcome Outcome, SessionState State, TimeSpan Elapsed, bool Retry)> RunWithDashboardAsync(
-        Aria2Engine engine,
-        AppSettings settings,
-        string outputDir,
-        string sessionPath,
-        CancellationToken ct)
-    {
-        RunOutcome outcome = RunOutcome.Interrupted();
-        DownloadSession? session = null;
-
-        var empty = new SessionState
-        {
-            ActiveItems = [],
-            WaitingItems = [],
-            StoppedItems = [],
-            PausedItems = [],
-            CompleteItems = [],
-            FailedItems = [],
-            SkippedItems = [],
-            InterruptedItems = [],
-            AllItems = [],
-        };
-
-        if (!ScreenGuard.EnsureMinimum(60, 12))
-            ScreenGuard.ShowWarning(60, 12);
-
-        // Defer alt-screen until we actually have downloads — avoids empty flash on bad clipboard.
-        ScreenGuard? guard = null;
-        var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        try
-        {
-            var keyTask = KeyListener.WatchDashboardAsync(
-                linked,
-                async (action, token) =>
-                {
-                    try
-                    {
-                        switch (action)
-                        {
-                            case DashboardKeyAction.PauseAll:
-                                await engine.PauseAllAsync(token).ConfigureAwait(false);
-                                break;
-                            case DashboardKeyAction.ResumeAll:
-                                await engine.UnpauseAllAsync(token).ConfigureAwait(false);
-                                break;
-                            case DashboardKeyAction.Quit:
-                                break;
-                        }
-                    }
-                    catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or IOException or ObjectDisposedException)
-                    {
-                        // best-effort controls
-                    }
-                },
-                linked.Token);
-            try
-            {
-                await AnsiConsole.Live(DashboardView.Build(empty, TimeSpan.Zero, settings.Split))
-                    .AutoClear(true)
-                    .Overflow(VerticalOverflow.Ellipsis)
-                    .Cropping(VerticalOverflowCropping.Bottom)
-                    .StartAsync(async ctx =>
-                    {
-                        var loop = new DashboardLoop(ctx, settings.Split);
-                        using var renderCts = CancellationTokenSource.CreateLinkedTokenSource(linked.Token);
-                        var render = loop.RunAsync(renderCts.Token);
-                        session = new DownloadSession(engine, new ProgressCalculator(), settings, loop.Publish);
-                        try
-                        {
-                            outcome = await session.RunAsync(linked.Token).ConfigureAwait(false);
-                        }
-                        catch (OperationCanceledException)
-                        {
-                            try { await session.RequestStopAsync().ConfigureAwait(false); }
-                            catch (InvalidOperationException) { }
-                            catch (IOException) { }
-                            outcome = RunOutcome.Interrupted("Cancelled.");
-                        }
-                        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or IOException)
-                        {
-                            outcome = RunOutcome.Failed(ex.Message);
-                        }
-                        finally
-                        {
-                            await renderCts.CancelAsync().ConfigureAwait(false);
-                            await render.ConfigureAwait(false);
-                            guard = loop.Guard;
-                        }
-                        // Do not hold summary inside Live/alt-screen — leaves a clean buffer.
-                    }).ConfigureAwait(false);
-            }
-            finally
-            {
-                if (!linked.IsCancellationRequested)
-                {
-                    try { await linked.CancelAsync().ConfigureAwait(false); }
-                    catch (ObjectDisposedException) { }
-                }
-                try { await keyTask.ConfigureAwait(false); }
-                catch (OperationCanceledException) { }
-            }
-        }
-        finally
-        {
-            linked.Dispose();
-            guard?.Dispose();
-        }
-
-        // Retry is decided on the normal screen after return (single correct summary).
-        return (outcome, session?.State ?? empty, session?.Elapsed ?? TimeSpan.Zero, false);
     }
-}

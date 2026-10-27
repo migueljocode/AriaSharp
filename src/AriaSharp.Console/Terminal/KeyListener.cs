@@ -21,12 +21,12 @@ internal static class KeyListener
             {
                 if (Console.KeyAvailable && Console.ReadKey(intercept: true).Key is ConsoleKey.Q or ConsoleKey.Escape)
                 {
-                    try { await cts.CancelAsync().ConfigureAwait(false); }
+                    try { await cts.CancelAsync(); }
                     catch (ObjectDisposedException) { }
                     return;
                 }
 
-                await Task.Delay(50, ct).ConfigureAwait(false);
+                await Task.Delay(50, ct);
             }
         }
         catch (Exception ex) when (ex is OperationCanceledException or InvalidOperationException or IOException)
@@ -67,13 +67,13 @@ internal static class KeyListener
 
                     if (action is DashboardKeyAction.None)
                     {
-                        await Task.Delay(50, ct).ConfigureAwait(false);
+                        await Task.Delay(50, ct);
                         continue;
                     }
 
                     try
                     {
-                        await onAction(action, ct).ConfigureAwait(false);
+                        await onAction(action, ct);
                     }
                     catch (Exception ex) when (ex is InvalidOperationException or IOException or ObjectDisposedException or HttpRequestException)
                     {
@@ -81,13 +81,13 @@ internal static class KeyListener
 
                     if (action is DashboardKeyAction.Quit)
                     {
-                        try { await cts.CancelAsync().ConfigureAwait(false); }
+                        try { await cts.CancelAsync(); }
                         catch (ObjectDisposedException) { }
                         return;
                     }
                 }
 
-                await Task.Delay(50, ct).ConfigureAwait(false);
+                await Task.Delay(50, ct);
             }
         }
         catch (Exception ex) when (ex is OperationCanceledException or InvalidOperationException or IOException)

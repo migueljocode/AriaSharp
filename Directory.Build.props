@@ -11,7 +11,8 @@
     <!-- CA1822: ISettingsStore.LoadAsync/SaveAsync are interface members and must be instance methods. -->
     <!-- CA1034/CA1708: C# 14 extension blocks are nested types by design. -->
     <!-- CA1055: MaskCredentialText returns display string, not a URI. -->
-    <NoWarn>CA1724;CA1822;CA1034;CA1708;CA1055;CA1515</NoWarn>
+    <!-- CA2007: console app / no SynchronizationContext — ConfigureAwait(false) omitted by design. -->
+    <NoWarn>CA1724;CA1822;CA1034;CA1708;CA1055;CA1515;CA2007</NoWarn>
     <RepositoryUrl>https://github.com/migueljocode/AriaSharp</RepositoryUrl>
     <Copyright>Copyright (c) AriaSharp contributors</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>

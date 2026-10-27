@@ -15,27 +15,24 @@ internal static class InputCommand
                     new ClipboardReader(),
                     forceClipboard: settings.FromClipboard,
                     forceFiles: settings.FromFiles,
-                    CancellationToken.None)
-                .ConfigureAwait(false);
+                    CancellationToken.None);
 
             settings.Inputs = [.. resolved];
             if (settings.Verbose && resolved is { Count: > 0 })
             {
-                await Console.Error.WriteLineAsync($"Resolved {resolved.Count} download URL(s).")
-                    .ConfigureAwait(false);
+                await Console.Error.WriteLineAsync($"Resolved {resolved.Count} download URL(s).");
             }
         }
         catch (FileNotFoundException ex)
         {
-            await Console.Error.WriteLineAsync($"Error: {ex.Message}").ConfigureAwait(false);
+            await Console.Error.WriteLineAsync($"Error: {ex.Message}");
             return ((int)ExitCode.UsageError, settings);
         }
 
         if (settings.Inputs is { Count: 0 })
         {
             await Console.Out.WriteLineAsync(
-                    "No URLs found (CLI, files, stdin, or clipboard). Use --help, --from-clipboard, or --from-file.")
-                .ConfigureAwait(false);
+                    "No URLs found (CLI, files, stdin, or clipboard). Use --help, --from-clipboard, or --from-file.");
             return ((int)ExitCode.UsageError, settings);
         }
 

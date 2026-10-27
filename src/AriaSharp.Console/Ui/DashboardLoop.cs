@@ -28,7 +28,7 @@ internal sealed class DashboardLoop(LiveDisplayContext ctx, int split)
         var intro = -1;
         try
         {
-            while (await timer.WaitForNextTickAsync(ct).ConfigureAwait(false))
+            while (await timer.WaitForNextTickAsync(ct))
             {
                 if (_latest is not { } latest) continue;
                 var s = latest.State;

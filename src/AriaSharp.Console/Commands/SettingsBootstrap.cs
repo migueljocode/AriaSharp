@@ -14,13 +14,12 @@ internal static class SettingsBootstrap
         SettingsOverlay configOverlay;
         try
         {
-            configOverlay = await store.LoadOverlayAsync(configFile, CancellationToken.None).ConfigureAwait(false);
+            configOverlay = await store.LoadOverlayAsync(configFile, CancellationToken.None);
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or DirectoryNotFoundException or IOException)
         {
             await Console.Error.WriteLineAsync(
-                    $"Warning: could not read config file {configFile} ({ex.Message})")
-                .ConfigureAwait(false);
+                    $"Warning: could not read config file {configFile} ({ex.Message})");
             configOverlay = new();
         }
 

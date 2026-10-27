@@ -12,11 +12,11 @@ internal static class AppExtensions
             SettingsOverlay cli;
             try
             {
-                (settings, cli) = await SettingsBootstrap.LoadAsync(args).ConfigureAwait(false);
+                (settings, cli) = await SettingsBootstrap.LoadAsync(args);
             }
             catch (CliException ex)
             {
-                await Console.Error.WriteLineAsync($"Error: {ex.Message}").ConfigureAwait(false);
+                await Console.Error.WriteLineAsync($"Error: {ex.Message}");
                 return (int)ExitCode.UsageError;
             }
 
@@ -25,15 +25,15 @@ internal static class AppExtensions
             return cli switch
             {
                 { Help: true } => settings.RenderHelp(),
-                { Version: true } => await WriteVersionAsync().ConfigureAwait(false),
-                { PrintConfig: true } => await settings.WriteConfigAsync().ConfigureAwait(false),
-                _ => await settings.RunCoreAsync().ConfigureAwait(false),
+                { Version: true } => await WriteVersionAsync(),
+                { PrintConfig: true } => await settings.WriteConfigAsync(),
+                _ => await settings.RunCoreAsync(),
             };
         }
 
         private static async Task<int> WriteVersionAsync()
         {
-            await Console.Out.WriteLineAsync("AriaSharp 1.0.0").ConfigureAwait(false);
+            await Console.Out.WriteLineAsync("AriaSharp 1.0.0");
             return (int)ExitCode.Ok;
         }
     }
@@ -49,7 +49,7 @@ internal static class AppExtensions
         public async Task<int> WriteConfigAsync()
         {
             var json = JsonSerializer.Serialize(settings, AppSettingsJsonContext.Default.AppSettings);
-            await Console.Out.WriteLineAsync(json).ConfigureAwait(false);
+            await Console.Out.WriteLineAsync(json);
             return (int)ExitCode.Ok;
         }
 
@@ -61,16 +61,16 @@ internal static class AppExtensions
                 && settings.Inputs is { Count: 0 }
                 && !settings.FromClipboard
                 && settings.FromFiles is { Count: 0 })
-                return await settings.RunInstallAsync().ConfigureAwait(false);
+                return await settings.RunInstallAsync();
 
-            var (exit, resolved) = await settings.ResolveInputsAsync().ConfigureAwait(false);
+            var (exit, resolved) = await settings.ResolveInputsAsync();
             if (exit is int code)
                 return code;
 
             settings = resolved;
             while (true)
             {
-                var (runCode, retry) = await settings.RunDownloadAsync().ConfigureAwait(false);
+                var (runCode, retry) = await settings.RunDownloadAsync();
                 if (!retry)
                     return runCode;
             }

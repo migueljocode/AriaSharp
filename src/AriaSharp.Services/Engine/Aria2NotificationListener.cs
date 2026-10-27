@@ -27,7 +27,7 @@ internal sealed class Aria2NotificationListener : IAsyncDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
         _ws = new ClientWebSocket { Options = { Proxy = null } };
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, _cts.Token);
-        await _ws.ConnectAsync(_uri, linked.Token).ConfigureAwait(false);
+        await _ws.ConnectAsync(_uri, linked.Token);
         _loop = Task.Run(() => ReceiveLoopAsync(_cts.Token), CancellationToken.None);
     }
 
@@ -45,21 +45,20 @@ internal sealed class Aria2NotificationListener : IAsyncDisposable
                 WebSocketReceiveResult result;
                 do
                 {
-                    result = await ws.ReceiveAsync(buffer, ct).ConfigureAwait(false);
+                    result = await ws.ReceiveAsync(buffer, ct);
                     if (result.MessageType == WebSocketMessageType.Close)
                     {
-                        await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, null, CancellationToken.None)
-                            .ConfigureAwait(false);
+                        await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, null, CancellationToken.None);
                         return;
                     }
-                    await ms.WriteAsync(buffer.AsMemory(0, result.Count), ct).ConfigureAwait(false);
+                    await ms.WriteAsync(buffer.AsMemory(0, result.Count), ct);
                 }
                 while (!result.EndOfMessage);
 
                 ms.Position = 0;
                 try
                 {
-                    using var doc = await JsonDocument.ParseAsync(ms, cancellationToken: ct).ConfigureAwait(false);
+                    using var doc = await JsonDocument.ParseAsync(ms, cancellationToken: ct);
                     if (TryMap(doc.RootElement, out var ev))
                         _events.TryWrite(ev);
                 }
@@ -125,7 +124,7 @@ internal sealed class Aria2NotificationListener : IAsyncDisposable
     {
         if (_disposed) return;
         _disposed = true;
-        try { await _cts.CancelAsync().ConfigureAwait(false); }
+        try { await _cts.CancelAsync(); }
         catch (ObjectDisposedException) { }
 
         if (_ws is not null)
@@ -135,8 +134,7 @@ internal sealed class Aria2NotificationListener : IAsyncDisposable
                 if (_ws.State is WebSocketState.Open or WebSocketState.CloseReceived)
                 {
                     using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-                    await _ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "shutdown", timeout.Token)
-                        .ConfigureAwait(false);
+                    await _ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "shutdown", timeout.Token);
                 }
             }
             catch (WebSocketException) { }
@@ -151,7 +149,7 @@ internal sealed class Aria2NotificationListener : IAsyncDisposable
 
         if (_loop is not null)
         {
-            try { await _loop.ConfigureAwait(false); }
+            try { await _loop; }
             catch (OperationCanceledException) { }
             catch (WebSocketException) { }
             catch (IOException) { }

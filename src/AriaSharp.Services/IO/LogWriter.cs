@@ -21,9 +21,9 @@ public sealed class LogWriter : IAsyncDisposable
     {
         try
         {
-            await foreach (var line in _channel.Reader.ReadAllAsync().ConfigureAwait(false))
+            await foreach (var line in _channel.Reader.ReadAllAsync())
             {
-                await _writer.WriteLineAsync(line).ConfigureAwait(false);
+                await _writer.WriteLineAsync(line);
             }
         }
         catch (OperationCanceledException) { }
@@ -37,6 +37,6 @@ public sealed class LogWriter : IAsyncDisposable
         }
         _disposed = true;
         _channel.Writer.Complete();
-        await _writer.DisposeAsync().ConfigureAwait(false);
+        await _writer.DisposeAsync();
     }
 }

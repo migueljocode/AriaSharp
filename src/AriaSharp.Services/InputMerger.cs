@@ -14,8 +14,8 @@ public static class InputMerger
         {
             ct.ThrowIfCancellationRequested();
             if (string.IsNullOrEmpty(input)) continue;
-            await writer.WriteLineAsync(input).ConfigureAwait(false);
+            await writer.WriteLineAsync(input);
         }
-        await writer.FlushAsync(ct).ConfigureAwait(false);
+        await writer.FlushAsync(ct);
     }
 }

@@ -91,12 +91,12 @@ public sealed class Aria2Process : IAsyncDisposable
                 using var grace = new CancellationTokenSource(AppDefaults.GracefulStopTimeoutMs);
                 try
                 {
-                    await _process.WaitForExitAsync(grace.Token).ConfigureAwait(false);
+                    await _process.WaitForExitAsync(grace.Token);
                 }
                 catch (OperationCanceledException)
                 {
                     _process.Kill(true);
-                    await _process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+                    await _process.WaitForExitAsync(CancellationToken.None);
                 }
             }
         }

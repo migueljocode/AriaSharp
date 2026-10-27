@@ -28,7 +28,7 @@ public static class SessionFile
                 path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete,
                 4096, FileOptions.Asynchronous | FileOptions.SequentialScan);
             using var reader = new StreamReader(stream);
-            while (await reader.ReadLineAsync(ct).ConfigureAwait(false) is { } line)
+            while (await reader.ReadLineAsync(ct) is { } line)
             {
                 ct.ThrowIfCancellationRequested();
                 var span = line.AsSpan().Trim();

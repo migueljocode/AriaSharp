@@ -107,16 +107,16 @@ public class FileIoTests : IAsyncDisposable
             using var writer = new StreamWriter(fs);
             for (var i = 0; i < 50; i++)
             {
-                await writer.WriteLineAsync($"http://example.com/file{i}").ConfigureAwait(false);
-                await writer.FlushAsync().ConfigureAwait(false);
-                await Task.Delay(5).ConfigureAwait(false);
+                await writer.WriteLineAsync($"http://example.com/file{i}");
+                await writer.FlushAsync();
+                await Task.Delay(5);
             }
         }, cts.Token);
         var readTask = Task.Run(async () =>
         {
-            await Task.Delay(10).ConfigureAwait(false);
+            await Task.Delay(10);
             var found = false;
-            await foreach (var _ in SessionFile.EnumerateEntriesAsync(dest, cts.Token).ConfigureAwait(false)) { found = true; }
+            await foreach (var _ in SessionFile.EnumerateEntriesAsync(dest, cts.Token)) { found = true; }
             Assert.True(found);
         }, cts.Token);
         await Task.WhenAll(writeTask, readTask);

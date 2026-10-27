@@ -7,19 +7,17 @@ internal static class InstallCommand
 {
     public static async Task<int> RunAsync(AppSettings settings)
     {
-        await Console.Out.WriteLineAsync("Installing prerequisites…").ConfigureAwait(false);
+        await Console.Out.WriteLineAsync("Installing prerequisites…");
         var installAria2 = settings.InstallDeps || settings.InstallAria2;
-        var (ok, message) = await PrerequisiteInstaller.InstallDepsAsync(installAria2, CancellationToken.None)
-            .ConfigureAwait(false);
-        await Console.Out.WriteLineAsync(message).ConfigureAwait(false);
+        var (ok, message) = await PrerequisiteInstaller.InstallDepsAsync(installAria2, CancellationToken.None);
+        await Console.Out.WriteLineAsync(message);
         if (!ok)
         {
-            await Console.Error.WriteLineAsync("Error: one or more required packages failed to install.")
-                .ConfigureAwait(false);
+            await Console.Error.WriteLineAsync("Error: one or more required packages failed to install.");
             return (int)ExitCode.Failure;
         }
 
-        await Console.Out.WriteLineAsync("Done.").ConfigureAwait(false);
+        await Console.Out.WriteLineAsync("Done.");
         return (int)ExitCode.Ok;
     }
 }

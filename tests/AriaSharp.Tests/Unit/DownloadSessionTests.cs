@@ -16,12 +16,12 @@ public class DownloadSessionTests
         try
         {
             var session = new DownloadSession(engine, new ProgressCalculator(), new AppSettings { RefreshIntervalMs = 100 });
-            var outcome = await session.RunAsync(CancellationToken.None).ConfigureAwait(true);
+            var outcome = await session.RunAsync(CancellationToken.None);
             Assert.Equal(RunOutcomeKind.Completed, outcome.Kind);
         }
         finally
         {
-            await engine.DisposeAsync().ConfigureAwait(true);
+            await engine.DisposeAsync();
         }
     }
 
@@ -33,12 +33,12 @@ public class DownloadSessionTests
         {
             var session = new DownloadSession(engine, new ProgressCalculator(), new AppSettings { RefreshIntervalMs = 100 });
             using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(600));
-            var outcome = await session.RunAsync(cts.Token).ConfigureAwait(true);
+            var outcome = await session.RunAsync(cts.Token);
             Assert.Equal(RunOutcomeKind.Interrupted, outcome.Kind);
         }
         finally
         {
-            await engine.DisposeAsync().ConfigureAwait(true);
+            await engine.DisposeAsync();
         }
     }
 
@@ -49,12 +49,12 @@ public class DownloadSessionTests
         try
         {
             var session = new DownloadSession(engine, new ProgressCalculator(), new AppSettings { RefreshIntervalMs = 100 });
-            var outcome = await session.RunAsync(CancellationToken.None).ConfigureAwait(true);
+            var outcome = await session.RunAsync(CancellationToken.None);
             Assert.Equal(RunOutcomeKind.Completed, outcome.Kind);
         }
         finally
         {
-            await engine.DisposeAsync().ConfigureAwait(true);
+            await engine.DisposeAsync();
         }
     }
 
@@ -69,12 +69,12 @@ public class DownloadSessionTests
         try
         {
             var session = new DownloadSession(engine, new ProgressCalculator(), new AppSettings { RefreshIntervalMs = 100 });
-            var outcome = await session.RunAsync(cts.Token).ConfigureAwait(true);
+            var outcome = await session.RunAsync(cts.Token);
             Assert.Equal(RunOutcomeKind.Interrupted, outcome.Kind);
         }
         finally
         {
-            await engine.DisposeAsync().ConfigureAwait(true);
+            await engine.DisposeAsync();
         }
     }
 
@@ -89,13 +89,13 @@ public class DownloadSessionTests
         try
         {
             var session = new DownloadSession(engine, new ProgressCalculator(), new AppSettings { RefreshIntervalMs = 100 });
-            var outcome = await session.RunAsync(CancellationToken.None).ConfigureAwait(true);
+            var outcome = await session.RunAsync(CancellationToken.None);
             Assert.Equal(RunOutcomeKind.Failed, outcome.Kind);
             Assert.Contains("Resource not found", outcome.Message, StringComparison.Ordinal);
         }
         finally
         {
-            await engine.DisposeAsync().ConfigureAwait(true);
+            await engine.DisposeAsync();
         }
     }
 
@@ -106,12 +106,12 @@ public class DownloadSessionTests
         try
         {
             var session = new DownloadSession(engine, new ProgressCalculator(), new AppSettings { RefreshIntervalMs = 100 });
-            var outcome = await session.RunAsync(CancellationToken.None).ConfigureAwait(true);
+            var outcome = await session.RunAsync(CancellationToken.None);
             Assert.Equal(RunOutcomeKind.Empty, outcome.Kind);
         }
         finally
         {
-            await engine.DisposeAsync().ConfigureAwait(true);
+            await engine.DisposeAsync();
         }
     }
 
