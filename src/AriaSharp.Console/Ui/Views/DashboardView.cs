@@ -13,7 +13,7 @@ internal static class DashboardView
     private static readonly Color Purple = new(155, 89, 182);
     private static readonly Color PurpleDeep = new(108, 52, 131);
 
-    public static IRenderable Build(SessionState state, TimeSpan elapsed, int split = 16)
+    public static IRenderable Build(SessionState state, TimeSpan elapsed, int split = 16, int frame = -1, double? shown = null)
     {
         ArgumentNullException.ThrowIfNull(state);
 
@@ -22,14 +22,15 @@ internal static class DashboardView
         root.AddColumn(new GridColumn().NoWrap());
 
         // Compact logo band (no "download dashboard" label)
-        root.AddRow(BuildLogo());
+        root.AddRow(BuildLogo(frame));
         root.AddRow(new Text(""));
 
         var barWidth = Math.Max(24, width - 8);
-        var filled = (int)Math.Round(Math.Clamp(state.OverallPercent / 100.0, 0, 1) * barWidth);
-        var bar =
-            $"[#BB86FC]{new string('█', filled)}[/]" +
-            $"[#6C3483]{new string('░', Math.Max(0, barWidth - filled))}[/]";
+        var finished = state.NumActive == 0 && state.NumWaiting == 0 && state.NumPaused == 0 && state.CompleteItems.Count > 0;
+        var pausedOnly = state.NumActive == 0 && state.NumPaused > 0;
+        var ramp = finished ? Gradient.Green : pausedOnly ? Gradient.Amber : Gradient.Violet;
+        var barFrame = finished || pausedOnly ? -1 : frame;
+        var bar = Gradient.Bar(barWidth, shown ?? state.OverallPercent / 100.0, ramp, barFrame);
 
         var etaText = state.NumActive == 0 && state.NumPaused > 0 && state.TotalDownloadSpeed <= 0
             ? "paused"
@@ -47,21 +48,22 @@ internal static class DashboardView
         root.AddRow(new Panel(overallRows)
             .Header("[#E040FB]OVERALL[/]")
             .BorderColor(Purple)
+            .Border(BoxBorder.Rounded)
             .Padding(1, 0)
             .Expand());
 
         // Active table — full width; name takes remaining space
-        var nameWidth = Math.Max(24, width - 56);
+        var nameWidth = Math.Max(24, width - 62);
         var table = new Table()
             .Border(TableBorder.Rounded)
             .BorderColor(PurpleDeep)
             .Expand();
         table.AddColumn(new TableColumn("[#BB86FC]Name[/]").NoWrap());
-        table.AddColumn(new TableColumn("[#BB86FC]Progress[/]").Width(10).RightAligned());
-        table.AddColumn(new TableColumn("[#BB86FC]Speed[/]").Width(11).RightAligned());
-        table.AddColumn(new TableColumn("[#BB86FC]ETA[/]").Width(9).RightAligned());
-        table.AddColumn(new TableColumn("[#BB86FC]Connections[/]").Width(12).RightAligned());
-        table.AddColumn(new TableColumn("[#BB86FC]Split[/]").Width(7).RightAligned());
+        table.AddColumn(new TableColumn("[#BB86FC]Progress[/]").Width(16).RightAligned());
+        table.AddColumn(new TableColumn("[#BB86FC]Speed[/]").Width(10).RightAligned());
+        table.AddColumn(new TableColumn("[#BB86FC]ETA[/]").Width(8).RightAligned());
+        table.AddColumn(new TableColumn("[#BB86FC]Conn[/]").Width(6).RightAligned());
+        table.AddColumn(new TableColumn("[#BB86FC]Split[/]").Width(5).RightAligned());
 
         if (state.ActiveItems.Count == 0)
         {
@@ -79,8 +81,8 @@ internal static class DashboardView
                     : 0;
                 var eta = ItemEta(item);
                 table.AddRow(
-                    new Markup($"[white]{Markup.Escape(FormatHelpers.Truncate(name, nameWidth))}[/]"),
-                    new Markup($"[#CE93D8]{itemPct:F1}%[/]"),
+                    new Markup($"[#BB86FC]{(frame < 0 ? '●' : Gradient.Spinner(frame))}[/] [white]{Markup.Escape(FormatHelpers.Truncate(name, nameWidth - 2))}[/]"),
+                    new Markup($"{Gradient.Bar(8, itemPct / 100, Gradient.Violet, barFrame)} [#CE93D8]{itemPct,5:F1}%[/]"),
                     new Markup($"[grey]{Markup.Escape(FormatHelpers.FormatSpeed(item.DownloadSpeed))}[/]"),
                     new Markup($"[grey]{Markup.Escape(eta)}[/]"),
                     new Markup($"[dim]{item.Connections}[/]"),
@@ -91,6 +93,7 @@ internal static class DashboardView
         root.AddRow(new Panel(table)
             .Header($"[#E040FB]ACTIVE ({state.NumActive})[/]")
             .BorderColor(Purple)
+            .Border(BoxBorder.Rounded)
             .Padding(1, 0)
             .Expand());
 
@@ -101,16 +104,17 @@ internal static class DashboardView
                 + state.StoppedItems.Count + state.InterruptedItems.Count;
 
         var status =
-            $"[white]All[/] {all}  " +
-            $"[#BB86FC]Active[/] {state.NumActive}  " +
-            $"[green]Completed[/] {state.CompleteItems.Count}  " +
-            $"[red]Failed[/] {state.FailedItems.Count}  " +
-            $"[grey]Waiting[/] {state.NumWaiting}  " +
-            $"[yellow]Paused[/] {state.NumPaused}  " +
-            $"[dim]Skipped[/] {state.SkippedItems.Count}";
+            $"[white]≡ All[/] {all}  " +
+            $"[#BB86FC]● Active[/] {state.NumActive}  " +
+            $"[green]✓ Completed[/] {state.CompleteItems.Count}  " +
+            $"[red]✗ Failed[/] {state.FailedItems.Count}  " +
+            $"[grey]◌ Waiting[/] {state.NumWaiting}  " +
+            $"[yellow]❚❚ Paused[/] {state.NumPaused}  " +
+            $"[dim]· Skipped[/] {state.SkippedItems.Count}";
         root.AddRow(new Panel(new Markup(status))
             .Header("[#E040FB]STATUS[/]")
             .BorderColor(Purple)
+            .Border(BoxBorder.Rounded)
             .Padding(1, 0)
             .Expand());
 
@@ -177,16 +181,21 @@ internal static class DashboardView
         return root;
     }
 
-    private static Align BuildLogo()
+    private static readonly string[] LogoLines =
+    [
+        " █████╗ ██████╗ ██╗ █████╗ ███████╗██╗  ██╗ █████╗ ██████╗ ██████╗ ",
+        "██╔══██╗██╔══██╗██║██╔══██╗██╔════╝██║  ██║██╔══██╗██╔══██╗██╔══██╗",
+        "███████║██████╔╝██║███████║███████╗███████║███████║██████╔╝██████╔╝",
+        "██╔══██║██╔══██╗██║██╔══██║╚════██║██╔══██║██╔══██║██╔══██╗██╔═══╝ ",
+        "██║  ██║██║  ██║██║██║  ██║███████║██║  ██║██║  ██║██║  ██║██║     ",
+        "╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ",
+    ];
+
+    private static Align BuildLogo(int frame)
     {
-        // Stylized mark — compact, full-width friendly
-        var art = new Markup(
-            $"[#BB86FC] █████╗ ██████╗ ██╗ █████╗ [/][#E040FB]███████╗██╗  ██╗ █████╗ ██████╗ ██████╗ [/]\n" +
-            $"[#BB86FC]██╔══██╗██╔══██╗██║██╔══██╗[/][#CE93D8]██╔════╝██║  ██║██╔══██╗██╔══██╗██╔══██╗[/]\n" +
-            $"[#BB86FC]███████║██████╔╝██║███████║[/][#E040FB]███████╗███████║███████║██████╔╝██████╔╝[/]\n" +
-            $"[#BB86FC]██╔══██║██╔══██╗██║██╔══██║[/][#CE93D8]╚════██║██╔══██║██╔══██║██╔══██╗██╔═══╝ [/]\n" +
-            $"[#BB86FC]██║  ██║██║  ██║██║██║  ██║[/][#E040FB]███████║██║  ██║██║  ██║██║  ██║██║     [/]\n" +
-            $"[#BB86FC]╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝[/][#CE93D8]╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     [/]");
+        // Left-to-right wipe-in on the first frames, then a slow sheen.
+        var reveal = frame < 0 ? 1.0 : Math.Min(1.0, (frame + 1) / 14.0);
+        var art = new Markup(string.Join('\n', LogoLines.Select(l => Gradient.Text(l, Gradient.Violet, Math.Max(frame, 0), reveal))));
         return Align.Center(art);
     }
 

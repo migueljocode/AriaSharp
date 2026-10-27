@@ -16,6 +16,7 @@ public sealed class AppDefaults
     public const int MinRefreshIntervalMs = 100;
     public const int MaxRefreshIntervalMs = 5000;
     public const int PollFloorMs = 250;
+    public const int AnimationFrameMs = 80;
     public const int RpcReadyTimeoutMs = 10000;
     public const int GracefulStopTimeoutMs = 3000;
     public const int IdlePollsRequired = 2;

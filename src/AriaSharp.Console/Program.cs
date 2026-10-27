@@ -307,7 +307,7 @@ internal static class Program
                     }
                     catch (IOException) { }
                 };
-                var session = new DownloadSession(engine, new ProgressCalculator(), settings, onTick);
+                var session = new DownloadSession(engine, new ProgressCalculator(), settings, loop.Publish);
                 try
                 {
                     outcome = await session.RunAsync(cts.Token).ConfigureAwait(false);
@@ -447,24 +447,9 @@ internal static class Program
                     .Cropping(VerticalOverflowCropping.Bottom)
                     .StartAsync(async ctx =>
                     {
-                        ProgressTick onTick = (state, elapsed) =>
-                        {
-                            try
-                            {
-                                var hasWork = state.AllItems.Count > 0
-                                    || state.NumActive > 0
-                                    || state.NumWaiting > 0
-                                    || state.FailedItems.Count > 0
-                                    || state.CompleteItems.Count > 0
-                                    || state.SkippedItems.Count > 0;
-                                if (hasWork && guard is null)
-                                    guard = ScreenGuard.TryEnter();
-                                if (guard is not null || hasWork)
-                                    ctx.UpdateTarget(DashboardView.Build(state, elapsed, settings.Split));
-                            }
-                            catch (InvalidOperationException) { }
-                            catch (IOException) { }
-                        };
+                        var loop = new DashboardLoop(ctx, settings.Split);
+                        using var renderCts = CancellationTokenSource.CreateLinkedTokenSource(linked.Token);
+                        var render = loop.RunAsync(renderCts.Token);
                         session = new DownloadSession(engine, new ProgressCalculator(), settings, onTick);
                         try
                         {
@@ -480,6 +465,12 @@ internal static class Program
                         catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or IOException)
                         {
                             outcome = RunOutcome.Failed(ex.Message);
+                        }
+                        finally
+                        {
+                            await renderCts.CancelAsync().ConfigureAwait(false);
+                            await render.ConfigureAwait(false);
+                            guard = loop.Guard;
                         }
                         // Do not hold summary inside Live/alt-screen — leaves a clean buffer.
                     }).ConfigureAwait(false);
