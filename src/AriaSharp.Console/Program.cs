@@ -307,7 +307,7 @@ internal static class Program
                     }
                     catch (IOException) { }
                 };
-                var session = new DownloadSession(engine, new ProgressCalculator(), settings, loop.Publish);
+                var session = new DownloadSession(engine, new ProgressCalculator(), settings, onTick);
                 try
                 {
                     outcome = await session.RunAsync(cts.Token).ConfigureAwait(false);
@@ -450,7 +450,7 @@ internal static class Program
                         var loop = new DashboardLoop(ctx, settings.Split);
                         using var renderCts = CancellationTokenSource.CreateLinkedTokenSource(linked.Token);
                         var render = loop.RunAsync(renderCts.Token);
-                        session = new DownloadSession(engine, new ProgressCalculator(), settings, onTick);
+                        session = new DownloadSession(engine, new ProgressCalculator(), settings, loop.Publish);
                         try
                         {
                             outcome = await session.RunAsync(linked.Token).ConfigureAwait(false);
