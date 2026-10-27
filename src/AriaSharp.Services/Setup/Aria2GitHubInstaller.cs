@@ -44,10 +44,11 @@ internal static class Aria2GitHubInstaller
 
     private static async Task<bool> InstallWindowsAsync(string cache, StreamWriter log, CancellationToken ct)
     {
+        var (url, sha) = Aria2Manifest.WindowsArtifact();
         var zipPath = Path.Join(cache, "aria2-win.zip");
-        await log.WriteLineAsync($"download {Aria2Manifest.WindowsZipUrl}");
-        await DownloadAsync(Aria2Manifest.WindowsZipUrl, zipPath, ct);
-        await VerifySha256Async(zipPath, Aria2Manifest.WindowsZipSha256, log, ct);
+        await log.WriteLineAsync($"download {url}");
+        await DownloadAsync(url, zipPath, ct);
+        await VerifySha256Async(zipPath, sha, log, ct);
 
         var extractDir = Path.Join(cache, "extract");
         Directory.CreateDirectory(extractDir);
@@ -142,11 +143,27 @@ internal static class Aria2GitHubInstaller
             if (r.ExitCode != 0)
                 missing.Add(tool);
         }
+
+        if (OperatingSystem.IsMacOS())
+        {
+            var xcode = await ProcessRunner.RunAsync("xcode-select", "-p", ct);
+            if (xcode.ExitCode != 0)
+                missing.Add("Xcode CLT");
+        }
+        else if (OperatingSystem.IsLinux())
+        {
+            // Header presence (best-effort common paths)
+            var ssl = Directory.Exists("/usr/include/openssl") || File.Exists("/usr/include/openssl/ssl.h");
+            var zlib = File.Exists("/usr/include/zlib.h");
+            if (!ssl) missing.Add("openssl headers");
+            if (!zlib) missing.Add("zlib headers");
+        }
+
         if (missing.Count > 0)
         {
             var hint = OperatingSystem.IsMacOS()
-                ? "install Xcode CLT: xcode-select --install"
-                : "install build-essential + libssl-dev + zlib1g-dev (or distro equivalent)";
+                ? "xcode-select --install"
+                : "install build-essential libssl-dev zlib1g-dev (Debian/Ubuntu), or equivalent";
             await log.WriteLineAsync($"preflight missing: {string.Join(", ", missing)}; {hint}");
             return $"{string.Join(", ", missing)} ({hint})";
         }

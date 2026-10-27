@@ -13,20 +13,16 @@ public static class NetworkProbe
         if (string.Equals(overrideEnv, "online", StringComparison.OrdinalIgnoreCase))
             return (true, "ARIASHARP_NETWORK=online");
 
-        foreach (var host in new[] { "1.1.1.1", "8.8.8.8" })
+        if (HasProxyEnv())
+            return (true, "proxy env set (HTTPS_PROXY/http_proxy/ALL_PROXY)");
+
+        var hosts = new[] { "1.1.1.1", "8.8.8.8" };
+        var tasks = hosts.Select(h => TryTcpAsync(h, 443, ct)).ToArray();
+        var results = await Task.WhenAll(tasks);
+        for (var i = 0; i < results.Length; i++)
         {
-            try
-            {
-                using var client = new TcpClient();
-                using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                linked.CancelAfter(TimeSpan.FromSeconds(3));
-                await client.ConnectAsync(host, 443, linked.Token);
-                return (true, $"tcp 443 → {host}");
-            }
-            catch (Exception ex) when (ex is SocketException or OperationCanceledException or IOException)
-            {
-                // try next
-            }
+            if (results[i])
+                return (true, $"tcp 443 → {hosts[i]}");
         }
 
         try
@@ -41,5 +37,31 @@ public static class NetworkProbe
         }
 
         return (false, "no network");
+    }
+
+    public static bool HasProxyEnv()
+    {
+        foreach (var key in new[] { "HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy", "ALL_PROXY", "all_proxy" })
+        {
+            if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(key)))
+                return true;
+        }
+        return false;
+    }
+
+    private static async Task<bool> TryTcpAsync(string host, int port, CancellationToken ct)
+    {
+        try
+        {
+            using var client = new TcpClient();
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            linked.CancelAfter(TimeSpan.FromSeconds(2));
+            await client.ConnectAsync(host, port, linked.Token);
+            return true;
+        }
+        catch (Exception ex) when (ex is SocketException or OperationCanceledException or IOException)
+        {
+            return false;
+        }
     }
 }

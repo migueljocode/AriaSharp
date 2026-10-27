@@ -1,14 +1,29 @@
 namespace AriaSharp.Services;
 
+public enum InstallFailureKind
+{
+    None,
+    Network,
+    PackageMissing,
+    ManagerBusy,
+    Auth,
+    BuildTools,
+    HashMismatch,
+    Unknown,
+}
+
 /// <summary>
 /// Install aria2: package manager when available, else pinned GitHub artifact / source build.
 /// </summary>
 public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
 {
-    public Task<bool> InstallAsync(string package, CancellationToken ct)
+    public async Task<bool> InstallAsync(string package, CancellationToken ct)
     {
         var logical = package is "aria2c" or "aria2" ? "aria2" : package;
-        return logical != "aria2" ? Task.FromResult(false) : InstallAria2Async(ct, autoYes: true);
+        if (logical != "aria2")
+            return false;
+        var (ok, _, _) = await InstallAria2Async(ct, autoYes: true);
+        return ok;
     }
 
     public async Task<bool> IsInstalledAsync(string package, CancellationToken ct)
@@ -42,47 +57,73 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
         return result.ExitCode == 0;
     }
 
-    /// <param name="autoYes">When true, skip y/N for package manager installs.</param>
-    public static async Task<bool> InstallAria2Async(CancellationToken ct, bool autoYes = true)
+    public static async Task<(bool Ok, string Message, InstallFailureKind Kind)> InstallAria2Async(
+        CancellationToken ct,
+        bool autoYes = true,
+        Func<string, bool>? confirm = null)
     {
         try
         {
             _ = await new Aria2Locator().LocateAsync(ct);
-            return true;
+            return (true, "already installed", InstallFailureKind.None);
         }
         catch (FileNotFoundException) { }
 
         var (netOk, netDetail) = await NetworkProbe.CheckAsync(ct);
         if (!netOk)
-            throw new InvalidOperationException($"Cannot install aria2: {netDetail}");
+            return (false, $"Cannot install aria2: {netDetail}", InstallFailureKind.Network);
 
-        // Try package managers that both exist and list aria2.
         foreach (var mgr in PackageManagerCatalog.Aria2Managers.Where(m => m.IsOsMatch()))
         {
-            var probe = await ProcessRunner.RunAsync(mgr.Id, mgr.ProbeArgs, ct);
-            if (probe.ExitCode != 0)
+            ProcessRunner.Result probe;
+            try
+            {
+                probe = await ProcessRunner.RunAsync(mgr.ProbeFileName, mgr.ProbeArgs, ct);
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or IOException or System.ComponentModel.Win32Exception)
+            {
+                continue;
+            }
+
+            if (!PackageManagerCatalog.IsPackageAvailable(mgr.ProbeKind, probe.ExitCode, probe.StdOut, probe.StdErr))
                 continue;
 
+            var cmdDisplay = $"{mgr.InstallFileName} {mgr.InstallArgs}";
             if (!autoYes)
-                return false; // Console layer should prompt; here default autoYes for -y paths
+            {
+                if (confirm is null || !confirm(cmdDisplay))
+                    return (false, $"Refused install via {mgr.DisplayName}. Re-run with -y or run: {cmdDisplay}", InstallFailureKind.Auth);
+            }
 
-            var install = await ProcessRunner.RunAsync(
-                mgr.NeedsElevation && !OperatingSystem.IsWindows() ? "sudo" : mgr.Id,
-                mgr.NeedsElevation && !OperatingSystem.IsWindows()
-                    ? $"{mgr.Id} {mgr.InstallArgs}"
-                    : mgr.InstallArgs,
-                ct);
+            var (file, args, elevHint) = ResolveInstallCommand(mgr);
+            if (elevHint is not null)
+                return (false, elevHint, InstallFailureKind.Auth);
+
+            var install = await ProcessRunner.RunAsync(file, args, ct);
             if (install.ExitCode == 0)
             {
                 try
                 {
                     _ = await new Aria2Locator().LocateAsync(ct);
-                    return true;
+                    return (true, $"installed via {mgr.DisplayName}", InstallFailureKind.None);
                 }
-                catch (FileNotFoundException) { }
+                catch (FileNotFoundException)
+                {
+                    // fall through
+                }
+            }
+            else
+            {
+                var kind = install.ExitCode is 1 or 100 ? InstallFailureKind.PackageMissing
+                    : install.StdErr.Contains("lock", StringComparison.OrdinalIgnoreCase) ? InstallFailureKind.ManagerBusy
+                    : install.StdErr.Contains("permission", StringComparison.OrdinalIgnoreCase) ? InstallFailureKind.Auth
+                    : InstallFailureKind.Unknown;
+                // try next manager / fallback
+                _ = kind;
             }
         }
 
+        // Fallback: pinned GitHub
         AppPaths.EnsureDataDirectories();
         var cache = Path.Join(AppPaths.ToolsCacheDirectory, $"aria2-{Guid.NewGuid():N}");
         Directory.CreateDirectory(cache);
@@ -90,15 +131,51 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
         {
             var (ok, message, logPath) = await Aria2GitHubInstaller.InstallForCurrentOsAsync(cache, ct);
             if (!ok)
-                throw new InvalidOperationException(
-                    $"aria2 install failed: {message}"
-                    + (logPath is not null ? $" (log: {logPath})" : ""));
-            return true;
+            {
+                var kind = message.Contains("SHA-256", StringComparison.Ordinal) ? InstallFailureKind.HashMismatch
+                    : message.Contains("build tools", StringComparison.OrdinalIgnoreCase) ? InstallFailureKind.BuildTools
+                    : InstallFailureKind.Unknown;
+                return (false,
+                    $"package managers unavailable or failed; source/zip fallback failed: {message}"
+                    + (logPath is not null ? $" (log: {logPath})" : "")
+                    + $" — manual: install aria2 {Aria2Manifest.Version} or set --aria2-path",
+                    kind);
+            }
+            return (true, "installed from official GitHub artifact", InstallFailureKind.None);
         }
         finally
         {
-            // Keep log if under tools cache name install.log — tree delete removes cache after copy
             TryDeleteTree(cache);
+        }
+    }
+
+    private static (string File, string Args, string? ElevHint) ResolveInstallCommand(PackageManagerEntry mgr)
+    {
+        if (!mgr.NeedsElevation || OperatingSystem.IsWindows())
+            return (mgr.InstallFileName, mgr.InstallArgs, null);
+
+        if (IsRoot())
+            return (mgr.InstallFileName, mgr.InstallArgs, null);
+
+        if (PackageManagerCatalog.CommandExists("sudo"))
+            return ("sudo", $"{mgr.InstallFileName} {mgr.InstallArgs}", null);
+
+        return ("", "", $"needs root to run: {mgr.InstallFileName} {mgr.InstallArgs}");
+    }
+
+    private static bool IsRoot()
+    {
+        if (OperatingSystem.IsWindows())
+            return false;
+        try
+        {
+            return Environment.GetEnvironmentVariable("USER") == "root"
+                || Environment.GetEnvironmentVariable("EUID") == "0"
+                || Environment.UserName == "root";
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+        {
+            return false;
         }
     }
 
@@ -123,41 +200,25 @@ public sealed class PrerequisiteInstaller : IPrerequisiteInstaller
             catch (FileNotFoundException)
             {
                 lines.Add($"aria2c: installing {Aria2Manifest.Version}…");
-                try
-                {
-                    var installed = await InstallAria2Async(ct, autoYes: true);
-                    if (installed)
-                    {
-                        try
-                        {
-                            var path = await new Aria2Locator().LocateAsync(ct);
-                            lines.Add($"aria2c: installed → {path}");
-                        }
-                        catch (FileNotFoundException)
-                        {
-                            lines.Add("aria2c: install reported ok but not on PATH");
-                            ok = false;
-                        }
-                    }
-                    else
-                    {
-                        lines.Add("aria2c: install failed");
-                        ok = false;
-                    }
-                }
-                catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException or IOException)
-                {
-                    lines.Add($"aria2c: {ex.Message}");
-                    ok = false;
-                }
+                var (installed, msg, _) = await InstallAria2Async(ct, autoYes: true);
+                lines.Add($"aria2c: {msg}");
+                ok = installed;
             }
         }
 
         lines.Add("managers:");
         foreach (var mgr in PackageManagerCatalog.Aria2Managers.Where(m => m.IsOsMatch()))
         {
-            var probe = await ProcessRunner.RunAsync(mgr.Id, mgr.ProbeArgs, ct);
-            lines.Add($"  {mgr.DisplayName}: {(probe.ExitCode == 0 ? "package available" : "not available")}");
+            try
+            {
+                var probe = await ProcessRunner.RunAsync(mgr.ProbeFileName, mgr.ProbeArgs, ct);
+                var avail = PackageManagerCatalog.IsPackageAvailable(mgr.ProbeKind, probe.ExitCode, probe.StdOut, probe.StdErr);
+                lines.Add($"  {mgr.DisplayName}: {(avail ? "package available" : "not available")}");
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or IOException or System.ComponentModel.Win32Exception)
+            {
+                lines.Add($"  {mgr.DisplayName}: probe failed");
+            }
         }
 
         return (ok, string.Join(Environment.NewLine, lines));

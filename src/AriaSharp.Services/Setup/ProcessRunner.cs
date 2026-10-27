@@ -5,9 +5,9 @@ namespace AriaSharp.Services;
 /// <summary>
 /// Runs a child process and always drains stdout/stderr (avoids pipe-full hangs).
 /// </summary>
-public static class ProcessRunner
+internal static class ProcessRunner
 {
-    public sealed record Result(int ExitCode, string StdOut, string StdErr);
+    internal sealed record Result(int ExitCode, string StdOut, string StdErr);
 
     public static async Task<Result> RunAsync(
         string fileName,

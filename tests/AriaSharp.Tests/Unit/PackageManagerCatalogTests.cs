@@ -1,27 +1,100 @@
-
 namespace AriaSharp.Tests;
 
-public class Aria2BootstrapPathsTests
+public class PackageManagerCatalogParseTests
 {
     [Fact]
-    public void Manifest_Urls_PointAtOfficialRelease()
+    public void AptCandidate_Present()
     {
-        Assert.Contains("1.37.0", Aria2Manifest.Version, StringComparison.Ordinal);
-        Assert.StartsWith("https://github.com/aria2/aria2/releases/", Aria2Manifest.WindowsZipUrl, StringComparison.Ordinal);
-        Assert.StartsWith("https://github.com/aria2/aria2/releases/", Aria2Manifest.SourceTarballGzUrl, StringComparison.Ordinal);
+        const string sample = """
+            aria2:
+              Installed: (none)
+              Candidate: 1.37.0-1
+              Version table:
+            """;
+        Assert.True(PackageManagerCatalog.HasAptCandidate(sample));
+        Assert.True(PackageManagerCatalog.IsPackageAvailable(
+            PackageProbeKind.AptCandidate, 0, sample, ""));
     }
 
     [Fact]
-    public void AppPaths_ToolsBin_IsUnderDataDirectory()
+    public void AptCandidate_None()
     {
-        Assert.StartsWith(AppPaths.DataDirectory, AppPaths.ToolsBinDirectory, StringComparison.Ordinal);
-        Assert.EndsWith("aria2c", AppPaths.BundledAria2cPath.Replace(".exe", "", StringComparison.OrdinalIgnoreCase), StringComparison.OrdinalIgnoreCase);
+        const string sample = """
+            aria2:
+              Installed: (none)
+              Candidate: (none)
+              Version table:
+            """;
+        Assert.False(PackageManagerCatalog.HasAptCandidate(sample));
+        Assert.False(PackageManagerCatalog.IsPackageAvailable(
+            PackageProbeKind.AptCandidate, 0, sample, ""));
     }
 
     [Fact]
-    public void Locator_PrefersBundled_WhenPresent()
+    public void NonEmptyOutput_RequiresText()
     {
-        // Only asserts contract: bundled path is absolute under data dir
-        Assert.True(Path.IsPathRooted(AppPaths.BundledAria2cPath));
+        Assert.False(PackageManagerCatalog.IsPackageAvailable(
+            PackageProbeKind.NonEmptyOutput, 0, "  ", ""));
+        Assert.True(PackageManagerCatalog.IsPackageAvailable(
+            PackageProbeKind.NonEmptyOutput, 0, "aria2 1.37.0", ""));
+        Assert.False(PackageManagerCatalog.IsPackageAvailable(
+            PackageProbeKind.NonEmptyOutput, 1, "aria2", ""));
+    }
+
+    [Fact]
+    public void ExitCodeZero_IgnoresBody()
+    {
+        Assert.True(PackageManagerCatalog.IsPackageAvailable(
+            PackageProbeKind.ExitCodeZero, 0, "", ""));
+        Assert.False(PackageManagerCatalog.IsPackageAvailable(
+            PackageProbeKind.ExitCodeZero, 1, "ok", ""));
+    }
+}
+
+public class NetworkProbeTests
+{
+    [Fact]
+    public async Task Override_Offline()
+    {
+        Environment.SetEnvironmentVariable("ARIASHARP_NETWORK", "offline");
+        try
+        {
+            var (ok, detail) = await NetworkProbe.CheckAsync(CancellationToken.None);
+            Assert.False(ok);
+            Assert.Contains("offline", detail, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ARIASHARP_NETWORK", null);
+        }
+    }
+
+    [Fact]
+    public async Task Override_Online()
+    {
+        Environment.SetEnvironmentVariable("ARIASHARP_NETWORK", "online");
+        try
+        {
+            var (ok, _) = await NetworkProbe.CheckAsync(CancellationToken.None);
+            Assert.True(ok);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ARIASHARP_NETWORK", null);
+        }
+    }
+
+    [Fact]
+    public void HasProxyEnv_DetectsHttpsProxy()
+    {
+        Environment.SetEnvironmentVariable("HTTPS_PROXY", "http://127.0.0.1:8080");
+        try
+        {
+            Assert.True(NetworkProbe.HasProxyEnv());
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("HTTPS_PROXY", null);
+        }
     }
 }

@@ -1,4 +1,3 @@
-
 namespace AriaSharp.App;
 
 /// <summary>Diagnostics: OS, network, managers, aria2 path/version/HTTPS.</summary>
@@ -17,21 +16,19 @@ internal static class DoctorCommand
         var (netOk, netDetail) = await NetworkProbe.CheckAsync(ct);
         lines.Add($"network: {(netOk ? "ok" : "fail")} ({netDetail})");
 
-        foreach (var mgr in PackageManagerCatalog.Aria2Managers.Where(m => m.IsOsMatch()))
+        foreach (var mgr in PackageManagerCatalog.Aria2Managers.Where(static m => m.IsOsMatch()))
         {
-            var probe = await ProcessRunner.RunAsync(mgr.Id, mgr.ProbeArgs, ct);
-            lines.Add($"manager {mgr.DisplayName}: {(probe.ExitCode == 0 ? "aria2 package visible" : "not available")}");
+            var (_, detail) = await Aria2Diagnostics.ProbeManagerAsync(mgr, ct);
+            lines.Add($"manager {mgr.DisplayName}: {detail}");
         }
 
         try
         {
             var path = await new Aria2Locator().LocateAsync(ct);
             lines.Add($"aria2c: {path}");
-            var ver = await ProcessRunner.RunAsync(path, "--version", ct);
-            lines.Add(ver.StdOut.Split('\n')[0]);
-            lines.Add(ver.StdOut.Contains("HTTPS", StringComparison.OrdinalIgnoreCase)
-                ? "HTTPS: yes"
-                : "HTTPS: no or unknown");
+            var (_, first, https) = await Aria2Diagnostics.VersionAsync(path, ct);
+            lines.Add(first);
+            lines.Add(https ? "HTTPS: yes" : "HTTPS: no or unknown");
         }
         catch (FileNotFoundException)
         {
