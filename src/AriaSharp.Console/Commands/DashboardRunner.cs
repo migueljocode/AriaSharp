@@ -40,7 +40,7 @@ internal static class DashboardRunner
 
             try
             {
-                await AnsiConsole.Live(DashboardView.Build(empty, TimeSpan.Zero, settings.MaxConnectionPerServer))
+                await AnsiConsole.Live(DashboardView.Build(empty, TimeSpan.Zero, settings.MaxConnectionPerServer, splitPerServer: settings.Split))
                     .AutoClear(true)
                     .Overflow(VerticalOverflow.Ellipsis)
                     .Cropping(VerticalOverflowCropping.Bottom)
@@ -105,7 +105,7 @@ internal static class DashboardRunner
         AppSettings settings,
         CancellationToken ct)
     {
-        var loop = new DashboardLoop(ctx, settings.MaxConnectionPerServer);
+        var loop = new DashboardLoop(ctx, settings.MaxConnectionPerServer, settings.Split);
         using var renderCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var render = loop.RunAsync(renderCts.Token);
         var session = new DownloadSession(engine, new ProgressCalculator(), settings, loop.Publish);

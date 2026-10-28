@@ -28,6 +28,7 @@ public sealed class Aria2Engine : IAria2Engine
     private string _version = string.Empty;
     private bool _disposed;
     private bool _stopped;
+    private readonly PauseTracker _pauseTracker = new();
     private SessionSaveCoordinator? _sessionSave;
 
     public ChannelReader<EngineEvent> Events => _channel.Reader;
@@ -92,7 +93,7 @@ public sealed class Aria2Engine : IAria2Engine
         ], ct);
 
         var active = Aria2SnapshotMapper.MapItems(Aria2SnapshotMapper.ExtractMulticallResult(multicall, 0));
-        var (waiting, paused) = SplitPaused(Aria2SnapshotMapper.MapItems(Aria2SnapshotMapper.ExtractMulticallResult(multicall, 1)));
+        var (waiting, paused) = _pauseTracker.Split(Aria2SnapshotMapper.MapItems(Aria2SnapshotMapper.ExtractMulticallResult(multicall, 1)));
         var stoppedRaw = Aria2SnapshotMapper.MapItems(Aria2SnapshotMapper.ExtractMulticallResult(multicall, 2));
         var global = Aria2SnapshotMapper.ExtractMulticallResult(multicall, 3);
 
@@ -137,6 +138,7 @@ public sealed class Aria2Engine : IAria2Engine
         return new EngineSnapshot
         {
             Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            IsPaused = _pauseTracker.IsPaused,
             Active = active,
             Waiting = waiting,
             Stopped = stopped,
@@ -323,12 +325,16 @@ public sealed class Aria2Engine : IAria2Engine
         ObjectDisposedException.ThrowIf(_disposed, this);
         var rpc = _rpc ?? throw new InvalidOperationException("Engine not started.");
         await rpc.CallAsync("aria2.unpauseAll", null, ct);
+        _pauseTracker.Clear();
     }
 
+    /// <summary>Pauses everything. Only downloads that were active now are reported as Paused; the queue stays Waiting.</summary>
     public async Task ForcePauseAllAsync(CancellationToken ct)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         var rpc = _rpc ?? throw new InvalidOperationException("Engine not started.");
+        var active = await rpc.CallAsync("aria2.tellActive", new object[] { new[] { "gid" } }, ct);
+        _pauseTracker.Record(Aria2SnapshotMapper.ExtractGids(active));
         await rpc.CallAsync("aria2.forcePauseAll", null, ct);
     }
 
@@ -405,18 +411,5 @@ private async Task WaitForRpcAsync(CancellationToken ct)
         return 0;
     }
 
-    internal static (List<DownloadItem> Waiting, List<DownloadItem> Paused) SplitPaused(List<DownloadItem> items)
-    {
-        var waiting = new List<DownloadItem>();
-        var paused = new List<DownloadItem>();
-        foreach (var item in items)
-        {
-            if (item.State == DownloadState.Paused)
-                paused.Add(item);
-            else
-                waiting.Add(item);
-        }
-        return (waiting, paused);
-    }
 
 }

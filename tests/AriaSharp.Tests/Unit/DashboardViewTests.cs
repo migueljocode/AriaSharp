@@ -39,6 +39,22 @@ public class DashboardViewTests
         Assert.Contains("complete", text, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void Build_HeadersAreSplitAndConnection()
+    {
+        var text = RenderToString(DashboardView.Build(SampleState(), TimeSpan.FromSeconds(5), 16, splitPerServer: 16), width: 120);
+        Assert.Contains("Split", text, StringComparison.Ordinal);
+        Assert.Contains("Connection", text, StringComparison.Ordinal);
+        Assert.DoesNotContain(" Conn ", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_ConnectionCell_ShowsLiveOverMax()
+    {
+        var text = RenderToString(DashboardView.Build(SampleState(), TimeSpan.FromSeconds(5), 16, splitPerServer: 16), width: 120);
+        Assert.Contains("16/16", text, StringComparison.Ordinal);
+    }
+
     private static string RenderToString(IRenderable renderable, int width)
     {
         var sw = new StringWriter();

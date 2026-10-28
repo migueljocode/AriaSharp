@@ -59,4 +59,22 @@ public partial class GradientTests
         Assert.Equal(10, half.Length);
         Assert.True(half.StartsWith('█') && half.EndsWith(' '));
     }
+
+    [Fact]
+    public void Soft_StaysWithinRampRange()
+    {
+        for (var x = 0.0; x <= 1.0; x += 0.1)
+        for (var phase = 0.0; phase < 2.0; phase += 0.25)
+        {
+            var c = Gradient.Soft(Gradient.Violet, x, phase);
+            Assert.InRange(c.R, Gradient.Violet[0].R, Gradient.Violet[^1].R + 1);
+        }
+    }
+
+    [Fact]
+    public void Yellow_RampExists_ForPausedBar()
+    {
+        Assert.Equal(5, Gradient.Yellow.Length);
+        Assert.Equal(0xFE, Gradient.Yellow[^1].R);
+    }
 }

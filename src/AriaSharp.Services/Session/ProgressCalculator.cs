@@ -116,6 +116,7 @@ public sealed class ProgressCalculator : IProgressCalculator
         return new SessionState
         {
             Timestamp = snapshot.Timestamp,
+            IsPaused = snapshot.IsPaused,
             NumActive = activeItems.Count,
             NumWaiting = waitingItems.Count,
             NumStopped = stoppedItems.Count,
