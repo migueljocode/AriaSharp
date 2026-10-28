@@ -69,7 +69,7 @@ public class SessionLocatorTests
     {
         var ex = Assert.Throws<SessionNotFoundException>(() =>
             SessionLocator.Locate("/nonexistent/dir", "/cwd", null));
-        Assert.Contains("no resume.session in /cwd", ex.Message);
+        Assert.Contains("no resume.session in /cwd", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
