@@ -57,9 +57,9 @@ public class ArgParserTests
         var settings = Parse(["-j", "4"]);
         Assert.True(settings.MaxConcurrentDownloads == 4);
         var ex = Assert.Throws<CliException>(() => Parse(["-j", "0"]));
-        Assert.Contains("2 to 16", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("1 to 16", ex.Message, StringComparison.Ordinal);
         ex = Assert.Throws<CliException>(() => Parse(["-j", "17"]));
-        Assert.Contains("2 to 16", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("1 to 16", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
