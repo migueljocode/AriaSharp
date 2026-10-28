@@ -1,21 +1,63 @@
 # PROGRESS.md
 
 ## Milestone
-Installer seams + consent/fallback unit tests (PR).
+fix/exit-input-session — invalid input fails fast, instant R/Q/EXIT, -s resume session, -j default 2, plus Issues 1-3 (no / pager search, Connections=16, Pause drops speed to 0).
 
 ## Done
-- IProcessRunner, IInstallEnvironment, INetworkProbe, IArtifactInstaller seams
-- PrerequisiteInstaller instance flow + CreateDefault production wiring
-- Consent/fallback/sudo/classify tests with hand-written fakes (no network/process)
-- End-of-run saveSession failure: one verbose warning line, no throw
-- Hermetic installer tests with temp cache injection
-- InstallDepsAsync as instance method + sudo -n / plain sudo variants
-- Tidy: single ProcessRunResult type, internal interfaces/adapters, remove FormatInstallCommand/ResolveInstallCommand duplicate overloads
-- Release host unreachable + manager + consent test: install succeeds via manager, artifacts.Calls == 0
+- STEP 0: cleanup ForceShutdownAsync indentation/DisposeAsync; OptionTable jobs uses CultureInfo.InvariantCulture
+- A1: InputResolver.ExpandArgsAsync rejects non-URL/non-file args, collects rejected args
+- A2: InputCommand.ResolveAsync reports rejected args with "Error: no valid URL..." exit 2
+- A3: DownloadPaths.Resolve defers Directory.CreateDirectory; DownloadCommand wraps in try/catch with exit 2
+- A4: DashboardRunner skips AnsiConsole.Live until first snapshot has items; prints error on normal screen
+- A5: tests for invalid input rejection, DownloadPaths no dir creation, InputCommand exit 2
+- B1: StopAsync added to IDownloadEngine/IAria2Engine; order: SaveSession(1s) -> ForceShutdown -> Kill(500ms) -> dispose notifications
+- B2: DisposeAsync calls StopAsync; ShutdownAsync removed; GracefulStopTimeoutMs removed; Aria2Process uses ForceStopWaitMs
+- B3: Aria2NotificationListener.DisposeAsync aborts socket (no close handshake), capped 300ms
+- B4: DownloadCommand calls engine.StopAsync before DownloadSummary.FinishAsync
+- B5: --verbose prints "engine stopped in <n> ms" to stderr
+- B6: forceShutdown session-file write verified against aria2 1.37.0 manual (unverified - no live aria2 to test)
+- B7: tests for StopAsync idempotency, no Shutdown call
+- C1: OptionKind.OptionalString added; -s / --session takes optional value; bare -s = auto
+- C2: SessionLocator in Services/IO; resolves session file/dir, throws SessionNotFoundException if missing
+- C3: DownloadPaths.Resolve uses SessionLocator; ARIASHARP_SESSION env/config via existing SettingsOverlay.SessionFile mapping
+- C4: -s sets Resume=true and skips "No URLs found" (round 5 replaced the second --input-file flag: the session entries are now merged into the single workspace input file)
+- C5: SessionLocatorTests (dir value, file value, bare -s found/missing, explicit -o wins)
+- D1: AppDefaults.MaxConcurrentDownloads stays 2; precedence CLI > env > config > default unchanged
+- D2: README.md line 58 "default 1" -> "default 2"; Brief line 58 "max-concurrent-downloads 1" -> "2"
+- D3: SettingsBootstrap diagnostics to stderr when Verbose/PrintConfig: config path, env names, jobs source layer
+- D4: JobsDefaultTests (default=2, -j 1 ok, -j 0/17 throw, env beats default, CLI beats env, jobs source)
+- Issue 1: Removed /, n, N search from HelpPager; status line `✦ Help {offset+1}–{end}/{total} {label} · j/k space/b g/G q`; removed search wording from HelpView KEYS panel, HelpDocument KEYS section, Brief lines 113/139; deleted ReadSearch/FindNext/dead code
+- Issue 2a: Added AppDefaults.MinSplitSize = "1M"
+- Issue 2b: Aria2ArgsBuilder emits --min-split-size=1M before ExtraOptions; user override wins
+- Issue 2c: Conn column shows {live}/{max} (e.g. 16/16); (Split column later restored in Round 3); DashboardView/DashboardLoop/DashboardRunner threaded with MaxConnectionPerServer; defaults Split=16, MaxConnectionPerServer=16 unchanged
+- Issue 3a: P key calls ForcePauseAllAsync (aria2.forcePauseAll); deleted PauseAllAsync; Resume stays unpauseAll
+- Issue 3b: ProgressCalculator TotalDownloadSpeed = sum of active items' DownloadSpeed (0 when none); per-item speed 0 for non-active; no globalStat speed
 
 ## Next
-- Optional S1 spike: Aria2.JsonRpcClient under PublishAot
-- Terminal check: full-screen help and dashboard on a real TTY
+- Issue 2 Step 1 diagnosis (real 100MB+ download + aria2.getOption) - not run (no live aria2/network)
+- Issue 3 Step 3 manual check (time from P keypress to 0 B/s) - not run (no live aria2)
+- E3: CI now runs on PR #4 via GitHub Actions; green on the Round 3 head commit
 
 ## Blocked
 - (none)
+
+## Round 3 — pause/queue, clock, UI polish
+- Done: pause keeps queued items Waiting (`PauseTracker`, thread-safe, additive); elapsed frozen while paused (`RunClock`); paused bar yellow; soft logo-style bar gradient (`Gradient.Soft`); Split column restored; `Connection` header; centered headers, ETA/Split/Connection values centered, Progress/Speed values right-aligned.
+- Verified by CI (Actions, ubuntu/macos/windows): build, unit tests, AOT publish, smoke tests.
+- Not done / unverified: `graphify update` (no tooling here); live check against real aria2 that (a) queued items stay Waiting after P, (b) the same two downloads resume first after R, (c) speed reads 0 right after P, (d) the visual look of the soft gradient and header alignment.
+
+## Round 4 — pitfall review
+- Done: active table is responsive (`DashboardView.PlanTable`): Spectre shrinks every column evenly when a table is too wide, which wrapped the fixed-width cells at 80 columns, so Split is hidden below 91 columns and the name column gets the remainder (min 12). `DashboardView.Build` takes an optional `terminalWidth` so the layout is testable. `PauseTracker` now has an explicit paused flag (pausing with nothing active still counts as paused, clock freezes). Help defaults come from one place (`OptionDefaults`), which also shows the `--min-split-size` default (1M); refresh now reads `500ms` in both help renderers. README flags corrected (`-c`, `-o`, `-s`; there is no `-x`/`-d`). Brief `-j` default corrected to 2.
+- Verified by CI (Actions): build and tests on ubuntu/macos/windows (see the PR checks).
+- Unverified: how the table looks in a real terminal at 80/100/120 columns; live pause/resume against real aria2.
+- Known, left as is: while paused the ACTIVE table shows "(none)" (paused items only appear in STATUS counts); a download finishing between `tellActive` and `forcePauseAll` shows as Waiting until resumed; CI actions run on a deprecated Node 20 runtime (warning only).
+
+## Round 5 — review fixes F1-F6 (-s and shutdown)
+- F1: bare `-s`/`--session` now applies `""` ("set, auto") instead of null and no longer consumes the next argument (`-s https://x` keeps the URL; before, a bare `-s` before a non-URL swallowed it). The overlay merge treats `""` as set (`is not null`); `DownloadPaths` tests `SessionFile is not null`.
+- F2/F3: `SessionLocator` never falls back to the current directory for a non-empty value: a missing path throws `SessionNotFoundException("path not found: <value>")`. `InputCommand.ApplySessionAsync` runs before any input or engine work, prints `Error: <message>`, exits 2, and stores the resolved session file and (unless `-o` was given) the output directory. `DownloadCommand` also catches the exception (safety net, exit 2).
+- F4: `Aria2ArgsBuilder` emits exactly one `--input-file`. On resume `InputMerger.WriteAsync(inputs, dest, sessionFile)` writes the URLs first and then stream-copies the session file (no ReadAllText); `--save-session` still points at the real session file. aria2 manual check: the manual documents `--input-file` as a single `FILE` argument and says nothing about repeating it, and that the `--save-session` output "can be passed to aria2c with --input-file on restart" - so one merged file is the documented path; whether a repeated flag keeps only the last is still unverified against a live aria2.
+- F5: `ForceShutdownAsync` runs under a real 1000 ms cap (`AppDefaults.ForceShutdownRpcCapMs`) and `Aria2NotificationListener.DisposeAsync` abandons its loop after 300 ms (`AppDefaults.NotificationDisposeCapMs`) via `BoundedWait` (`Task.WhenAny` plus delay; a late fault is observed). The unused `notifyCts` is removed.
+- F6: `DashboardRunner.IsEmptyStart` also requires no paused, stopped, complete, failed, skipped or interrupted items, so an instantly finished or failed download reaches the dashboard/summary. The snapshot has no `NumStopped`; stopped results are split into those lists, so the check uses them.
+- Tests added for each (ArgParser, SessionLocator, InputCommand, Aria2ArgsBuilder, InputMerger, BoundedWait, DashboardGuard).
+- Not run here: no .NET SDK in the authoring sandbox (download blocked); build and tests are verified only by CI.
+- Unverified: live aria2 behaviour of a resume with URLs; real-terminal check of the empty-start path.

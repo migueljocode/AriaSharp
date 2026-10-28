@@ -16,10 +16,9 @@ internal static class Gradient
 {
     public static readonly Rgb[] Violet = [new(0x5B, 0x21, 0xB6), new(0x7C, 0x3A, 0xED), new(0x8B, 0x5C, 0xF6), new(0xA7, 0x8B, 0xFA), new(0xDD, 0xD6, 0xFE)];
     public static readonly Rgb[] Green = [new(0x06, 0x5F, 0x46), new(0x05, 0x96, 0x69), new(0x10, 0xB9, 0x81), new(0x34, 0xD3, 0x99), new(0xA7, 0xF3, 0xD0)];
-    public static readonly Rgb[] Amber = [new(0x78, 0x35, 0x0F), new(0xB4, 0x53, 0x09), new(0xD9, 0x77, 0x06), new(0xF5, 0x9E, 0x0B), new(0xFC, 0xD3, 0x4D)];
+    public static readonly Rgb[] Yellow = [new(0x85, 0x4D, 0x0E), new(0xCA, 0x8A, 0x04), new(0xEA, 0xB3, 0x08), new(0xFA, 0xCC, 0x15), new(0xFE, 0xF0, 0x8A)];
 
     private static readonly Rgb Track = new(0x2D, 0x25, 0x40);
-    private static readonly Rgb White = new(0xFF, 0xFF, 0xFF);
     private const string Eighths = " ▏▎▍▌▋▊▉";
     private const string SpinnerFrames = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏";
 
@@ -37,9 +36,17 @@ internal static class Gradient
     public static double Glide(double shown, double target, double dtSeconds, double rate = 7) =>
         shown + ((target - shown) * (1 - Math.Exp(-Math.Max(0, dtSeconds) * rate)));
 
+    /// <summary>Soft logo-style colour for a position <paramref name="x"/> (0..1) at a given animation phase.</summary>
+    public static Rgb Soft(ReadOnlySpan<Rgb> stops, double x, double phase)
+    {
+        var u = x + phase;
+        var t = 1 - Math.Abs((2 * (u - Math.Floor(u))) - 1);
+        return Sample(stops, 0.25 + (t * 0.75));
+    }
+
     /// <summary>
-    /// Bar exactly <paramref name="width"/> cells wide. Filled part is a gradient with an eighth-block head;
-    /// a soft highlight sweeps across it when <paramref name="frame"/> is not negative.
+    /// Bar exactly <paramref name="width"/> cells wide. Filled part uses the same soft logo gradient;
+    /// frame drives a slow phase drift, a negative frame gives a static bar.
     /// </summary>
     public static string Bar(int width, double fraction, ReadOnlySpan<Rgb> stops, int frame = -1)
     {
@@ -48,21 +55,19 @@ internal static class Gradient
         var eighths = (int)Math.Round(f * width * 8);
         var full = eighths / 8;
         var part = eighths % 8;
-        var sheenAt = frame < 0 || full == 0 ? double.NaN : (frame * 0.8 % (full + 10)) - 3;
+        var phase = frame < 0 ? 0 : frame * 0.012;
 
         var sb = new StringBuilder(width * 12);
         for (var x = 0; x < full; x++)
         {
-            var c = Sample(stops, width <= 1 ? 1 : (double)x / (width - 1));
-            if (!double.IsNaN(sheenAt))
-                c = Rgb.Lerp(c, White, Math.Max(0, 1 - (Math.Abs(x - sheenAt) / 3)) * 0.4);
+            var c = Soft(stops, width <= 1 ? 0 : (double)x / (width - 1), phase);
             sb.Append('[').Append(c.Hex).Append(']').Append('█').Append("[/]");
         }
 
         var cells = full;
         if (part > 0 && cells < width)
         {
-            var c = Sample(stops, width <= 1 ? 1 : (double)full / (width - 1));
+            var c = Soft(stops, width <= 1 ? 0 : (double)full / (width - 1), phase);
             sb.Append('[').Append(c.Hex).Append(" on ").Append(Track.Hex).Append(']').Append(Eighths[part]).Append("[/]");
             cells++;
         }
@@ -72,7 +77,7 @@ internal static class Gradient
         return sb.ToString();
     }
 
-    /// <summary>Per-character gradient text with a slow ping-pong sheen; characters right of <paramref name="reveal"/> (0..1) are blanked.</summary>
+    /// <summary>Per-character gradient text with a slow ping-pong phase; characters right of <paramref name="reveal"/> (0..1) are blanked.</summary>
     public static string Text(string line, ReadOnlySpan<Rgb> stops, int frame = 0, double reveal = 1)
     {
         var sb = new StringBuilder(line.Length * 12);
@@ -87,9 +92,7 @@ internal static class Gradient
                 continue;
             }
 
-            var u = ((double)x / line.Length) + phase;
-            var t = 1 - Math.Abs((2 * (u - Math.Floor(u))) - 1);
-            sb.Append('[').Append(Sample(stops, 0.25 + (t * 0.75)).Hex).Append(']').Append(ch).Append("[/]");
+            sb.Append('[').Append(Soft(stops, (double)x / line.Length, phase).Hex).Append(']').Append(ch).Append("[/]");
         }
 
         return sb.ToString();

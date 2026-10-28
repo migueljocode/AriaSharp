@@ -5,15 +5,17 @@ internal static class DownloadPaths
 {
     public static (string OutputDir, string SessionPath) Resolve(AppSettings settings)
     {
+        if (settings.SessionFile is not null)
+        {
+            var result = SessionLocator.Locate(settings.SessionFile, Directory.GetCurrentDirectory(), settings.OutputDir);
+            return (result.OutputDir, result.SessionFile);
+        }
+
         var outputDir = string.IsNullOrWhiteSpace(settings.OutputDir)
             ? AppDefaults.OutputDirDefault
             : settings.OutputDir;
-        if (!Directory.Exists(outputDir))
-            Directory.CreateDirectory(outputDir);
 
-        var sessionPath = string.IsNullOrWhiteSpace(settings.SessionFile)
-            ? Path.Join(outputDir, AppDefaults.SessionFileName)
-            : settings.SessionFile;
+        var sessionPath = Path.Join(outputDir, AppDefaults.SessionFileName);
 
         return (outputDir, sessionPath);
     }

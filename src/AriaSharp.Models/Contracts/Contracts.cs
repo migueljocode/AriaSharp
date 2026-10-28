@@ -7,7 +7,7 @@ public interface IDownloadEngine : IAsyncDisposable
     Task StartAsync(EngineSettings settings, CancellationToken ct);
     Task<EngineSnapshot> GetSnapshotAsync(CancellationToken ct);
     Task SaveSessionAsync(CancellationToken ct);
-    Task ShutdownAsync(CancellationToken ct);
+    Task StopAsync(CancellationToken ct);
     Task<string> AddUriAsync(string[] uris, CancellationToken ct);
     ChannelReader<EngineEvent> Events { get; }
 }

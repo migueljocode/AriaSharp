@@ -49,6 +49,24 @@ public class Aria2ArgsBuilderTests
         Assert.Contains("--conf-path=/tmp/conf", args);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Build_EmitsExactlyOneInputFile_EvenWhenResuming(bool resume)
+    {
+        var args = Build(new AppSettings { Resume = resume });
+        Assert.Single(args, a => a.StartsWith("--input-file=", StringComparison.Ordinal));
+        Assert.Contains("--input-file=/tmp/input", args);
+        Assert.DoesNotContain("--input-file=/tmp/resume.session", args);
+    }
+
+    [Fact]
+    public void Build_Resume_StillSavesToTheRealSessionFile()
+    {
+        var args = Build(new AppSettings { Resume = true, SaveSession = true });
+        Assert.Contains("--save-session=/tmp/resume.session", args);
+    }
+
     [Fact]
     public void Build_HonoursSaveSession()
     {
@@ -59,6 +77,25 @@ public class Aria2ArgsBuilderTests
         var withoutSession = Build(new AppSettings { SaveSession = false });
         Assert.DoesNotContain("--save-session=", withoutSession);
         Assert.DoesNotContain("--save-session-interval=", withoutSession);
+    }
+
+    [Fact]
+    public void Build_EmitsMinSplitSize1MByDefault()
+    {
+        var args = Build(new AppSettings());
+        Assert.Contains("--min-split-size=1M", args);
+    }
+
+    [Fact]
+    public void Build_UserMinSplitSizeOverrideWins()
+    {
+        // Default 1M is added before ExtraOptions; user override comes after (aria2 takes last).
+        var args = Build(new AppSettings { ExtraOptions = ["min-split-size=2M"] });
+        Assert.Contains("--min-split-size=1M", args);
+        Assert.Contains("--min-split-size=2M", args);
+        // The override must be the last occurrence.
+        var last = args.Last(a => a.StartsWith("--min-split-size=", StringComparison.Ordinal));
+        Assert.Equal("--min-split-size=2M", last);
     }
 
     [Fact]

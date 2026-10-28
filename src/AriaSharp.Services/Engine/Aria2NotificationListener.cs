@@ -137,17 +137,9 @@ internal sealed class Aria2NotificationListener : IAsyncDisposable
 
         if (_ws is not null)
         {
-            try
-            {
-                if (_ws.State is WebSocketState.Open or WebSocketState.CloseReceived)
-                {
-                    using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-                    await _ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "shutdown", timeout.Token);
-                }
-            }
-            catch (WebSocketException) { }
-            catch (OperationCanceledException) { }
-            catch (IOException) { }
+            try { _ws.Abort(); }
+            catch (ObjectDisposedException) { }
+            catch (InvalidOperationException) { }
             finally
             {
                 _ws.Dispose();
@@ -155,15 +147,24 @@ internal sealed class Aria2NotificationListener : IAsyncDisposable
             }
         }
 
+        var loopFinished = true;
         if (_loop is not null)
         {
-            try { await _loop; }
-            catch (OperationCanceledException) { }
-            catch (WebSocketException) { }
-            catch (IOException) { }
-            catch (ObjectDisposedException) { }
+            // The wait is hard-capped: a loop stuck in a receive is abandoned, not awaited.
+            loopFinished = await BoundedWait.WaitAsync(
+                _loop, TimeSpan.FromMilliseconds(AppDefaults.NotificationDisposeCapMs));
+            if (loopFinished)
+            {
+                try { await _loop; }
+                catch (OperationCanceledException) { }
+                catch (WebSocketException) { }
+                catch (IOException) { }
+                catch (ObjectDisposedException) { }
+            }
         }
 
-        _cts.Dispose();
+        // An abandoned loop may still observe the token; leave the source for the GC then.
+        if (loopFinished)
+            _cts.Dispose();
     }
 }

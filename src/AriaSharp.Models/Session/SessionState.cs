@@ -3,6 +3,7 @@ namespace AriaSharp.Models;
 public sealed class SessionState
 {
     public long Timestamp { get; init; }
+    public bool IsPaused { get; init; }
     public int NumActive { get; init; }
     public int NumWaiting { get; init; }
     public int NumStopped { get; init; }

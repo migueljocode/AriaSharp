@@ -11,6 +11,7 @@ public sealed class EngineSnapshot
     public required IReadOnlyList<DownloadItem> Failed { get; init; }
     public required IReadOnlyList<DownloadItem> Skipped { get; init; }
     public required IReadOnlyList<DownloadItem> Interrupted { get; init; }
+    public bool IsPaused { get; init; }
     public int NumActive { get; init; }
     public int NumWaiting { get; init; }
     public long TotalDownloadSpeed { get; init; }

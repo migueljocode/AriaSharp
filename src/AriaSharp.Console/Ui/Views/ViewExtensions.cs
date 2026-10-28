@@ -6,7 +6,7 @@ internal static class ViewExtensions
     extension(SessionState state)
     {
         public IRenderable ToDashboard(TimeSpan elapsed, int split = 16, int frame = -1, double? shown = null) =>
-            DashboardView.Build(state, elapsed, split, frame, shown);
+            DashboardView.Build(state, elapsed, split, frame, shown, split);
 
         public void WriteInlineProgress(TextWriter writer, TimeSpan elapsed, bool color) =>
             InlineView.WriteProgress(writer, state, elapsed, color);

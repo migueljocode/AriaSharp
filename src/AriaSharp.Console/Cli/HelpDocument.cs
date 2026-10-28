@@ -56,8 +56,7 @@ internal static class HelpDocument
         sb.AppendLine("  130  interrupted (ctrl-c / signal)");
         sb.AppendLine();
         sb.AppendLine("KEYS (help pager)");
-        sb.AppendLine("  j/k and up/down  scroll,  Space / PgDn / PgUp  page,  g / G  top / bottom,");
-        sb.AppendLine("  /  search (n / N  next / prev),  q or Esc  quit.");
+        sb.AppendLine("  j/k and up/down  scroll,  Space / PgDn / PgUp  page,  g / G  top / bottom,  q or Esc  quit.");
         return sb.ToString();
     }
 
@@ -75,19 +74,8 @@ internal static class HelpDocument
         return sb.ToString();
     }
 
-    private static string AppendDefault(Option o, AppSettings settings)
-    {
-        var help = o.Help;
-        return o.LongName switch
-        {
-            "jobs" => $"{help} (default: {AppDefaults.MaxConcurrentDownloads})",
-            "connections" or "split" or "per-server" => $"{help} (default: {AppDefaults.MaxConnectionPerServer})",
-            "refresh" => $"{help} (default: {AppDefaults.RefreshIntervalMs})",
-            "output" => $"{help} (default: {AppDefaults.OutputDirDefault})",
-            "session" => $"{help} (default: {AppDefaults.SessionFileName})",
-            _ => help,
-        };
-    }
+    private static string AppendDefault(Option o, AppSettings settings) =>
+        OptionDefaults.For(o.LongName) is { } value ? $"{o.Help} (default: {value})" : o.Help;
 
     private static int GetWidth()
     {

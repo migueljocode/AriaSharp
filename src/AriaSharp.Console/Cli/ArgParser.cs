@@ -1,3 +1,5 @@
+using AriaSharp.Services;
+
 namespace AriaSharp.App;
 
 /// <summary>
@@ -67,9 +69,10 @@ internal static class ArgParser
             return i;
         }
 
-        var value = inlineValue ?? TakeNextValue(i, argv, name);
-        opt.Apply!(overlay, value);
-        return inlineValue is null ? i + 1 : i;
+        var value = inlineValue ?? TakeNextValueIfWanted(i, argv, name, opt);
+        // A bare OptionalString (value null) applies "" ("set, auto") and consumes nothing.
+        opt.Apply!(overlay, value ?? string.Empty);
+        return inlineValue is null && value is not null ? i + 1 : i;
     }
 
     private static int HandleShort(ReadOnlySpan<char> cluster, SettingsOverlay overlay, int i, string[] argv)
@@ -96,14 +99,38 @@ internal static class ArgParser
             }
 
             // value flag without attached value: -j 8  (value is the next argument)
-            var value = TakeNextValue(i, argv, opt.LongName);
-            opt.Apply!(overlay, value);
-            return i + 1;
+            var value = TakeNextValueIfWanted(i, argv, opt.LongName, opt);
+            opt.Apply!(overlay, value ?? string.Empty);
+            return value is null ? i : i + 1;
         }
 
         // value option with an attached value: -j8
         opt.Apply!(overlay, cluster[1..].ToString());
         return i;
+    }
+
+    private static string? TakeNextValueIfWanted(int i, string[] argv, string optionName, Option opt)
+    {
+        // OptionalString: only consume the next argument if it exists, does not start with '-',
+        // and is not a URL. Otherwise return null (bare option / auto).
+        if (opt.Kind == OptionKind.OptionalString)
+        {
+            if (i + 1 >= argv.Length) return null;
+            var next = argv[i + 1];
+            if (next.StartsWith('-')) return null;
+            if (IsUrl(next)) return null;
+            return next;
+        }
+        return TakeNextValue(i, argv, optionName);
+    }
+
+    private static bool IsUrl(string value)
+    {
+        if (string.IsNullOrEmpty(value)) return false;
+        var span = value.AsSpan();
+        foreach (var scheme in new[] { "http://", "https://", "ftp://", "ftps://", "sftp://", "magnet:?" })
+            if (span.StartsWith(scheme, StringComparison.OrdinalIgnoreCase)) return true;
+        return false;
     }
 
     private static string TakeNextValue(int i, string[] argv, string optionName)

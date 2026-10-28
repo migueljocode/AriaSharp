@@ -29,14 +29,51 @@ internal static class DownloadCommand
         Console.CancelKeyPress += onCancel;
         try
         {
-            var (outputDir, sessionPath) = DownloadPaths.Resolve(settings);
+            string outputDir, sessionPath;
+            try
+            {
+                (outputDir, sessionPath) = DownloadPaths.Resolve(settings);
+            }
+            catch (SessionNotFoundException ex)
+            {
+                await Console.Error.WriteLineAsync($"Error: {ex.Message}");
+                return ((int)ExitCode.UsageError, false);
+            }
+
+            try
+            {
+                if (!Directory.Exists(outputDir))
+                    Directory.CreateDirectory(outputDir);
+            }
+            catch (IOException ex)
+            {
+                await Console.Error.WriteLineAsync($"Error: invalid output directory {outputDir} ({ex.Message})");
+                return ((int)ExitCode.UsageError, false);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                await Console.Error.WriteLineAsync($"Error: invalid output directory {outputDir} ({ex.Message})");
+                return ((int)ExitCode.UsageError, false);
+            }
+            catch (NotSupportedException ex)
+            {
+                await Console.Error.WriteLineAsync($"Error: invalid output directory {outputDir} ({ex.Message})");
+                return ((int)ExitCode.UsageError, false);
+            }
+            catch (ArgumentException ex)
+            {
+                await Console.Error.WriteLineAsync($"Error: invalid output directory {outputDir} ({ex.Message})");
+                return ((int)ExitCode.UsageError, false);
+            }
+
             var workspace = await RunWorkspace.CreateAsync(cts.Token);
             var engine = new Aria2Engine();
             try
             {
                 try
                 {
-                    await InputMerger.WriteAsync(settings.Inputs.ToArray(), workspace.InputFile, cts.Token);
+                    var resumeFrom = settings.Resume ? Path.GetFullPath(sessionPath) : null;
+                    await InputMerger.WriteAsync(settings.Inputs.ToArray(), workspace.InputFile, resumeFrom, cts.Token);
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
@@ -111,6 +148,13 @@ internal static class DownloadCommand
                 if (settings.Verbose)
                     foreach (var warning in outcome.Warnings)
                         await Console.Error.WriteLineAsync(warning);
+
+                // Stop the engine before the summary / prompt — the summary must not need the engine.
+                var stopWatch = System.Diagnostics.Stopwatch.StartNew();
+                await engine.StopAsync(cts.Token);
+                stopWatch.Stop();
+                if (settings.Verbose)
+                    await Console.Error.WriteLineAsync($"engine stopped in {stopWatch.ElapsedMilliseconds} ms");
 
                 return await DownloadSummary.FinishAsync(
                     finalState, outcome, elapsed,

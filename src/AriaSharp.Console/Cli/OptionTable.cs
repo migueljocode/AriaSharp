@@ -1,6 +1,8 @@
+using System.Globalization;
+
 namespace AriaSharp.App;
 
-internal enum OptionKind { Flag, Integer, String, List }
+internal enum OptionKind { Flag, Integer, String, List, OptionalString }
 
 internal sealed class Option
 {
@@ -54,13 +56,13 @@ internal static class OptionTable
             new Option("from-clipboard", OptionKind.Flag, "Input & Output", "Force read URLs from the system clipboard only.", apply: (o, _) => o.FromClipboard = true),
             new Option("from-file", OptionKind.List, "Input & Output", "Force read URLs from a text/list file (repeatable).", valueName: "<path>", apply: (o, v) => o.FromFiles = o.FromFiles.Append(v ?? string.Empty).ToArray()),
             new Option("output",    OptionKind.String,  "Input & Output", "Output directory (default: current directory).",                                     apply: (o, v) => o.OutputDir = v,                                                     shortName: 'o'),
-            new Option("session",   OptionKind.String,  "Input & Output", "Resume session file path (default: <output>/resume.session).",                    apply: (o, v) => o.SessionFile = v,                                                shortName: 's'),
+            new Option("session",   OptionKind.OptionalString, "Input & Output", "Resume session file or directory (bare -s = auto).", apply: (o, v) => o.SessionFile = v, shortName: 's'),
             new Option("keep-list", OptionKind.Flag,    "Input & Output", "Keep list files after the run instead of prompting.",                                apply: (o, _) => o.KeepListFiles = true,                                             shortName: 'k'),
             new Option("resume",    OptionKind.Flag,    "Input & Output", "Resume from the session file without prompting.",                                  apply: (o, _) => o.Resume = true),
             new Option("yes",       OptionKind.Flag,    "Input & Output", "Assume yes to every prompt (non-interactive).",                                 apply: (o, _) => o.Yes = true),
 
             // ── TRANSFER
-            new Option("jobs",           OptionKind.Integer, "Transfer", "Maximum concurrent downloads.",                     min: 1, max: 16, valueName: "<n>", defaultValue: "2", apply: (o, v) => o.MaxConcurrentDownloads = ParseInt(v, "Jobs", 2, 16),    shortName: 'j'),
+            new Option("jobs",           OptionKind.Integer, "Transfer", "Maximum concurrent downloads.",                     min: 1, max: 16, valueName: "<n>", defaultValue: AppDefaults.MaxConcurrentDownloads.ToString(CultureInfo.InvariantCulture), apply: (o, v) => o.MaxConcurrentDownloads = ParseInt(v, "Jobs", 1, 16),    shortName: 'j'),
             new Option("connections",    OptionKind.Integer, "Transfer", "Per-server connections; also sets split and per-server.", min: 1, max: 16, valueName: "<n>", defaultValue: "16", apply: (o, v) => { var n = ParseInt(v, "Connections", 1, 16); o.Connections = n; o.Split = n; o.MaxConnectionPerServer = n; }, shortName: 'c'),
             new Option("split",          OptionKind.Integer, "Transfer", "Connections per download.",                 min: 1, max: 16, valueName: "<n>", defaultValue: "16", apply: (o, v) => o.Split = ParseInt(v, "Split", 1, 16)),
             new Option("per-server",     OptionKind.Integer, "Transfer", "Maximum connections per server.",            min: 1, max: 16, valueName: "<n>", defaultValue: "16", apply: (o, v) => o.MaxConnectionPerServer = ParseInt(v, "Per-server", 1, 16)),

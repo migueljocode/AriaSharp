@@ -112,9 +112,7 @@ internal static class HelpView
             new Markup(
                 $"[{Theme.PurpleBright}]j/k[/] [{Theme.Muted}]scroll[/]   " +
                 $"[{Theme.PurpleBright}]space/b[/] [{Theme.Muted}]page[/]   " +
-                $"[{Theme.PurpleBright}]g/G[/] [{Theme.Muted}]top/end[/]\n" +
-                $"[{Theme.PurpleBright}]/[/] [{Theme.Muted}]search[/]  " +
-                $"[{Theme.PurpleBright}]n/N[/] [{Theme.Muted}]next/prev[/]   " +
+                $"[{Theme.PurpleBright}]g/G[/] [{Theme.Muted}]top/end[/]   " +
                 $"[{Theme.PurpleBright}]q[/] [{Theme.Muted}]quit[/]")));
 
         console.Write(new Rule($"[{Theme.Magenta}]·[/]")
@@ -143,14 +141,7 @@ internal static class HelpView
         return $"{shortPart}--{o.LongName}{value}";
     }
 
-    private static string DefaultHint(Option o) => o.LongName switch
-    {
-        "jobs" => $"default {AppDefaults.MaxConcurrentDownloads}",
-        "connections" or "split" or "per-server" => $"default {AppDefaults.MaxConnectionPerServer}",
-        "refresh" => $"default {AppDefaults.RefreshIntervalMs}ms",
-        "output" => $"default {AppDefaults.OutputDirDefault}",
-        "session" => $"default {AppDefaults.SessionFileName}",
-        _ => "",
-    };
+    private static string DefaultHint(Option o) =>
+        OptionDefaults.For(o.LongName) is { } value ? $"default {value}" : "";
 
 }

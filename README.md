@@ -55,10 +55,10 @@ Layered: defaults → `~/.config/ariasharp/settings.json` → `ARIASHARP_*` / `N
 |--------|-------------|
 | `-y` / `--install-deps` | Install aria2 when missing (consent when interactive) |
 | `--doctor` | Network, managers, aria2 path / HTTPS |
-| `-j` | Concurrent downloads (default 1) |
-| `-x` / `-s` | Connections / split (default 16) |
-| `-d` | Output directory |
-| `--session` | Session file (default `resume.session` under output dir) |
+| `-j` | Concurrent downloads (default 2) |
+| `-c` / `--connections` | Connections per server, also used for split (default 16); fine-tune with `--split`, `--per-server`, `--min-split-size` (default 1M) |
+| `-o` / `--output` | Output directory |
+| `-s` / `--session` | Session file or directory; bare `-s` finds the session automatically (default `resume.session` under output dir) |
 | `--from-clipboard` / `--from-file` | Force input source |
 | `-h` / `-V` | Help / version |
 

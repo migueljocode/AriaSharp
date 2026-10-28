@@ -5,6 +5,22 @@ namespace AriaSharp.App;
 /// </summary>
 internal static class DashboardRunner
 {
+    /// <summary>
+    /// True only when aria2 holds no download of any kind. A download that already finished or
+    /// failed is a stopped result (the snapshot splits those into Complete, Failed, Skipped,
+    /// Interrupted and Stopped) and must reach the dashboard/summary, not this error.
+    /// </summary>
+    internal static bool IsEmptyStart(EngineSnapshot snapshot) =>
+        snapshot.NumActive == 0
+        && snapshot.NumWaiting == 0
+        && snapshot.TotalLength == 0
+        && snapshot.Paused.Count == 0
+        && snapshot.Stopped.Count == 0
+        && snapshot.Complete.Count == 0
+        && snapshot.Failed.Count == 0
+        && snapshot.Skipped.Count == 0
+        && snapshot.Interrupted.Count == 0;
+
     public static async Task<(RunOutcome Outcome, SessionState State, TimeSpan Elapsed, bool Retry)> RunWithDashboardAsync(
         Aria2Engine engine,
         AppSettings settings,
@@ -28,9 +44,19 @@ internal static class DashboardRunner
 
         try
         {
+            // Poll once before opening the alt screen. If aria2 reports zero items,
+            // print the error on the normal screen and never open the alt screen.
+            var firstSnapshot = await engine.GetSnapshotAsync(linked.Token);
+            if (IsEmptyStart(firstSnapshot))
+            {
+                await Console.Error.WriteLineAsync("Error: no downloads started — aria2 reported zero items.");
+                await StopKeysAsync(linked, keyTask);
+                return (RunOutcome.Empty("no downloads started — aria2 reported zero items."), empty, TimeSpan.Zero, false);
+            }
+
             try
             {
-                await AnsiConsole.Live(DashboardView.Build(empty, TimeSpan.Zero, settings.Split))
+                await AnsiConsole.Live(DashboardView.Build(empty, TimeSpan.Zero, settings.MaxConnectionPerServer, splitPerServer: settings.Split))
                     .AutoClear(true)
                     .Overflow(VerticalOverflow.Ellipsis)
                     .Cropping(VerticalOverflowCropping.Bottom)
@@ -74,7 +100,7 @@ internal static class DashboardRunner
             switch (action)
             {
                 case DashboardKeyAction.PauseAll:
-                    await engine.PauseAllAsync(token);
+                    await engine.ForcePauseAllAsync(token);
                     break;
                 case DashboardKeyAction.ResumeAll:
                     await engine.UnpauseAllAsync(token);
@@ -95,7 +121,7 @@ internal static class DashboardRunner
         AppSettings settings,
         CancellationToken ct)
     {
-        var loop = new DashboardLoop(ctx, settings.Split);
+        var loop = new DashboardLoop(ctx, settings.MaxConnectionPerServer, settings.Split);
         using var renderCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var render = loop.RunAsync(renderCts.Token);
         var session = new DownloadSession(engine, new ProgressCalculator(), settings, loop.Publish);

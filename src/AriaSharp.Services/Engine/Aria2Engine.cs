@@ -8,6 +8,7 @@ namespace AriaSharp.Services;
 public interface IAria2Engine : IDownloadEngine
 {
     Task<string> GetVersionAsync(CancellationToken ct);
+    Task ForceShutdownAsync(CancellationToken ct);
 }
 
 /// <summary>
@@ -26,6 +27,9 @@ public sealed class Aria2Engine : IAria2Engine
     private Aria2NotificationListener? _notifications;
     private string _version = string.Empty;
     private bool _disposed;
+    private bool _stopped;
+    private static readonly string[] GidOnly = ["gid"];
+    private readonly PauseTracker _pauseTracker = new();
     private SessionSaveCoordinator? _sessionSave;
 
     public ChannelReader<EngineEvent> Events => _channel.Reader;
@@ -90,7 +94,7 @@ public sealed class Aria2Engine : IAria2Engine
         ], ct);
 
         var active = Aria2SnapshotMapper.MapItems(Aria2SnapshotMapper.ExtractMulticallResult(multicall, 0));
-        var (waiting, paused) = SplitPaused(Aria2SnapshotMapper.MapItems(Aria2SnapshotMapper.ExtractMulticallResult(multicall, 1)));
+        var (waiting, paused) = _pauseTracker.Split(Aria2SnapshotMapper.MapItems(Aria2SnapshotMapper.ExtractMulticallResult(multicall, 1)));
         var stoppedRaw = Aria2SnapshotMapper.MapItems(Aria2SnapshotMapper.ExtractMulticallResult(multicall, 2));
         var global = Aria2SnapshotMapper.ExtractMulticallResult(multicall, 3);
 
@@ -135,6 +139,7 @@ public sealed class Aria2Engine : IAria2Engine
         return new EngineSnapshot
         {
             Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            IsPaused = _pauseTracker.IsPaused,
             Active = active,
             Waiting = waiting,
             Stopped = stopped,
@@ -180,16 +185,63 @@ public sealed class Aria2Engine : IAria2Engine
             await SaveSessionCoreAsync(ct);
     }
 
-    public async Task ShutdownAsync(CancellationToken ct)
+    public async Task ForceShutdownAsync(CancellationToken ct)
     {
         if (_rpc is null) return;
         try
         {
-            await _rpc.CallAsync("aria2.shutdown", null, ct);
+            await _rpc.CallAsync("aria2.forceShutdown", null, ct);
         }
         catch (HttpRequestException) { }
         catch (InvalidOperationException) { }
         catch (TaskCanceledException) { }
+        catch (TimeoutException) { }
+        catch (IOException) { }
+    }
+
+    public async Task StopAsync(CancellationToken ct)
+    {
+        if (_stopped) return;
+        _stopped = true;
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+        // 1. SaveSessionAsync with a linked CTS of 1000 ms
+        using var saveCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        saveCts.CancelAfter(TimeSpan.FromMilliseconds(1000));
+        try { await SaveSessionAsync(saveCts.Token); }
+        catch (OperationCanceledException) { }
+        catch (TimeoutException) { }
+        catch (IOException) { }
+
+        // 2. ForceShutdownAsync via RPC, hard-capped (the RPC HTTP timeout alone is 10 s)
+        await BoundedWait.RunAsync(
+            ForceShutdownAsync,
+            TimeSpan.FromMilliseconds(AppDefaults.ForceShutdownRpcCapMs),
+            ct);
+
+        // 3. Wait for process to exit at most ForceStopWaitMs, then Kill
+        if (_process is not null)
+        {
+            using var waitCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            waitCts.CancelAfter(TimeSpan.FromMilliseconds(AppDefaults.ForceStopWaitMs));
+            try { await _process.WaitForExitAsync(waitCts.Token); }
+            catch (OperationCanceledException)
+            {
+                _process.Kill();
+                await _process.WaitForExitAsync(CancellationToken.None);
+            }
+        }
+
+        // 4. Dispose notification listener (abort socket, no close handshake; it caps its own wait)
+        if (_notifications is not null)
+        {
+            try { await _notifications.DisposeAsync(); }
+            catch (OperationCanceledException) { }
+            catch (IOException) { }
+            _notifications = null;
+        }
+
+        stopwatch.Stop();
     }
 
     public async Task<string> AddUriAsync(string[] uris, CancellationToken ct)
@@ -218,20 +270,16 @@ public sealed class Aria2Engine : IAria2Engine
         _disposed = true;
         try
         {
-            if (_rpc is not null)
-            {
-                try { await ShutdownAsync(CancellationToken.None); }
-                catch (HttpRequestException) { }
-                catch (InvalidOperationException) { }
-                catch (TaskCanceledException) { }
-                catch (TimeoutException) { }
-                catch (IOException) { }
-            }
+            if (!_stopped)
+                await StopAsync(CancellationToken.None);
         }
+        catch (HttpRequestException) { }
+        catch (InvalidOperationException) { }
+        catch (TaskCanceledException) { }
+        catch (TimeoutException) { }
+        catch (IOException) { }
         finally
         {
-            if (_notifications is not null)
-                await _notifications.DisposeAsync();
             if (_process is not null)
                 await _process.DisposeAsync();
             if (_rpc is not null)
@@ -274,24 +322,21 @@ public sealed class Aria2Engine : IAria2Engine
         return Convert.ToHexString(bytes);
     }
 
-    public async Task PauseAllAsync(CancellationToken ct)
-    {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        var rpc = _rpc ?? throw new InvalidOperationException("Engine not started.");
-        await rpc.CallAsync("aria2.pauseAll", null, ct);
-    }
-
     public async Task UnpauseAllAsync(CancellationToken ct)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         var rpc = _rpc ?? throw new InvalidOperationException("Engine not started.");
         await rpc.CallAsync("aria2.unpauseAll", null, ct);
+        _pauseTracker.Clear();
     }
 
+    /// <summary>Pauses everything. Only downloads that were active now are reported as Paused; the queue stays Waiting.</summary>
     public async Task ForcePauseAllAsync(CancellationToken ct)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         var rpc = _rpc ?? throw new InvalidOperationException("Engine not started.");
+        var active = await rpc.CallAsync("aria2.tellActive", [GidOnly], ct);
+        _pauseTracker.Record(Aria2SnapshotMapper.ExtractGids(active));
         await rpc.CallAsync("aria2.forcePauseAll", null, ct);
     }
 
@@ -368,18 +413,5 @@ private async Task WaitForRpcAsync(CancellationToken ct)
         return 0;
     }
 
-    internal static (List<DownloadItem> Waiting, List<DownloadItem> Paused) SplitPaused(List<DownloadItem> items)
-    {
-        var waiting = new List<DownloadItem>();
-        var paused = new List<DownloadItem>();
-        foreach (var item in items)
-        {
-            if (item.State == DownloadState.Paused)
-                paused.Add(item);
-            else
-                waiting.Add(item);
-        }
-        return (waiting, paused);
-    }
 
 }

@@ -59,6 +59,20 @@ internal static class Aria2SnapshotMapper
         return list;
     }
 
+    public static List<string> ExtractGids(JsonElement items)
+    {
+        var gids = new List<string>();
+        if (items.ValueKind != JsonValueKind.Array)
+            return gids;
+        foreach (var el in items.EnumerateArray())
+        {
+            var gid = ReadString(el, "gid");
+            if (gid.Length > 0)
+                gids.Add(gid);
+        }
+        return gids;
+    }
+
     public static JsonElement ExtractMulticallResult(JsonElement multicall, int index)
     {
         if (multicall.ValueKind != JsonValueKind.Array || index >= multicall.GetArrayLength())

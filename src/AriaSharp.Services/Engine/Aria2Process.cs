@@ -87,8 +87,8 @@ public sealed class Aria2Process : IAsyncDisposable
         {
             if (!_process.HasExited)
             {
-                // aria2.shutdown was already requested: give aria2 time to write its session, then kill.
-                using var grace = new CancellationTokenSource(AppDefaults.GracefulStopTimeoutMs);
+                // aria2.shutdown/forceShutdown was already requested: give aria2 time to exit, then kill.
+                using var grace = new CancellationTokenSource(AppDefaults.ForceStopWaitMs);
                 try
                 {
                     await _process.WaitForExitAsync(grace.Token);

@@ -6,7 +6,7 @@ public class InputResolverTests
     [Fact]
     public async Task Resolve_UrlArg_Returned()
     {
-        var result = await InputResolver.ResolveAsync(
+        var (valid, rejected) = await InputResolver.ResolveAsync(
             ["https://example.com/a"],
             new UrlExtractor(),
             new UrlClassifier(),
@@ -14,8 +14,9 @@ public class InputResolverTests
             forceClipboard: false,
             forceFiles: null,
             CancellationToken.None);
-        Assert.Single(result);
-        Assert.Equal("https://example.com/a", result[0]);
+        Assert.Single(valid);
+        Assert.Equal("https://example.com/a", valid[0]);
+        Assert.Empty(rejected);
     }
 
     [Fact]
@@ -25,7 +26,7 @@ public class InputResolverTests
         try
         {
             await File.WriteAllTextAsync(path, "see https://example.com/one\nhttps://example.com/two\n");
-            var result = await InputResolver.ResolveAsync(
+            var (valid, rejected) = await InputResolver.ResolveAsync(
                 [path],
                 new UrlExtractor(),
                 new UrlClassifier(),
@@ -33,9 +34,10 @@ public class InputResolverTests
                 forceClipboard: false,
                 forceFiles: null,
                 CancellationToken.None);
-            Assert.Equal(2, result.Count);
-            Assert.Contains(result, u => u.Contains("one", StringComparison.Ordinal));
-            Assert.Contains(result, u => u.Contains("two", StringComparison.Ordinal));
+            Assert.Equal(2, valid.Count);
+            Assert.Empty(rejected);
+            Assert.Contains(valid, u => u.Contains("one", StringComparison.Ordinal));
+            Assert.Contains(valid, u => u.Contains("two", StringComparison.Ordinal));
         }
         finally
         {
@@ -46,7 +48,7 @@ public class InputResolverTests
     [Fact]
     public async Task ForceClipboard_IgnoresCliUrls()
     {
-        var result = await InputResolver.ResolveAsync(
+        var (valid, rejected) = await InputResolver.ResolveAsync(
             ["https://example.com/ignored"],
             new UrlExtractor(),
             new UrlClassifier(),
@@ -54,8 +56,9 @@ public class InputResolverTests
             forceClipboard: true,
             forceFiles: null,
             CancellationToken.None);
-        Assert.Single(result);
-        Assert.Contains("clip.example", result[0], StringComparison.Ordinal);
+        Assert.Single(valid);
+        Assert.Contains("clip.example", valid[0], StringComparison.Ordinal);
+        Assert.Empty(rejected);
     }
 
     [Fact]
@@ -70,6 +73,38 @@ public class InputResolverTests
                 forceClipboard: false,
                 forceFiles: ["/no/such/list.txt"],
                 CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Resolve_InvalidText_Rejected()
+    {
+        var (valid, rejected) = await InputResolver.ResolveAsync(
+            ["not-a-url", "also-not-a-file"],
+            new UrlExtractor(),
+            new UrlClassifier(),
+            new FakeClipboard(null),
+            forceClipboard: false,
+            forceFiles: null,
+            CancellationToken.None);
+        Assert.Empty(valid);
+        Assert.Equal(["not-a-url", "also-not-a-file"], rejected);
+    }
+
+    [Fact]
+    public async Task Resolve_MixedValidAndInvalid_RejectsInvalid()
+    {
+        var (valid, rejected) = await InputResolver.ResolveAsync(
+            ["https://example.com/good", "garbage-text"],
+            new UrlExtractor(),
+            new UrlClassifier(),
+            new FakeClipboard(null),
+            forceClipboard: false,
+            forceFiles: null,
+            CancellationToken.None);
+        Assert.Single(valid);
+        Assert.Equal("https://example.com/good", valid[0]);
+        Assert.Single(rejected);
+        Assert.Equal("garbage-text", rejected[0]);
     }
 
     [Fact]

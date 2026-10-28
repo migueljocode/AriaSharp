@@ -8,15 +8,47 @@ internal static class DashboardView
     private static readonly Color Purple = new(155, 89, 182);
     private static readonly Color PurpleDeep = new(108, 52, 131);
 
-    public static IRenderable Build(SessionState state, TimeSpan elapsed, int split = 16, int frame = -1, double? shown = null)
+    private const int ProgressWidth = 15; // 8-cell bar + space + "100.0%"
+    private const int SpeedWidth = 10;
+    private const int EtaWidth = 8;
+    private const int SplitWidth = 5;
+    private const int ConnectionWidth = 10; // exactly fits the "Connection" header
+    private const int SplitColumnIndex = 4;
+    private const int MinNameWidth = 12;
+    private const int MinNameWidthWithSplit = 20;
+    private const int ColumnChromeWidth = 3; // 2 padding + 1 separator per column
+    private const int TableEdgeWidth = 5; // closing border (1) + panel border and padding (4)
+
+    internal readonly record struct ActiveTableLayout(bool ShowSplit, int NameWidth);
+
+    /// <summary>
+    /// Spectre shrinks every column evenly when a table is too wide, which garbles the fixed-width cells.
+    /// So the Split column is dropped before that can happen and the name column takes what is left.
+    /// </summary>
+    internal static ActiveTableLayout PlanTable(int width)
+    {
+        var withSplit = NameWidthFor(width, showSplit: true);
+        return withSplit >= MinNameWidthWithSplit
+            ? new ActiveTableLayout(true, withSplit)
+            : new ActiveTableLayout(false, Math.Max(MinNameWidth, NameWidthFor(width, showSplit: false)));
+    }
+
+    private static int NameWidthFor(int width, bool showSplit)
+    {
+        var columns = showSplit ? 6 : 5;
+        var fixedWidth = ProgressWidth + SpeedWidth + EtaWidth + ConnectionWidth + (showSplit ? SplitWidth : 0);
+        return width - fixedWidth - ((ColumnChromeWidth * columns) + TableEdgeWidth);
+    }
+
+    public static IRenderable Build(SessionState state, TimeSpan elapsed, int maxConnectionPerServer = AppDefaults.MaxConnectionPerServer, int frame = -1, double? shown = null, int splitPerServer = AppDefaults.Split, int? terminalWidth = null)
     {
         ThrowIfNull(state);
-        var width = TerminalMetrics.WindowWidth();
+        var width = terminalWidth ?? TerminalMetrics.WindowWidth();
         var root = new Grid().Expand();
         root.AddColumn(new GridColumn().NoWrap());
         BrandLogo.AddTo(root, frame);
         root.AddRow(BuildOverall(state, elapsed, width, frame, shown));
-        root.AddRow(BuildActiveTable(state, split, frame, width));
+        root.AddRow(BuildActiveTable(state, maxConnectionPerServer, splitPerServer, frame, width));
         root.AddRow(BuildStatus(state));
         if (state.CompleteItems is { Count: > 0 })
             root.AddRow(BuildComplete(state, width));
@@ -32,11 +64,11 @@ internal static class DashboardView
     {
         var barWidth = Math.Max(24, width - 8);
         var finished = state.NumActive == 0 && state.NumWaiting == 0 && state.NumPaused == 0 && state.CompleteItems.Count > 0;
-        var pausedOnly = state.NumActive == 0 && state.NumPaused > 0;
-        var ramp = finished ? Gradient.Green : pausedOnly ? Gradient.Amber : Gradient.Violet;
+        var pausedOnly = state.IsPaused;
+        var ramp = finished ? Gradient.Green : pausedOnly ? Gradient.Yellow : Gradient.Violet;
         var barFrame = finished || pausedOnly ? -1 : frame;
         var bar = Gradient.Bar(barWidth, shown ?? state.OverallPercent / 100.0, ramp, barFrame);
-        var etaText = state.NumActive == 0 && state.NumPaused > 0 && state.TotalDownloadSpeed <= 0
+        var etaText = state.IsPaused
             ? "paused"
             : state.OverallEta.Format();
 
@@ -53,11 +85,12 @@ internal static class DashboardView
         return PurplePanel(rows, "[#E040FB]OVERALL[/]");
     }
 
-    private static Panel BuildActiveTable(SessionState state, int split, int frame, int width)
+    private static Panel BuildActiveTable(SessionState state, int maxConnectionPerServer, int splitPerServer, int frame, int width)
     {
-        var nameWidth = Math.Max(24, width - 62);
+        var layout = PlanTable(width);
+        var nameWidth = layout.NameWidth;
         var finished = state.NumActive == 0 && state.NumWaiting == 0 && state.NumPaused == 0 && state.CompleteItems.Count > 0;
-        var pausedOnly = state.NumActive == 0 && state.NumPaused > 0;
+        var pausedOnly = state.IsPaused;
         var barFrame = finished || pausedOnly ? -1 : frame;
 
         var table = new Table()
@@ -65,15 +98,16 @@ internal static class DashboardView
             .BorderColor(PurpleDeep)
             .Expand();
         table.AddColumn(new TableColumn("[#BB86FC]Name[/]").NoWrap());
-        table.AddColumn(new TableColumn("[#BB86FC]Progress[/]").Width(16).RightAligned());
-        table.AddColumn(new TableColumn("[#BB86FC]Speed[/]").Width(10).RightAligned());
-        table.AddColumn(new TableColumn("[#BB86FC]ETA[/]").Width(8).RightAligned());
-        table.AddColumn(new TableColumn("[#BB86FC]Conn[/]").Width(6).RightAligned());
-        table.AddColumn(new TableColumn("[#BB86FC]Split[/]").Width(5).RightAligned());
+        table.AddColumn(CenteredHeader("Progress", ProgressWidth).RightAligned());
+        table.AddColumn(CenteredHeader("Speed", SpeedWidth).RightAligned());
+        table.AddColumn(CenteredHeader("ETA", EtaWidth));
+        if (layout.ShowSplit)
+            table.AddColumn(CenteredHeader("Split", SplitWidth));
+        table.AddColumn(CenteredHeader("Connection", ConnectionWidth));
 
         if (state.ActiveItems.Count == 0)
         {
-            table.AddRow(new Markup("[grey](none)[/]"), new Text(""), new Text(""), new Text(""), new Text(""), new Text(""));
+            AddRow(table, layout, new Markup("[grey](none)[/]"), new Text(""), new Text(""), new Text(""), new Text(""), new Text(""));
         }
         else
         {
@@ -81,18 +115,27 @@ internal static class DashboardView
             {
                 var name = string.IsNullOrEmpty(item.Name) ? item.Gid : item.Name;
                 var itemPct = item.TotalLength > 0 ? (double)item.CompletedLength / item.TotalLength * 100 : 0;
-                table.AddRow(
+                AddRow(
+                    table,
+                    layout,
                     new Markup($"[#BB86FC]{(frame < 0 ? '●' : Gradient.Spinner(frame))}[/] [white]{Markup.Escape(Truncate(name, nameWidth - 2))}[/]"),
                     new Markup($"{Gradient.Bar(8, itemPct / 100, Gradient.Violet, barFrame)} [#CE93D8]{itemPct,5:F1}%[/]"),
                     new Markup($"[grey]{Markup.Escape(FormatSpeed(item.DownloadSpeed))}[/]"),
-                    new Markup($"[grey]{Markup.Escape(ItemEta(item))}[/]"),
-                    new Markup($"[dim]{item.Connections}[/]"),
-                    new Markup($"[dim]{split}[/]"));
+                    new Markup($"[grey]{Markup.Escape(ItemEta(item))}[/]").Centered(),
+                    new Markup($"[dim]{splitPerServer}[/]").Centered(),
+                    new Markup($"[dim]{item.Connections}/{maxConnectionPerServer}[/]").Centered());
             }
         }
 
         return PurplePanel(table, $"[#E040FB]ACTIVE ({state.NumActive})[/]");
     }
+
+    /// <summary>Adds a row of cells given in full-layout order; the Split cell is dropped when its column is hidden.</summary>
+    private static void AddRow(Table table, ActiveTableLayout layout, params IRenderable[] cells) =>
+        table.AddRow(layout.ShowSplit ? cells : cells.Where((_, i) => i != SplitColumnIndex));
+
+    private static TableColumn CenteredHeader(string title, int width) =>
+        new TableColumn(new Align(new Markup($"[#BB86FC]{title}[/]"), HorizontalAlignment.Center)).Width(width);
 
     private static Panel BuildStatus(SessionState state)
     {
