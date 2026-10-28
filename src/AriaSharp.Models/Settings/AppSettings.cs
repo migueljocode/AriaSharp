@@ -4,7 +4,7 @@ namespace AriaSharp.Models;
 
 public sealed class AppDefaults
 {
-    public const int MaxConcurrentDownloads = 1;
+    public const int MaxConcurrentDownloads = 2;
     public const int Split = 16;
     public const int MaxConnectionPerServer = 16;
     public const bool AutoFileRenaming = false;

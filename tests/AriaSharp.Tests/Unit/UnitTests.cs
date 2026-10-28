@@ -132,7 +132,7 @@ public class UnitTests
     [Fact]
     public void AppDefaults_Constants_HaveExpectedValues()
     {
-        Assert.Equal(1, AppDefaults.MaxConcurrentDownloads);
+        Assert.Equal(2, AppDefaults.MaxConcurrentDownloads);
         Assert.Equal(16, AppDefaults.Split);
         Assert.Equal(500, AppDefaults.RefreshIntervalMs);
     }
