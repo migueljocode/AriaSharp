@@ -69,20 +69,7 @@ internal static class AppExtensions
 
             var (exit, resolved) = await settings.ResolveInputsAsync();
             if (exit is int code)
-            {
-                // No usable URLs — remove an output directory we just created if it is empty.
-                var (outputDir, _) = DownloadPaths.Resolve(resolved);
-                if (!string.IsNullOrEmpty(outputDir)
-                    && outputDir != AppDefaults.OutputDirDefault
-                    && Directory.Exists(outputDir)
-                    && DirectoryIsEmpty(outputDir))
-                {
-                    try { Directory.Delete(outputDir); }
-                    catch (IOException) { }
-                    catch (UnauthorizedAccessException) { }
-                }
                 return code;
-            }
 
             settings = resolved;
             while (true)
@@ -100,12 +87,5 @@ internal static class AppExtensions
 
         public Task<(int Code, bool Retry)> RunDownloadAsync() =>
             DownloadCommand.RunAsync(settings);
-    }
-
-    private static bool DirectoryIsEmpty(string path)
-    {
-        try { return !Directory.EnumerateFileSystemEntries(path).Any(); }
-        catch (IOException) { return false; }
-        catch (UnauthorizedAccessException) { return false; }
     }
 }
