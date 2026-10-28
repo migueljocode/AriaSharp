@@ -85,6 +85,59 @@ public class ArgParserTests
         Assert.Equal("/tmp/resume.session", settings.SessionFile);
     }
 
+    [Theory]
+    [InlineData("-s")]
+    [InlineData("--session")]
+    public void Session_Bare_IsEmptyString_NotNull(string flag)
+    {
+        var settings = Parse([flag]);
+        Assert.NotNull(settings.SessionFile);
+        Assert.Equal(string.Empty, settings.SessionFile);
+    }
+
+    [Fact]
+    public void Session_InlineEmpty_IsEmptyString()
+    {
+        Assert.Equal(string.Empty, Parse(["--session="]).SessionFile);
+    }
+
+    [Fact]
+    public void Session_Absent_IsNull()
+    {
+        Assert.Null(Parse(["https://example.com/a"]).SessionFile);
+    }
+
+    [Fact]
+    public void Session_Bare_BeforeUrl_KeepsTheUrl()
+    {
+        var settings = Parse(["-s", "https://example.com/a"]);
+        Assert.Equal(string.Empty, settings.SessionFile);
+        Assert.Equal("https://example.com/a", Assert.Single(settings.Inputs));
+    }
+
+    [Fact]
+    public void Session_Bare_BeforeFlag_DoesNotSwallowIt()
+    {
+        var settings = Parse(["-s", "-k"]);
+        Assert.Equal(string.Empty, settings.SessionFile);
+        Assert.True(settings.KeepListFiles == true);
+    }
+
+    [Fact]
+    public void Session_Bare_AtEnd_AfterUrl_KeepsTheUrl()
+    {
+        var settings = Parse(["https://example.com/a", "--session"]);
+        Assert.Equal(string.Empty, settings.SessionFile);
+        Assert.Equal("https://example.com/a", Assert.Single(settings.Inputs));
+    }
+
+    [Fact]
+    public void Session_Bare_SurvivesLayeredMerge()
+    {
+        var merged = new SettingsMerger().Merge(new AppSettings(), new SettingsOverlay(), new SettingsOverlay(), Parse(["-s"]));
+        Assert.Equal(string.Empty, merged.SessionFile);
+    }
+
     [Fact]
     public void Yes_LongOnly()
     {

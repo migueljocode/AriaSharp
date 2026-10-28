@@ -7,11 +7,8 @@ internal static class InputCommand
 {
     public static async Task<(int? ExitCode, AppSettings Settings)> ResolveAsync(AppSettings settings)
     {
-        var cliArgs = settings.Inputs;
-
-        // -s / --session implies resume mode.
-        if (!string.IsNullOrWhiteSpace(settings.SessionFile))
-            settings.Resume = true;
+        if (await ApplySessionAsync(settings, Directory.GetCurrentDirectory()) is int sessionExit)
+            return (sessionExit, settings);
 
         try
         {
@@ -60,5 +57,31 @@ internal static class InputCommand
         }
 
         return (null, settings);
+    }
+
+    /// <summary>
+    /// -s / --session implies resume. "" (bare -s) means auto: resume.session in <paramref name="cwd"/>.
+    /// Stores the resolved session file and, unless -o was given, the resolved output directory.
+    /// Returns a usage exit code (after printing the error) when the session cannot be found.
+    /// </summary>
+    internal static async Task<int?> ApplySessionAsync(AppSettings settings, string cwd)
+    {
+        if (settings.SessionFile is null)
+            return null;
+
+        try
+        {
+            var located = SessionLocator.Locate(settings.SessionFile, cwd, settings.OutputDir);
+            settings.SessionFile = located.SessionFile;
+            if (string.IsNullOrWhiteSpace(settings.OutputDir))
+                settings.OutputDir = located.OutputDir;
+            settings.Resume = true;
+            return null;
+        }
+        catch (SessionNotFoundException ex)
+        {
+            await Console.Error.WriteLineAsync($"Error: {ex.Message}");
+            return (int)ExitCode.UsageError;
+        }
     }
 }

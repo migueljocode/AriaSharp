@@ -57,7 +57,7 @@ public sealed class SettingsMerger : ISettingsMerger
         if (layer.PrintConfig.HasValue) target.PrintConfig = layer.PrintConfig;
         if (layer.Doctor.HasValue) target.Doctor = layer.Doctor;
         if (!string.IsNullOrEmpty(layer.OutputDir)) target.OutputDir = layer.OutputDir;
-        if (!string.IsNullOrEmpty(layer.SessionFile)) target.SessionFile = layer.SessionFile;
+        if (layer.SessionFile is not null) target.SessionFile = layer.SessionFile; // "" = bare -s (auto)
         if (!string.IsNullOrEmpty(layer.ConfigFile)) target.ConfigFile = layer.ConfigFile;
         if (!string.IsNullOrEmpty(layer.Aria2Path)) target.Aria2Path = layer.Aria2Path;
         if (!string.IsNullOrEmpty(layer.SpeedLimit)) target.SpeedLimit = layer.SpeedLimit;

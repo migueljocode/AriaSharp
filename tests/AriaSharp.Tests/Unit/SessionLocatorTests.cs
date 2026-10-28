@@ -65,11 +65,72 @@ public class SessionLocatorTests
     }
 
     [Fact]
-    public void SessionValue_DirMissing_ThrowsSessionNotFound()
+    public void SessionValue_NonexistentPath_ThrowsPathNotFound_NeverFallsBackToCwd()
     {
-        var ex = Assert.Throws<SessionNotFoundException>(() =>
-            SessionLocator.Locate("/nonexistent/dir", "/cwd", null));
-        Assert.Contains("no resume.session in /cwd", ex.Message, StringComparison.Ordinal);
+        var cwd = Path.Combine(Path.GetTempPath(), $"ariasharp-session-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(cwd);
+        File.WriteAllText(Path.Join(cwd, "resume.session"), "");
+        try
+        {
+            var missing = Path.Join(cwd, "no-such-dir");
+            var ex = Assert.Throws<SessionNotFoundException>(() => SessionLocator.Locate(missing, cwd, null));
+            Assert.Equal($"path not found: {missing}", ex.Message);
+        }
+        finally
+        {
+            Directory.Delete(cwd, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void SessionValue_EmptyString_MeansAutoCwd()
+    {
+        var cwd = Path.Combine(Path.GetTempPath(), $"ariasharp-session-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(cwd);
+        var sessionFile = Path.Join(cwd, "resume.session");
+        File.WriteAllText(sessionFile, "");
+        try
+        {
+            var result = SessionLocator.Locate(string.Empty, cwd, null);
+            Assert.Equal(sessionFile, result.SessionFile);
+            Assert.Equal(cwd, result.OutputDir);
+        }
+        finally
+        {
+            Directory.Delete(cwd, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void SessionValue_Auto_NoResumeSessionInCwd_Throws()
+    {
+        var cwd = Path.Combine(Path.GetTempPath(), $"ariasharp-session-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(cwd);
+        try
+        {
+            var ex = Assert.Throws<SessionNotFoundException>(() => SessionLocator.Locate(string.Empty, cwd, null));
+            Assert.Equal($"no resume.session in {cwd}", ex.Message);
+        }
+        finally
+        {
+            Directory.Delete(cwd, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void SessionValue_DirWithoutResumeSession_Throws()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"ariasharp-session-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var ex = Assert.Throws<SessionNotFoundException>(() => SessionLocator.Locate(dir, "/cwd", null));
+            Assert.Equal($"no resume.session in {dir}", ex.Message);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
     }
 
     [Fact]

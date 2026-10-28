@@ -213,8 +213,11 @@ public sealed class Aria2Engine : IAria2Engine
         catch (TimeoutException) { }
         catch (IOException) { }
 
-        // 2. ForceShutdownAsync via RPC
-        await ForceShutdownAsync(ct);
+        // 2. ForceShutdownAsync via RPC, hard-capped (the RPC HTTP timeout alone is 10 s)
+        await BoundedWait.RunAsync(
+            ForceShutdownAsync,
+            TimeSpan.FromMilliseconds(AppDefaults.ForceShutdownRpcCapMs),
+            ct);
 
         // 3. Wait for process to exit at most ForceStopWaitMs, then Kill
         if (_process is not null)
@@ -229,11 +232,9 @@ public sealed class Aria2Engine : IAria2Engine
             }
         }
 
-        // 4. Dispose notification listener (abort socket, no close handshake, cap 300 ms)
+        // 4. Dispose notification listener (abort socket, no close handshake; it caps its own wait)
         if (_notifications is not null)
         {
-            using var notifyCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            notifyCts.CancelAfter(TimeSpan.FromMilliseconds(300));
             try { await _notifications.DisposeAsync(); }
             catch (OperationCanceledException) { }
             catch (IOException) { }

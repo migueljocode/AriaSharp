@@ -5,7 +5,7 @@ internal static class DownloadPaths
 {
     public static (string OutputDir, string SessionPath) Resolve(AppSettings settings)
     {
-        if (!string.IsNullOrWhiteSpace(settings.SessionFile))
+        if (settings.SessionFile is not null)
         {
             var result = SessionLocator.Locate(settings.SessionFile, Directory.GetCurrentDirectory(), settings.OutputDir);
             return (result.OutputDir, result.SessionFile);

@@ -19,13 +19,13 @@ public static class SessionLocator
             }
             else if (File.Exists(sessionValue))
             {
-                sessionFile = sessionValue;
-                dir = Path.GetDirectoryName(sessionValue) ?? cwd;
+                sessionFile = Path.GetFullPath(sessionValue);
+                dir = Path.GetDirectoryName(sessionFile) ?? cwd;
             }
             else
             {
-                dir = cwd;
-                sessionFile = Path.Join(dir, AppDefaults.SessionFileName);
+                // A non-empty value is never silently replaced by the current directory.
+                throw new SessionNotFoundException($"path not found: {sessionValue}");
             }
         }
         else

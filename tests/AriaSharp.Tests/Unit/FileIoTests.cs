@@ -69,6 +69,45 @@ public class FileIoTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task InputMerger_WithSession_WritesUrlsFirstThenSessionContents()
+    {
+        var dir = MakeTempDir();
+        var session = Path.Join(dir, "resume.session");
+        await File.WriteAllTextAsync(session, "https://old/one\n dir=/tmp/out\nhttps://old/two\n");
+        var dest = Path.Join(dir, "input.txt");
+
+        await InputMerger.WriteAsync(["https://new/a"], dest, session);
+
+        var text = await File.ReadAllTextAsync(dest);
+        Assert.Equal("https://new/a\nhttps://old/one\n dir=/tmp/out\nhttps://old/two\n", text);
+        Assert.Equal("https://old/one\n dir=/tmp/out\nhttps://old/two\n", await File.ReadAllTextAsync(session));
+    }
+
+    [Fact]
+    public async Task InputMerger_WithSession_NoUrls_WritesJustTheSession()
+    {
+        var dir = MakeTempDir();
+        var session = Path.Join(dir, "resume.session");
+        await File.WriteAllTextAsync(session, "https://old/one\n");
+        var dest = Path.Join(dir, "input.txt");
+
+        await InputMerger.WriteAsync([], dest, session);
+
+        Assert.Equal("https://old/one\n", await File.ReadAllTextAsync(dest));
+    }
+
+    [Fact]
+    public async Task InputMerger_WithMissingSession_WritesUrlsOnly()
+    {
+        var dir = MakeTempDir();
+        var dest = Path.Join(dir, "input.txt");
+
+        await InputMerger.WriteAsync(["https://new/a"], dest, Path.Join(dir, "absent.session"));
+
+        Assert.Equal("https://new/a\n", await File.ReadAllTextAsync(dest));
+    }
+
+    [Fact]
     public void SessionFile_IsAria2ListFile_CRLF_URLLine()
     {
         var dir = MakeTempDir();

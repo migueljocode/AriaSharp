@@ -46,9 +46,8 @@ public sealed class Aria2ArgsBuilder : IAria2ArgsBuilder
             args.Add($"--save-session-interval={appSettings.SaveSessionInterval}");
         }
 
-        // When resuming (-s), also feed the session file as an extra input source.
-        if (appSettings.Resume && !string.IsNullOrEmpty(settings.SessionFile))
-            args.Add($"--input-file={settings.SessionFile}");
+        // aria2 takes a single --input-file. On resume the session entries are appended to the
+        // workspace input file by InputMerger; --save-session keeps pointing at the real file.
 
         if (appSettings.SpeedLimit is { Length: > 0 })
             args.Add($"--max-overall-download-limit={appSettings.SpeedLimit}");

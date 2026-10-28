@@ -5,6 +5,22 @@ namespace AriaSharp.App;
 /// </summary>
 internal static class DashboardRunner
 {
+    /// <summary>
+    /// True only when aria2 holds no download of any kind. A download that already finished or
+    /// failed is a stopped result (the snapshot splits those into Complete, Failed, Skipped,
+    /// Interrupted and Stopped) and must reach the dashboard/summary, not this error.
+    /// </summary>
+    internal static bool IsEmptyStart(EngineSnapshot snapshot) =>
+        snapshot.NumActive == 0
+        && snapshot.NumWaiting == 0
+        && snapshot.TotalLength == 0
+        && snapshot.Paused.Count == 0
+        && snapshot.Stopped.Count == 0
+        && snapshot.Complete.Count == 0
+        && snapshot.Failed.Count == 0
+        && snapshot.Skipped.Count == 0
+        && snapshot.Interrupted.Count == 0;
+
     public static async Task<(RunOutcome Outcome, SessionState State, TimeSpan Elapsed, bool Retry)> RunWithDashboardAsync(
         Aria2Engine engine,
         AppSettings settings,
@@ -31,7 +47,7 @@ internal static class DashboardRunner
             // Poll once before opening the alt screen. If aria2 reports zero items,
             // print the error on the normal screen and never open the alt screen.
             var firstSnapshot = await engine.GetSnapshotAsync(linked.Token);
-            if (firstSnapshot.NumActive == 0 && firstSnapshot.NumWaiting == 0 && firstSnapshot.TotalLength == 0)
+            if (IsEmptyStart(firstSnapshot))
             {
                 await Console.Error.WriteLineAsync("Error: no downloads started — aria2 reported zero items.");
                 await StopKeysAsync(linked, keyTask);

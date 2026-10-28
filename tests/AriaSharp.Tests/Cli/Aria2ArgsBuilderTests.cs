@@ -49,6 +49,24 @@ public class Aria2ArgsBuilderTests
         Assert.Contains("--conf-path=/tmp/conf", args);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Build_EmitsExactlyOneInputFile_EvenWhenResuming(bool resume)
+    {
+        var args = Build(new AppSettings { Resume = resume });
+        Assert.Single(args, a => a.StartsWith("--input-file=", StringComparison.Ordinal));
+        Assert.Contains("--input-file=/tmp/input", args);
+        Assert.DoesNotContain("--input-file=/tmp/resume.session", args);
+    }
+
+    [Fact]
+    public void Build_Resume_StillSavesToTheRealSessionFile()
+    {
+        var args = Build(new AppSettings { Resume = true, SaveSession = true });
+        Assert.Contains("--save-session=/tmp/resume.session", args);
+    }
+
     [Fact]
     public void Build_HonoursSaveSession()
     {

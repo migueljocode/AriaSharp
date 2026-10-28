@@ -20,7 +20,7 @@ fix/exit-input-session — invalid input fails fast, instant R/Q/EXIT, -s resume
 - C1: OptionKind.OptionalString added; -s / --session takes optional value; bare -s = auto
 - C2: SessionLocator in Services/IO; resolves session file/dir, throws SessionNotFoundException if missing
 - C3: DownloadPaths.Resolve uses SessionLocator; ARIASHARP_SESSION env/config via existing SettingsOverlay.SessionFile mapping
-- C4: -s sets Resume=true, skips "No URLs found", passes session file as extra --input-file to aria2
+- C4: -s sets Resume=true and skips "No URLs found" (round 5 replaced the second --input-file flag: the session entries are now merged into the single workspace input file)
 - C5: SessionLocatorTests (dir value, file value, bare -s found/missing, explicit -o wins)
 - D1: AppDefaults.MaxConcurrentDownloads stays 2; precedence CLI > env > config > default unchanged
 - D2: README.md line 58 "default 1" -> "default 2"; Brief line 58 "max-concurrent-downloads 1" -> "2"
@@ -51,3 +51,13 @@ fix/exit-input-session — invalid input fails fast, instant R/Q/EXIT, -s resume
 - Verified by CI (Actions): build and tests on ubuntu/macos/windows (see the PR checks).
 - Unverified: how the table looks in a real terminal at 80/100/120 columns; live pause/resume against real aria2.
 - Known, left as is: while paused the ACTIVE table shows "(none)" (paused items only appear in STATUS counts); a download finishing between `tellActive` and `forcePauseAll` shows as Waiting until resumed; CI actions run on a deprecated Node 20 runtime (warning only).
+
+## Round 5 — review fixes F1-F6 (-s and shutdown)
+- F1: bare `-s`/`--session` now applies `""` ("set, auto") instead of null and no longer consumes the next argument (`-s https://x` keeps the URL; before, a bare `-s` before a non-URL swallowed it). The overlay merge treats `""` as set (`is not null`); `DownloadPaths` tests `SessionFile is not null`.
+- F2/F3: `SessionLocator` never falls back to the current directory for a non-empty value: a missing path throws `SessionNotFoundException("path not found: <value>")`. `InputCommand.ApplySessionAsync` runs before any input or engine work, prints `Error: <message>`, exits 2, and stores the resolved session file and (unless `-o` was given) the output directory. `DownloadCommand` also catches the exception (safety net, exit 2).
+- F4: `Aria2ArgsBuilder` emits exactly one `--input-file`. On resume `InputMerger.WriteAsync(inputs, dest, sessionFile)` writes the URLs first and then stream-copies the session file (no ReadAllText); `--save-session` still points at the real session file. aria2 manual check: the manual documents `--input-file` as a single `FILE` argument and says nothing about repeating it, and that the `--save-session` output "can be passed to aria2c with --input-file on restart" - so one merged file is the documented path; whether a repeated flag keeps only the last is still unverified against a live aria2.
+- F5: `ForceShutdownAsync` runs under a real 1000 ms cap (`AppDefaults.ForceShutdownRpcCapMs`) and `Aria2NotificationListener.DisposeAsync` abandons its loop after 300 ms (`AppDefaults.NotificationDisposeCapMs`) via `BoundedWait` (`Task.WhenAny` plus delay; a late fault is observed). The unused `notifyCts` is removed.
+- F6: `DashboardRunner.IsEmptyStart` also requires no paused, stopped, complete, failed, skipped or interrupted items, so an instantly finished or failed download reaches the dashboard/summary. The snapshot has no `NumStopped`; stopped results are split into those lists, so the check uses them.
+- Tests added for each (ArgParser, SessionLocator, InputCommand, Aria2ArgsBuilder, InputMerger, BoundedWait, DashboardGuard).
+- Not run here: no .NET SDK in the authoring sandbox (download blocked); build and tests are verified only by CI.
+- Unverified: live aria2 behaviour of a resume with URLs; real-terminal check of the empty-start path.

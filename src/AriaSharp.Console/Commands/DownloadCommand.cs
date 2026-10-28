@@ -29,7 +29,16 @@ internal static class DownloadCommand
         Console.CancelKeyPress += onCancel;
         try
         {
-            var (outputDir, sessionPath) = DownloadPaths.Resolve(settings);
+            string outputDir, sessionPath;
+            try
+            {
+                (outputDir, sessionPath) = DownloadPaths.Resolve(settings);
+            }
+            catch (SessionNotFoundException ex)
+            {
+                await Console.Error.WriteLineAsync($"Error: {ex.Message}");
+                return ((int)ExitCode.UsageError, false);
+            }
 
             try
             {
@@ -63,7 +72,8 @@ internal static class DownloadCommand
             {
                 try
                 {
-                    await InputMerger.WriteAsync(settings.Inputs.ToArray(), workspace.InputFile, cts.Token);
+                    var resumeFrom = settings.Resume ? Path.GetFullPath(sessionPath) : null;
+                    await InputMerger.WriteAsync(settings.Inputs.ToArray(), workspace.InputFile, resumeFrom, cts.Token);
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {

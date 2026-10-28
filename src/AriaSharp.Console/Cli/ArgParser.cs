@@ -70,8 +70,9 @@ internal static class ArgParser
         }
 
         var value = inlineValue ?? TakeNextValueIfWanted(i, argv, name, opt);
-        opt.Apply!(overlay, value);
-        return inlineValue is null ? i + 1 : i;
+        // A bare OptionalString (value null) applies "" ("set, auto") and consumes nothing.
+        opt.Apply!(overlay, value ?? string.Empty);
+        return inlineValue is null && value is not null ? i + 1 : i;
     }
 
     private static int HandleShort(ReadOnlySpan<char> cluster, SettingsOverlay overlay, int i, string[] argv)
@@ -99,8 +100,8 @@ internal static class ArgParser
 
             // value flag without attached value: -j 8  (value is the next argument)
             var value = TakeNextValueIfWanted(i, argv, opt.LongName, opt);
-            opt.Apply!(overlay, value);
-            return i + 1;
+            opt.Apply!(overlay, value ?? string.Empty);
+            return value is null ? i : i + 1;
         }
 
         // value option with an attached value: -j8
