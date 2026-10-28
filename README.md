@@ -55,7 +55,7 @@ Layered: defaults → `~/.config/ariasharp/settings.json` → `ARIASHARP_*` / `N
 |--------|-------------|
 | `-y` / `--install-deps` | Install aria2 when missing (consent when interactive) |
 | `--doctor` | Network, managers, aria2 path / HTTPS |
-| `-j` | Concurrent downloads (default 1) |
+| `-j` | Concurrent downloads (default 2) |
 | `-x` / `-s` | Connections / split (default 16) |
 | `-d` | Output directory |
 | `--session` | Session file (default `resume.session` under output dir) |

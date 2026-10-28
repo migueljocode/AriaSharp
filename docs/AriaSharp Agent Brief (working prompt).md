@@ -55,7 +55,7 @@ Confirmed defects (fix each with a test):
 
 - A separate xUnit Tests project.
 - Use the NuGet package Aria2.JsonRpcClient, leveraging its notification events, behind our own `IDownloadEngine`. If spike S1 shows it is not AOT-safe, write a thin fallback client on ClientWebSocket and HttpClient with source-generated System.Text.Json, and tell the owner.
-- Changeable defaults: max-concurrent-downloads 1, split 16, max-connection-per-server 16, auto-file-renaming false, save-session to a resume file, saved after each download result (saveSession on events; keep a 60 s interval as a crash net).
+- Changeable defaults: max-concurrent-downloads 2, split 16, max-connection-per-server 16, auto-file-renaming false, save-session to a resume file, saved after each download result (saveSession on events; keep a 60 s interval as a crash net).
 - The session file lives in the output directory (default: current directory) and is named resume.session.
 - Show total ETA for all downloads and the protocol used per download.
 - If no package manager or trustworthy binary is available, download and extract (Windows zip) or compile (Linux and macOS source tarball) from the official aria2 release page.
