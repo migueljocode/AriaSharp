@@ -318,13 +318,6 @@ public sealed class Aria2Engine : IAria2Engine
         return Convert.ToHexString(bytes);
     }
 
-    public async Task PauseAllAsync(CancellationToken ct)
-    {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        var rpc = _rpc ?? throw new InvalidOperationException("Engine not started.");
-        await rpc.CallAsync("aria2.pauseAll", null, ct);
-    }
-
     public async Task UnpauseAllAsync(CancellationToken ct)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);

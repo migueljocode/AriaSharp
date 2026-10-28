@@ -1,4 +1,6 @@
+using System.Reflection;
 using System.Threading.Channels;
+using AriaSharp.Services;
 
 namespace AriaSharp.Tests;
 
@@ -82,5 +84,13 @@ public class Aria2EngineForceShutdownTests
         await engine.StopAsync(CancellationToken.None);
         Assert.False(engine.ShutdownCalled);
         Assert.DoesNotContain("Shutdown", engine.CallOrder);
+    }
+
+    [Fact]
+    public void Aria2Engine_HasForcePauseAllAsync_NotPauseAllAsync()
+    {
+        var type = typeof(Aria2Engine);
+        Assert.NotNull(type.GetMethod("ForcePauseAllAsync", new[] { typeof(CancellationToken) }));
+        Assert.Null(type.GetMethod("PauseAllAsync", new[] { typeof(CancellationToken) }));
     }
 }

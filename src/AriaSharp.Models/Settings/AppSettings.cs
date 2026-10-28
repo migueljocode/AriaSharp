@@ -7,6 +7,7 @@ public sealed class AppDefaults
     public const int MaxConcurrentDownloads = 2;
     public const int Split = 16;
     public const int MaxConnectionPerServer = 16;
+    public const string MinSplitSize = "1M";
     public const bool AutoFileRenaming = false;
     public const bool AllowOverwrite = false;
     public const bool SaveSession = true;

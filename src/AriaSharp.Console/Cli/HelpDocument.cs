@@ -56,8 +56,7 @@ internal static class HelpDocument
         sb.AppendLine("  130  interrupted (ctrl-c / signal)");
         sb.AppendLine();
         sb.AppendLine("KEYS (help pager)");
-        sb.AppendLine("  j/k and up/down  scroll,  Space / PgDn / PgUp  page,  g / G  top / bottom,");
-        sb.AppendLine("  /  search (n / N  next / prev),  q or Esc  quit.");
+        sb.AppendLine("  j/k and up/down  scroll,  Space / PgDn / PgUp  page,  g / G  top / bottom,  q or Esc  quit.");
         return sb.ToString();
     }
 

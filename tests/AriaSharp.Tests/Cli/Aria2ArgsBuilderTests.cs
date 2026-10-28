@@ -62,6 +62,25 @@ public class Aria2ArgsBuilderTests
     }
 
     [Fact]
+    public void Build_EmitsMinSplitSize1MByDefault()
+    {
+        var args = Build(new AppSettings());
+        Assert.Contains("--min-split-size=1M", args);
+    }
+
+    [Fact]
+    public void Build_UserMinSplitSizeOverrideWins()
+    {
+        // Default 1M is added before ExtraOptions; user override comes after (aria2 takes last).
+        var args = Build(new AppSettings { ExtraOptions = ["min-split-size=2M"] });
+        Assert.Contains("--min-split-size=1M", args);
+        Assert.Contains("--min-split-size=2M", args);
+        // The override must be the last occurrence.
+        var last = args.Last(a => a.StartsWith("--min-split-size=", StringComparison.Ordinal));
+        Assert.Equal("--min-split-size=2M", last);
+    }
+
+    [Fact]
     public void Build_ConvertsAria2OptToKeyEqualsValue()
     {
         var args = Build(new AppSettings { ExtraOptions = ["split=3", "max-connection-per-server=8"] });

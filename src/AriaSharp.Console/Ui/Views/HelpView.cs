@@ -112,9 +112,7 @@ internal static class HelpView
             new Markup(
                 $"[{Theme.PurpleBright}]j/k[/] [{Theme.Muted}]scroll[/]   " +
                 $"[{Theme.PurpleBright}]space/b[/] [{Theme.Muted}]page[/]   " +
-                $"[{Theme.PurpleBright}]g/G[/] [{Theme.Muted}]top/end[/]\n" +
-                $"[{Theme.PurpleBright}]/[/] [{Theme.Muted}]search[/]  " +
-                $"[{Theme.PurpleBright}]n/N[/] [{Theme.Muted}]next/prev[/]   " +
+                $"[{Theme.PurpleBright}]g/G[/] [{Theme.Muted}]top/end[/]   " +
                 $"[{Theme.PurpleBright}]q[/] [{Theme.Muted}]quit[/]")));
 
         console.Write(new Rule($"[{Theme.Magenta}]·[/]")

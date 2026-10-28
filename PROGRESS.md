@@ -1,7 +1,7 @@
 # PROGRESS.md
 
 ## Milestone
-fix/exit-input-session — invalid input fails fast, instant R/Q/EXIT, -s resume session, -j default 2.
+fix/exit-input-session — invalid input fails fast, instant R/Q/EXIT, -s resume session, -j default 2, plus Issues 1-3 (no / pager search, Connections=16, Pause drops speed to 0).
 
 ## Done
 - STEP 0: cleanup ForceShutdownAsync indentation/DisposeAsync; OptionTable jobs uses CultureInfo.InvariantCulture
@@ -26,9 +26,17 @@ fix/exit-input-session — invalid input fails fast, instant R/Q/EXIT, -s resume
 - D2: README.md line 58 "default 1" -> "default 2"; Brief line 58 "max-concurrent-downloads 1" -> "2"
 - D3: SettingsBootstrap diagnostics to stderr when Verbose/PrintConfig: config path, env names, jobs source layer
 - D4: JobsDefaultTests (default=2, -j 1 ok, -j 0/17 throw, env beats default, CLI beats env, jobs source)
+- Issue 1: Removed /, n, N search from HelpPager; status line `✦ Help {offset+1}–{end}/{total} {label} · j/k space/b g/G q`; removed search wording from HelpView KEYS panel, HelpDocument KEYS section, Brief lines 113/139; deleted ReadSearch/FindNext/dead code
+- Issue 2a: Added AppDefaults.MinSplitSize = "1M"
+- Issue 2b: Aria2ArgsBuilder emits --min-split-size=1M before ExtraOptions; user override wins
+- Issue 2c: Conn column shows {live}/{max} (e.g. 16/16); removed duplicate Split column; DashboardView/DashboardLoop/DashboardRunner threaded with MaxConnectionPerServer; defaults Split=16, MaxConnectionPerServer=16 unchanged
+- Issue 3a: P key calls ForcePauseAllAsync (aria2.forcePauseAll); deleted PauseAllAsync; Resume stays unpauseAll
+- Issue 3b: ProgressCalculator TotalDownloadSpeed = sum of active items' DownloadSpeed (0 when none); per-item speed 0 for non-active; no globalStat speed
 
 ## Next
-- E3: CI not yet run (unverified - no CI access from this environment); PR #4 opened
+- Issue 2 Step 1 diagnosis (real 100MB+ download + aria2.getOption) - not run (no live aria2/network)
+- Issue 3 Step 3 manual check (time from P keypress to 0 B/s) - not run (no live aria2)
+- E3: CI not run (no CI access); PR #4 opened
 
 ## Blocked
 - (none)

@@ -9,7 +9,7 @@ namespace AriaSharp.App;
 /// the session publishes snapshots, this loop glides the bar between them and drives shimmer, spinner and intro.
 /// It is the only writer to the live display and owns the alternate-screen guard.
 /// </summary>
-internal sealed class DashboardLoop(LiveDisplayContext ctx, int split)
+internal sealed class DashboardLoop(LiveDisplayContext ctx, int maxConnectionPerServer)
 {
     private sealed record Latest(SessionState State, TimeSpan Elapsed, long At);
 
@@ -43,7 +43,7 @@ internal sealed class DashboardLoop(LiveDisplayContext ctx, int split)
                 shown = Gradient.Glide(shown, s.OverallPercent / 100.0, Stopwatch.GetElapsedTime(last, now).TotalSeconds);
                 last = now;
                 var elapsed = latest.Elapsed + Stopwatch.GetElapsedTime(latest.At, now);
-                ctx.UpdateTarget(DashboardView.Build(s, elapsed, split, frame - intro, shown));
+                ctx.UpdateTarget(DashboardView.Build(s, elapsed, maxConnectionPerServer, frame - intro, shown));
                 frame++;
             }
         }

@@ -72,10 +72,7 @@ public sealed class ProgressCalculator : IProgressCalculator
             overallPercent = 0;
         }
 
-        var speed = snapshot.TotalDownloadSpeed;
-        var delta = completed - previousCompleted;
-        if (speed <= 0 && delta > 0 && activeItems.Count > 0)
-            speed = (long)(delta / (Math.Max(1, ticks) * 0.5));
+        var speed = activeItems.Sum(i => i.DownloadSpeed);
 
         // Pause / idle: freeze ETA — do not keep EMA coasting
         var pausedOrIdle = activeItems.Count == 0 || speed <= 0;
@@ -123,7 +120,7 @@ public sealed class ProgressCalculator : IProgressCalculator
             NumWaiting = waitingItems.Count,
             NumStopped = stoppedItems.Count,
             NumPaused = pausedItems.Count,
-            TotalDownloadSpeed = snapshot.TotalDownloadSpeed,
+            TotalDownloadSpeed = speed,
             TotalUploadSpeed = snapshot.TotalUploadSpeed,
             CompletedLength = completed,
             TotalLength = total,

@@ -40,7 +40,7 @@ internal static class DashboardRunner
 
             try
             {
-                await AnsiConsole.Live(DashboardView.Build(empty, TimeSpan.Zero, settings.Split))
+                await AnsiConsole.Live(DashboardView.Build(empty, TimeSpan.Zero, settings.MaxConnectionPerServer))
                     .AutoClear(true)
                     .Overflow(VerticalOverflow.Ellipsis)
                     .Cropping(VerticalOverflowCropping.Bottom)
@@ -84,7 +84,7 @@ internal static class DashboardRunner
             switch (action)
             {
                 case DashboardKeyAction.PauseAll:
-                    await engine.PauseAllAsync(token);
+                    await engine.ForcePauseAllAsync(token);
                     break;
                 case DashboardKeyAction.ResumeAll:
                     await engine.UnpauseAllAsync(token);
@@ -105,7 +105,7 @@ internal static class DashboardRunner
         AppSettings settings,
         CancellationToken ct)
     {
-        var loop = new DashboardLoop(ctx, settings.Split);
+        var loop = new DashboardLoop(ctx, settings.MaxConnectionPerServer);
         using var renderCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var render = loop.RunAsync(renderCts.Token);
         var session = new DownloadSession(engine, new ProgressCalculator(), settings, loop.Publish);

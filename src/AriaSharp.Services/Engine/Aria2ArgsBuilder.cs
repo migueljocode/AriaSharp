@@ -53,6 +53,9 @@ public sealed class Aria2ArgsBuilder : IAria2ArgsBuilder
         if (appSettings.SpeedLimit is { Length: > 0 })
             args.Add($"--max-overall-download-limit={appSettings.SpeedLimit}");
 
+        // --min-split-size before ExtraOptions so a user override still wins.
+        args.Add($"--min-split-size={AppDefaults.MinSplitSize}");
+
         foreach (var pair in appSettings.ExtraOptions)
         {
             if (pair is not { Length: > 0 })

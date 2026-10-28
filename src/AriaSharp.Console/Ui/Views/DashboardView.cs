@@ -8,7 +8,7 @@ internal static class DashboardView
     private static readonly Color Purple = new(155, 89, 182);
     private static readonly Color PurpleDeep = new(108, 52, 131);
 
-    public static IRenderable Build(SessionState state, TimeSpan elapsed, int split = 16, int frame = -1, double? shown = null)
+    public static IRenderable Build(SessionState state, TimeSpan elapsed, int maxConnectionPerServer = AppDefaults.MaxConnectionPerServer, int frame = -1, double? shown = null)
     {
         ThrowIfNull(state);
         var width = TerminalMetrics.WindowWidth();
@@ -16,7 +16,7 @@ internal static class DashboardView
         root.AddColumn(new GridColumn().NoWrap());
         BrandLogo.AddTo(root, frame);
         root.AddRow(BuildOverall(state, elapsed, width, frame, shown));
-        root.AddRow(BuildActiveTable(state, split, frame, width));
+        root.AddRow(BuildActiveTable(state, maxConnectionPerServer, frame, width));
         root.AddRow(BuildStatus(state));
         if (state.CompleteItems is { Count: > 0 })
             root.AddRow(BuildComplete(state, width));
@@ -53,7 +53,7 @@ internal static class DashboardView
         return PurplePanel(rows, "[#E040FB]OVERALL[/]");
     }
 
-    private static Panel BuildActiveTable(SessionState state, int split, int frame, int width)
+    private static Panel BuildActiveTable(SessionState state, int maxConnectionPerServer, int frame, int width)
     {
         var nameWidth = Math.Max(24, width - 62);
         var finished = state.NumActive == 0 && state.NumWaiting == 0 && state.NumPaused == 0 && state.CompleteItems.Count > 0;
@@ -68,12 +68,11 @@ internal static class DashboardView
         table.AddColumn(new TableColumn("[#BB86FC]Progress[/]").Width(16).RightAligned());
         table.AddColumn(new TableColumn("[#BB86FC]Speed[/]").Width(10).RightAligned());
         table.AddColumn(new TableColumn("[#BB86FC]ETA[/]").Width(8).RightAligned());
-        table.AddColumn(new TableColumn("[#BB86FC]Conn[/]").Width(6).RightAligned());
-        table.AddColumn(new TableColumn("[#BB86FC]Split[/]").Width(5).RightAligned());
+        table.AddColumn(new TableColumn("[#BB86FC]Conn[/]").Width(8).RightAligned());
 
         if (state.ActiveItems.Count == 0)
         {
-            table.AddRow(new Markup("[grey](none)[/]"), new Text(""), new Text(""), new Text(""), new Text(""), new Text(""));
+            table.AddRow(new Markup("[grey](none)[/]"), new Text(""), new Text(""), new Text(""), new Text(""));
         }
         else
         {
@@ -86,8 +85,7 @@ internal static class DashboardView
                     new Markup($"{Gradient.Bar(8, itemPct / 100, Gradient.Violet, barFrame)} [#CE93D8]{itemPct,5:F1}%[/]"),
                     new Markup($"[grey]{Markup.Escape(FormatSpeed(item.DownloadSpeed))}[/]"),
                     new Markup($"[grey]{Markup.Escape(ItemEta(item))}[/]"),
-                    new Markup($"[dim]{item.Connections}[/]"),
-                    new Markup($"[dim]{split}[/]"));
+                    new Markup($"[dim]{item.Connections}/{maxConnectionPerServer}[/]"));
             }
         }
 
