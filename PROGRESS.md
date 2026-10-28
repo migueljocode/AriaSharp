@@ -28,8 +28,7 @@ fix/exit-input-session — invalid input fails fast, instant R/Q/EXIT, -s resume
 - D4: JobsDefaultTests (default=2, -j 1 ok, -j 0/17 throw, env beats default, CLI beats env, jobs source)
 
 ## Next
-- E2: Push branch and open PR to main
-- E3: Wait for green CI
+- E3: CI not yet run (unverified - no CI access from this environment); PR #4 opened
 
 ## Blocked
-- E3: CI not yet run (unverified)
+- (none)
