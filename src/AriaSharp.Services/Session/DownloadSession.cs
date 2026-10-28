@@ -15,7 +15,7 @@ public sealed class DownloadSession : IDownloadSession
     private readonly IProgressCalculator _calculator;
     private readonly AppSettings _settings;
     private readonly ProgressTick? _onTick;
-    private readonly Stopwatch _watch = new();
+    private readonly RunClock _clock = new();
     private SessionState? _state;
     private int _stopRequested;
 
@@ -33,7 +33,7 @@ public sealed class DownloadSession : IDownloadSession
 
     public SessionState State => _state ?? EmptyState();
 
-    public TimeSpan Elapsed => _watch.Elapsed;
+    public TimeSpan Elapsed => _clock.Elapsed;
 
     public async Task<RunOutcome> RunAsync(CancellationToken ct)
     {
@@ -46,7 +46,7 @@ public sealed class DownloadSession : IDownloadSession
         long prevCompleted = 0, prevTotal = 0;
         double prevSpeed = 0;
 
-        _watch.Start();
+        _clock.Sync(paused: false);
         try
         {
             while (!ct.IsCancellationRequested && Volatile.Read(ref _stopRequested) == 0)
@@ -66,7 +66,8 @@ public sealed class DownloadSession : IDownloadSession
                 prevTotal = _state.TotalLength;
                 prevSpeed = _state.TotalDownloadSpeed;
 
-                _onTick?.Invoke(_state, _watch.Elapsed);
+                _clock.Sync(_state.IsPaused);
+                _onTick?.Invoke(_state, _clock.Elapsed);
 
                 if (_state is { NumActive: 0, NumWaiting: 0, NumPaused: 0 })
                 {
@@ -95,7 +96,7 @@ public sealed class DownloadSession : IDownloadSession
         }
         finally
         {
-            _watch.Stop();
+            _clock.Stop();
         }
 
         var interrupted = RunOutcome.Interrupted();

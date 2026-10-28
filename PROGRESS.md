@@ -40,3 +40,8 @@ fix/exit-input-session — invalid input fails fast, instant R/Q/EXIT, -s resume
 
 ## Blocked
 - (none)
+
+## Round 3 — pause/queue, clock, UI polish
+- Done: pause keeps queued items Waiting (`PauseTracker`, thread-safe, additive); elapsed frozen while paused (`RunClock`); paused bar yellow; soft logo-style bar gradient (`Gradient.Soft`); Split column restored; `Connection` header; centered headers, ETA/Split/Connection values centered, Progress/Speed values right-aligned.
+- Verified by CI (Actions, ubuntu/macos/windows): build, unit tests, AOT publish, smoke tests.
+- Not done / unverified: `graphify update` (no tooling here); live check against real aria2 that (a) queued items stay Waiting after P, (b) the same two downloads resume first after R, (c) speed reads 0 right after P, (d) the visual look of the soft gradient and header alignment.

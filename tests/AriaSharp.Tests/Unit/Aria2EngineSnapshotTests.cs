@@ -38,4 +38,17 @@ public class PauseTrackerTests
         Assert.Empty(paused);
         Assert.False(tracker.IsPaused);
     }
+
+    [Fact]
+    public void Record_SecondPauseWithNoActiveItems_KeepsFirstSet()
+    {
+        var tracker = new PauseTracker();
+        tracker.Record(["b", "c"]);
+        tracker.Record([]);
+
+        var (_, paused) = tracker.Split([new DownloadItem { Gid = "b", State = DownloadState.Paused }]);
+
+        Assert.True(tracker.IsPaused);
+        Assert.Single(paused);
+    }
 }

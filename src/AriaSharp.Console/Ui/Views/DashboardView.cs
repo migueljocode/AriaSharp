@@ -8,6 +8,14 @@ internal static class DashboardView
     private static readonly Color Purple = new(155, 89, 182);
     private static readonly Color PurpleDeep = new(108, 52, 131);
 
+    private const int ProgressWidth = 16;
+    private const int SpeedWidth = 10;
+    private const int EtaWidth = 8;
+    private const int SplitWidth = 7;
+    private const int ConnectionWidth = 12;
+    private const int FixedColumnsWidth = ProgressWidth + SpeedWidth + EtaWidth + SplitWidth + ConnectionWidth;
+    private const int TableChromeWidth = 23; // 6 columns x 2 padding + 7 borders + panel border/padding (4)
+
     public static IRenderable Build(SessionState state, TimeSpan elapsed, int maxConnectionPerServer = AppDefaults.MaxConnectionPerServer, int frame = -1, double? shown = null, int splitPerServer = AppDefaults.Split)
     {
         ThrowIfNull(state);
@@ -55,7 +63,7 @@ internal static class DashboardView
 
     private static Panel BuildActiveTable(SessionState state, int maxConnectionPerServer, int splitPerServer, int frame, int width)
     {
-        var nameWidth = Math.Max(24, width - 60);
+        var nameWidth = Math.Max(24, width - FixedColumnsWidth - TableChromeWidth);
         var finished = state.NumActive == 0 && state.NumWaiting == 0 && state.NumPaused == 0 && state.CompleteItems.Count > 0;
         var pausedOnly = state.IsPaused;
         var barFrame = finished || pausedOnly ? -1 : frame;
@@ -65,11 +73,11 @@ internal static class DashboardView
             .BorderColor(PurpleDeep)
             .Expand();
         table.AddColumn(new TableColumn("[#BB86FC]Name[/]").NoWrap());
-        table.AddColumn(CenteredHeader("Progress", 16));
-        table.AddColumn(CenteredHeader("Speed", 10));
-        table.AddColumn(CenteredHeader("ETA", 8));
-        table.AddColumn(CenteredHeader("Split", 7));
-        table.AddColumn(CenteredHeader("Connection", 12));
+        table.AddColumn(CenteredHeader("Progress", ProgressWidth).RightAligned());
+        table.AddColumn(CenteredHeader("Speed", SpeedWidth).RightAligned());
+        table.AddColumn(CenteredHeader("ETA", EtaWidth));
+        table.AddColumn(CenteredHeader("Split", SplitWidth));
+        table.AddColumn(CenteredHeader("Connection", ConnectionWidth));
 
         if (state.ActiveItems.Count == 0)
         {
