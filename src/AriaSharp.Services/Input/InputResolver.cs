@@ -16,7 +16,8 @@ public static class InputResolver
             IReadOnlyList<string>? forceFiles,
             CancellationToken ct,
             TextReader? stdin = null,
-            bool allowClipboardFallback = false)
+            bool allowClipboardFallback = false,
+            string? sessionFallbackPath = null)
         {
             ThrowIfNull(extractor);
             ThrowIfNull(classifier);
@@ -46,7 +47,14 @@ public static class InputResolver
             }
 
             if (allowClipboardFallback)
-                return await FromClipboardAsync(extractor, clipboard, ct);
+            {
+                var fromClipboard = await FromClipboardAsync(extractor, clipboard, ct, urlsOnly: true);
+                if (fromClipboard is { Count: > 0 })
+                    return fromClipboard;
+            }
+
+            if (sessionFallbackPath is { Length: > 0 } && sessionFallbackPath.SessionHasEntries())
+                return await ExpandArgsAsync([sessionFallbackPath], extractor, classifier, ct);
 
             return [];
         }
@@ -61,11 +69,12 @@ public static class InputResolver
         IReadOnlyList<string>? forceFiles,
         CancellationToken ct,
         TextReader? stdin = null,
-        bool allowClipboardFallback = false)
+        bool allowClipboardFallback = false,
+        string? sessionFallbackPath = null)
     {
         ThrowIfNull(existing);
         return existing.ResolveDownloadUrlsAsync(
-            extractor, classifier, clipboard, forceClipboard, forceFiles, ct, stdin, allowClipboardFallback);
+            extractor, classifier, clipboard, forceClipboard, forceFiles, ct, stdin, allowClipboardFallback, sessionFallbackPath);
     }
 
     private static async Task<IReadOnlyList<string>> ExpandArgsAsync(
@@ -154,7 +163,8 @@ public static class InputResolver
     private static async Task<IReadOnlyList<string>> FromClipboardAsync(
         IUrlExtractor extractor,
         IClipboardReader clipboard,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool urlsOnly = false)
     {
         try
         {
@@ -164,6 +174,8 @@ public static class InputResolver
             var urls = extractor.Extract(clip);
             if (urls is { Length: > 0 })
                 return urls;
+            if (urlsOnly)
+                return [];
             return [.. clip.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)];
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)

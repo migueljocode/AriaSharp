@@ -80,6 +80,103 @@ public class InputResolverTests
         Assert.Contains(urls, u => u.StartsWith("magnet:?", StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("just some text, no link here")]
+    public async Task Fallback_NoClipboardUrl_UsesSessionFile(string? clip)
+    {
+        var session = await WriteSessionAsync("https://example.com/resume\n dir=/tmp/out\n");
+        try
+        {
+            var result = await ResolveFallbackAsync(clip, session);
+            Assert.Equal("https://example.com/resume", Assert.Single(result));
+        }
+        finally
+        {
+            File.Delete(session);
+        }
+    }
+
+    [Fact]
+    public async Task Fallback_ClipboardUrl_BeatsSessionFile()
+    {
+        var session = await WriteSessionAsync("https://example.com/resume\n");
+        try
+        {
+            var result = await ResolveFallbackAsync("https://clip.example/file", session);
+            Assert.Equal("https://clip.example/file", Assert.Single(result));
+        }
+        finally
+        {
+            File.Delete(session);
+        }
+    }
+
+    [Fact]
+    public async Task Fallback_ExplicitArg_BeatsSessionFile()
+    {
+        var session = await WriteSessionAsync("https://example.com/resume\n");
+        try
+        {
+            var result = await InputResolver.ResolveAsync(
+                ["https://example.com/arg"],
+                new UrlExtractor(),
+                new UrlClassifier(),
+                new FakeClipboard(null),
+                forceClipboard: false,
+                forceFiles: null,
+                CancellationToken.None,
+                allowClipboardFallback: true,
+                sessionFallbackPath: session);
+            Assert.Equal("https://example.com/arg", Assert.Single(result));
+        }
+        finally
+        {
+            File.Delete(session);
+        }
+    }
+
+    [Fact]
+    public async Task Fallback_SessionMissingOrWithoutEntries_ReturnsEmpty()
+    {
+        var missing = Path.Join(Path.GetTempPath(), $"{Guid.NewGuid():N}.session");
+        Assert.Empty(await ResolveFallbackAsync(null, missing));
+
+        var empty = await WriteSessionAsync("\n# nothing\n");
+        try
+        {
+            Assert.Empty(await ResolveFallbackAsync(null, empty));
+        }
+        finally
+        {
+            File.Delete(empty);
+        }
+    }
+
+    [Fact]
+    public async Task Fallback_Disabled_WhenPathNull()
+        => Assert.Empty(await ResolveFallbackAsync(null, null));
+
+    private static async Task<string> WriteSessionAsync(string content)
+    {
+        var path = Path.GetTempFileName();
+        await File.WriteAllTextAsync(path, content);
+        return path;
+    }
+
+    private static Task<IReadOnlyList<string>> ResolveFallbackAsync(string? clip, string? sessionPath)
+        => InputResolver.ResolveAsync(
+            [],
+            new UrlExtractor(),
+            new UrlClassifier(),
+            new FakeClipboard(clip),
+            forceClipboard: false,
+            forceFiles: null,
+            CancellationToken.None,
+            allowClipboardFallback: true,
+            sessionFallbackPath: sessionPath);
+
     private sealed class FakeClipboard(string? text) : IClipboardReader
     {
         public Task<string?> ReadTextAsync(CancellationToken ct) => Task.FromResult(text);

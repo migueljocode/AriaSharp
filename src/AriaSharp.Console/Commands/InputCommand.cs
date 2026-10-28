@@ -14,6 +14,7 @@ internal static class InputCommand
                 : null;
             try
             {
+                var interactive = !Console.IsOutputRedirected;
                 var resolved = await settings.Inputs.ResolveDownloadUrlsAsync(
                     new UrlExtractor(),
                     new UrlClassifier(),
@@ -22,7 +23,10 @@ internal static class InputCommand
                     forceFiles: settings.FromFiles,
                     CancellationToken.None,
                     stdin: stdin,
-                    allowClipboardFallback: !Console.IsOutputRedirected);
+                    allowClipboardFallback: interactive,
+                    sessionFallbackPath: interactive
+                        ? Path.Join(Directory.GetCurrentDirectory(), AppDefaults.SessionFileName)
+                        : null);
 
                 settings.Inputs = [.. resolved];
                 if (settings.Verbose && resolved is { Count: > 0 })
@@ -42,7 +46,7 @@ internal static class InputCommand
         if (settings.Inputs is { Count: 0 })
         {
             await Console.Out.WriteLineAsync(
-                "No URLs found (CLI, files, stdin, or clipboard). Use --help, --from-clipboard, or --from-file.");
+                "No URLs found (CLI, files, stdin, clipboard, or resume.session in the current directory). Use --help, --from-clipboard, or --from-file.");
             return ((int)ExitCode.UsageError, settings);
         }
 
