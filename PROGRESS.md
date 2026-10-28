@@ -29,14 +29,14 @@ fix/exit-input-session — invalid input fails fast, instant R/Q/EXIT, -s resume
 - Issue 1: Removed /, n, N search from HelpPager; status line `✦ Help {offset+1}–{end}/{total} {label} · j/k space/b g/G q`; removed search wording from HelpView KEYS panel, HelpDocument KEYS section, Brief lines 113/139; deleted ReadSearch/FindNext/dead code
 - Issue 2a: Added AppDefaults.MinSplitSize = "1M"
 - Issue 2b: Aria2ArgsBuilder emits --min-split-size=1M before ExtraOptions; user override wins
-- Issue 2c: Conn column shows {live}/{max} (e.g. 16/16); removed duplicate Split column; DashboardView/DashboardLoop/DashboardRunner threaded with MaxConnectionPerServer; defaults Split=16, MaxConnectionPerServer=16 unchanged
+- Issue 2c: Conn column shows {live}/{max} (e.g. 16/16); (Split column later restored in Round 3); DashboardView/DashboardLoop/DashboardRunner threaded with MaxConnectionPerServer; defaults Split=16, MaxConnectionPerServer=16 unchanged
 - Issue 3a: P key calls ForcePauseAllAsync (aria2.forcePauseAll); deleted PauseAllAsync; Resume stays unpauseAll
 - Issue 3b: ProgressCalculator TotalDownloadSpeed = sum of active items' DownloadSpeed (0 when none); per-item speed 0 for non-active; no globalStat speed
 
 ## Next
 - Issue 2 Step 1 diagnosis (real 100MB+ download + aria2.getOption) - not run (no live aria2/network)
 - Issue 3 Step 3 manual check (time from P keypress to 0 B/s) - not run (no live aria2)
-- E3: CI not run (no CI access); PR #4 opened
+- E3: CI now runs on PR #4 via GitHub Actions; green on the Round 3 head commit
 
 ## Blocked
 - (none)
