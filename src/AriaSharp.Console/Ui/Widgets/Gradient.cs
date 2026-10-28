@@ -19,7 +19,6 @@ internal static class Gradient
     public static readonly Rgb[] Yellow = [new(0x85, 0x4D, 0x0E), new(0xCA, 0x8A, 0x04), new(0xEA, 0xB3, 0x08), new(0xFA, 0xCC, 0x15), new(0xFE, 0xF0, 0x8A)];
 
     private static readonly Rgb Track = new(0x2D, 0x25, 0x40);
-    private static readonly Rgb White = new(0xFF, 0xFF, 0xFF);
     private const string Eighths = " ▏▎▍▌▋▊▉";
     private const string SpinnerFrames = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏";
 
