@@ -28,6 +28,7 @@ public sealed class Aria2Engine : IAria2Engine
     private string _version = string.Empty;
     private bool _disposed;
     private bool _stopped;
+    private static readonly string[] GidOnly = ["gid"];
     private readonly PauseTracker _pauseTracker = new();
     private SessionSaveCoordinator? _sessionSave;
 
@@ -333,7 +334,7 @@ public sealed class Aria2Engine : IAria2Engine
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         var rpc = _rpc ?? throw new InvalidOperationException("Engine not started.");
-        var active = await rpc.CallAsync("aria2.tellActive", new object[] { new[] { "gid" } }, ct);
+        var active = await rpc.CallAsync("aria2.tellActive", [GidOnly], ct);
         _pauseTracker.Record(Aria2SnapshotMapper.ExtractGids(active));
         await rpc.CallAsync("aria2.forcePauseAll", null, ct);
     }

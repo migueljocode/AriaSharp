@@ -65,11 +65,11 @@ internal static class DashboardView
             .BorderColor(PurpleDeep)
             .Expand();
         table.AddColumn(new TableColumn("[#BB86FC]Name[/]").NoWrap());
-        table.AddColumn(CenteredHeader("Progress", 16, HorizontalAlignment.Right));
-        table.AddColumn(CenteredHeader("Speed", 10, HorizontalAlignment.Right));
-        table.AddColumn(CenteredHeader("ETA", 8, HorizontalAlignment.Center));
-        table.AddColumn(CenteredHeader("Split", 7, HorizontalAlignment.Center));
-        table.AddColumn(CenteredHeader("Connection", 12, HorizontalAlignment.Center));
+        table.AddColumn(CenteredHeader("Progress", 16));
+        table.AddColumn(CenteredHeader("Speed", 10));
+        table.AddColumn(CenteredHeader("ETA", 8));
+        table.AddColumn(CenteredHeader("Split", 7));
+        table.AddColumn(CenteredHeader("Connection", 12));
 
         if (state.ActiveItems.Count == 0)
         {
@@ -94,10 +94,8 @@ internal static class DashboardView
         return PurplePanel(table, $"[#E040FB]ACTIVE ({state.NumActive})[/]");
     }
 
-    private static TableColumn CenteredHeader(string title, int width, HorizontalAlignment alignment) =>
-        new TableColumn(new Align(new Markup($"[#BB86FC]{title}[/]"), HorizontalAlignment.Center))
-            .Width(width)
-            .Alignment(alignment);
+    private static TableColumn CenteredHeader(string title, int width) =>
+        new TableColumn(new Align(new Markup($"[#BB86FC]{title}[/]"), HorizontalAlignment.Center)).Width(width);
 
     private static Panel BuildStatus(SessionState state)
     {

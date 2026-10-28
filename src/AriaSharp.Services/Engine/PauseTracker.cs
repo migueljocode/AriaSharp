@@ -20,7 +20,7 @@ internal sealed class PauseTracker
     public void Clear() => _pausedGids.Clear();
 
     /// <summary>Items aria2 reports as paused count as Paused only if they were active at pause time; the rest are Waiting.</summary>
-    public (List<DownloadItem> Waiting, List<DownloadItem> Paused) Split(IReadOnlyList<DownloadItem> items)
+    public (List<DownloadItem> Waiting, List<DownloadItem> Paused) Split(IEnumerable<DownloadItem> items)
     {
         var waiting = new List<DownloadItem>();
         var paused = new List<DownloadItem>();
