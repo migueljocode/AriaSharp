@@ -19,6 +19,7 @@ public class Aria2EngineForceShutdownTests
             Complete = [], Failed = [], Skipped = [], Interrupted = [],
         });
         public Task SaveSessionAsync(CancellationToken ct) => Task.CompletedTask;
+        public Task StopAsync(CancellationToken ct) => Task.CompletedTask;
         public Task ShutdownAsync(CancellationToken ct) { ShutdownCalled = true; return Task.CompletedTask; }
         public Task ForceShutdownAsync(CancellationToken ct) { ForceShutdownCalled = true; return Task.CompletedTask; }
         public Task<string> AddUriAsync(string[] uris, CancellationToken ct) => Task.FromResult(string.Empty);

@@ -139,6 +139,13 @@ internal static class DownloadCommand
                     foreach (var warning in outcome.Warnings)
                         await Console.Error.WriteLineAsync(warning);
 
+                // Stop the engine before the summary / prompt — the summary must not need the engine.
+                var stopWatch = System.Diagnostics.Stopwatch.StartNew();
+                await engine.StopAsync(cts.Token);
+                stopWatch.Stop();
+                if (settings.Verbose)
+                    await Console.Error.WriteLineAsync($"engine stopped in {stopWatch.ElapsedMilliseconds} ms");
+
                 return await DownloadSummary.FinishAsync(
                     finalState, outcome, elapsed,
                     Path.GetFullPath(outputDir), Path.GetFullPath(sessionPath), settings);

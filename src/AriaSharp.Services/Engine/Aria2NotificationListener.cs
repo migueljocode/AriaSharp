@@ -137,17 +137,9 @@ internal sealed class Aria2NotificationListener : IAsyncDisposable
 
         if (_ws is not null)
         {
-            try
-            {
-                if (_ws.State is WebSocketState.Open or WebSocketState.CloseReceived)
-                {
-                    using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-                    await _ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "shutdown", timeout.Token);
-                }
-            }
-            catch (WebSocketException) { }
-            catch (OperationCanceledException) { }
-            catch (IOException) { }
+            try { _ws.Abort(); }
+            catch (ObjectDisposedException) { }
+            catch (InvalidOperationException) { }
             finally
             {
                 _ws.Dispose();
@@ -157,6 +149,7 @@ internal sealed class Aria2NotificationListener : IAsyncDisposable
 
         if (_loop is not null)
         {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromMilliseconds(300));
             try { await _loop; }
             catch (OperationCanceledException) { }
             catch (WebSocketException) { }

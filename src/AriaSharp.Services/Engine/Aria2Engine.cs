@@ -27,6 +27,7 @@ public sealed class Aria2Engine : IAria2Engine
     private Aria2NotificationListener? _notifications;
     private string _version = string.Empty;
     private bool _disposed;
+    private bool _stopped;
     private SessionSaveCoordinator? _sessionSave;
 
     public ChannelReader<EngineEvent> Events => _channel.Reader;
@@ -195,16 +196,48 @@ public sealed class Aria2Engine : IAria2Engine
         catch (IOException) { }
     }
 
-    public async Task ShutdownAsync(CancellationToken ct)
+    public async Task StopAsync(CancellationToken ct)
     {
-        if (_rpc is null) return;
-        try
+        if (_stopped) return;
+        _stopped = true;
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+        // 1. SaveSessionAsync with a linked CTS of 1000 ms
+        using var saveCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        saveCts.CancelAfter(TimeSpan.FromMilliseconds(1000));
+        try { await SaveSessionAsync(saveCts.Token); }
+        catch (OperationCanceledException) { }
+        catch (TimeoutException) { }
+        catch (IOException) { }
+
+        // 2. ForceShutdownAsync via RPC
+        await ForceShutdownAsync(ct);
+
+        // 3. Wait for process to exit at most ForceStopWaitMs, then Kill
+        if (_process is not null)
         {
-            await _rpc.CallAsync("aria2.shutdown", null, ct);
+            using var waitCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            waitCts.CancelAfter(TimeSpan.FromMilliseconds(AppDefaults.ForceStopWaitMs));
+            try { await _process.WaitForExitAsync(waitCts.Token); }
+            catch (OperationCanceledException)
+            {
+                _process.Kill();
+                await _process.WaitForExitAsync(CancellationToken.None);
+            }
         }
-        catch (HttpRequestException) { }
-        catch (InvalidOperationException) { }
-        catch (TaskCanceledException) { }
+
+        // 4. Dispose notification listener (abort socket, no close handshake, cap 300 ms)
+        if (_notifications is not null)
+        {
+            using var notifyCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            notifyCts.CancelAfter(TimeSpan.FromMilliseconds(300));
+            try { await _notifications.DisposeAsync(); }
+            catch (OperationCanceledException) { }
+            catch (IOException) { }
+            _notifications = null;
+        }
+
+        stopwatch.Stop();
     }
 
     public async Task<string> AddUriAsync(string[] uris, CancellationToken ct)
@@ -233,20 +266,16 @@ public sealed class Aria2Engine : IAria2Engine
         _disposed = true;
         try
         {
-            if (_rpc is not null)
-            {
-                try { await ShutdownAsync(CancellationToken.None); }
-                catch (HttpRequestException) { }
-                catch (InvalidOperationException) { }
-                catch (TaskCanceledException) { }
-                catch (TimeoutException) { }
-                catch (IOException) { }
-            }
+            if (!_stopped)
+                await StopAsync(CancellationToken.None);
         }
+        catch (HttpRequestException) { }
+        catch (InvalidOperationException) { }
+        catch (TaskCanceledException) { }
+        catch (TimeoutException) { }
+        catch (IOException) { }
         finally
         {
-            if (_notifications is not null)
-                await _notifications.DisposeAsync();
             if (_process is not null)
                 await _process.DisposeAsync();
             if (_rpc is not null)

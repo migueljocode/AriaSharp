@@ -17,7 +17,7 @@ public sealed class AppDefaults
     public const int PollFloorMs = 250;
     public const int AnimationFrameMs = 80;
     public const int RpcReadyTimeoutMs = 10000;
-    public const int GracefulStopTimeoutMs = 3000;
+    public const int ForceStopWaitMs = 500;
     public const int IdlePollsRequired = 2;
     public const int MinTerminalWidth = 76;
     public const int FullScreenTerminalWidth = 100;

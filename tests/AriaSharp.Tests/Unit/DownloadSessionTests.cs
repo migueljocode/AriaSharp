@@ -187,7 +187,7 @@ public class DownloadSessionTests
                 throw new InvalidOperationException("save session boom");
             return Task.CompletedTask;
         }
-        public Task ShutdownAsync(CancellationToken ct) => Task.CompletedTask;
+        public Task StopAsync(CancellationToken ct) => Task.CompletedTask;
         public Task ForceShutdownAsync(CancellationToken ct) => Task.CompletedTask;
         public Task<string> AddUriAsync(string[] uris, CancellationToken ct) => Task.FromResult(string.Empty);
         public Task<string> GetVersionAsync(CancellationToken ct) => Task.FromResult("1.37.0");
