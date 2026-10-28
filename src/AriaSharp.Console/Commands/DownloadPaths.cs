@@ -8,8 +8,6 @@ internal static class DownloadPaths
         var outputDir = string.IsNullOrWhiteSpace(settings.OutputDir)
             ? AppDefaults.OutputDirDefault
             : settings.OutputDir;
-        if (!Directory.Exists(outputDir))
-            Directory.CreateDirectory(outputDir);
 
         var sessionPath = string.IsNullOrWhiteSpace(settings.SessionFile)
             ? Path.Join(outputDir, AppDefaults.SessionFileName)

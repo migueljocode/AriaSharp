@@ -28,6 +28,16 @@ internal static class DashboardRunner
 
         try
         {
+            // Poll once before opening the alt screen. If aria2 reports zero items,
+            // print the error on the normal screen and never open the alt screen.
+            var firstSnapshot = await engine.GetSnapshotAsync(linked.Token);
+            if (firstSnapshot.NumActive == 0 && firstSnapshot.NumWaiting == 0 && firstSnapshot.TotalLength == 0)
+            {
+                await Console.Error.WriteLineAsync("Error: no downloads started — aria2 reported zero items.");
+                await StopKeysAsync(linked, keyTask);
+                return (RunOutcome.Empty("no downloads started — aria2 reported zero items."), empty, TimeSpan.Zero, false);
+            }
+
             try
             {
                 await AnsiConsole.Live(DashboardView.Build(empty, TimeSpan.Zero, settings.Split))

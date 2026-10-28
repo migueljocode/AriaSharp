@@ -8,7 +8,7 @@ public static class InputResolver
 {
     extension(IReadOnlyList<string> existing)
     {
-        public async Task<IReadOnlyList<string>> ResolveDownloadUrlsAsync(
+        public async Task<(IReadOnlyList<string> Valid, IReadOnlyList<string> Rejected)> ResolveDownloadUrlsAsync(
             IUrlExtractor extractor,
             IUrlClassifier classifier,
             IClipboardReader clipboard,
@@ -25,10 +25,10 @@ public static class InputResolver
             forceFiles ??= [];
 
             if (forceClipboard)
-                return await FromClipboardAsync(extractor, clipboard, ct);
+                return (await FromClipboardAsync(extractor, clipboard, ct), []);
 
             if (forceFiles is { Count: > 0 })
-                return await FromFilesAsync(forceFiles, extractor, ct);
+                return (await FromFilesAsync(forceFiles, extractor, ct), []);
 
             if (existing is { Count: > 0 })
                 return await ExpandArgsAsync(existing, extractor, classifier, ct);
@@ -38,7 +38,7 @@ public static class InputResolver
                 var text = await stdin.ReadToEndAsync(ct);
                 var fromStdin = extractor.Extract(text);
                 if (fromStdin is { Length: > 0 })
-                    return fromStdin;
+                    return (fromStdin, []);
 
                 string[] lines = [.. text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)];
                 if (lines is { Length: > 0 })
@@ -46,13 +46,13 @@ public static class InputResolver
             }
 
             if (allowClipboardFallback)
-                return await FromClipboardAsync(extractor, clipboard, ct);
+                return (await FromClipboardAsync(extractor, clipboard, ct), []);
 
-            return [];
+            return ([], []);
         }
     }
 
-    public static Task<IReadOnlyList<string>> ResolveAsync(
+    public static Task<(IReadOnlyList<string> Valid, IReadOnlyList<string> Rejected)> ResolveAsync(
         IReadOnlyList<string> existing,
         IUrlExtractor extractor,
         IUrlClassifier classifier,
@@ -68,13 +68,14 @@ public static class InputResolver
             extractor, classifier, clipboard, forceClipboard, forceFiles, ct, stdin, allowClipboardFallback);
     }
 
-    private static async Task<IReadOnlyList<string>> ExpandArgsAsync(
+    private static async Task<(IReadOnlyList<string> Valid, IReadOnlyList<string> Rejected)> ExpandArgsAsync(
         IReadOnlyList<string> args,
         IUrlExtractor extractor,
         IUrlClassifier classifier,
         CancellationToken ct)
     {
         List<string> result = [];
+        List<string> rejected = [];
         HashSet<string> seen = new(StringComparer.Ordinal);
 
         foreach (var arg in args)
@@ -113,11 +114,10 @@ public static class InputResolver
                 continue;
             }
 
-            if (seen.Add(arg))
-                result.Add(arg);
+            rejected.Add(arg);
         }
 
-        return result;
+        return (result, rejected);
     }
 
     private static async Task<IReadOnlyList<string>> FromFilesAsync(

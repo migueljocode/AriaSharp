@@ -30,6 +30,33 @@ internal static class DownloadCommand
         try
         {
             var (outputDir, sessionPath) = DownloadPaths.Resolve(settings);
+
+            try
+            {
+                if (!Directory.Exists(outputDir))
+                    Directory.CreateDirectory(outputDir);
+            }
+            catch (IOException ex)
+            {
+                await Console.Error.WriteLineAsync($"Error: invalid output directory {outputDir} ({ex.Message})");
+                return ((int)ExitCode.UsageError, false);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                await Console.Error.WriteLineAsync($"Error: invalid output directory {outputDir} ({ex.Message})");
+                return ((int)ExitCode.UsageError, false);
+            }
+            catch (NotSupportedException ex)
+            {
+                await Console.Error.WriteLineAsync($"Error: invalid output directory {outputDir} ({ex.Message})");
+                return ((int)ExitCode.UsageError, false);
+            }
+            catch (ArgumentException ex)
+            {
+                await Console.Error.WriteLineAsync($"Error: invalid output directory {outputDir} ({ex.Message})");
+                return ((int)ExitCode.UsageError, false);
+            }
+
             var workspace = await RunWorkspace.CreateAsync(cts.Token);
             var engine = new Aria2Engine();
             try

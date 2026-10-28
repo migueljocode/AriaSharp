@@ -7,6 +7,8 @@ internal static class InputCommand
 {
     public static async Task<(int? ExitCode, AppSettings Settings)> ResolveAsync(AppSettings settings)
     {
+        var cliArgs = settings.Inputs;
+
         try
         {
             TextReader? stdin = Console.IsInputRedirected
@@ -14,7 +16,7 @@ internal static class InputCommand
                 : null;
             try
             {
-                var resolved = await settings.Inputs.ResolveDownloadUrlsAsync(
+                var (resolved, rejected) = await settings.Inputs.ResolveDownloadUrlsAsync(
                     new UrlExtractor(),
                     new UrlClassifier(),
                     new ClipboardReader(),
@@ -25,6 +27,13 @@ internal static class InputCommand
                     allowClipboardFallback: !Console.IsOutputRedirected);
 
                 settings.Inputs = [.. resolved];
+
+                if (resolved is { Count: 0 } && rejected is { Count: > 0 })
+                {
+                    await Console.Error.WriteLineAsync($"Error: no valid URL, magnet or file in: {string.Join(' ', rejected)}");
+                    return ((int)ExitCode.UsageError, settings);
+                }
+
                 if (settings.Verbose && resolved is { Count: > 0 })
                     await Console.Error.WriteLineAsync($"Resolved {resolved.Count} download URL(s).");
             }
