@@ -9,6 +9,10 @@ internal static class InputCommand
     {
         var cliArgs = settings.Inputs;
 
+        // -s / --session implies resume mode.
+        if (!string.IsNullOrWhiteSpace(settings.SessionFile))
+            settings.Resume = true;
+
         try
         {
             TextReader? stdin = Console.IsInputRedirected
@@ -48,7 +52,7 @@ internal static class InputCommand
             return ((int)ExitCode.UsageError, settings);
         }
 
-        if (settings.Inputs is { Count: 0 })
+        if (settings.Inputs is { Count: 0 } && !settings.Resume)
         {
             await Console.Out.WriteLineAsync(
                 "No URLs found (CLI, files, stdin, or clipboard). Use --help, --from-clipboard, or --from-file.");

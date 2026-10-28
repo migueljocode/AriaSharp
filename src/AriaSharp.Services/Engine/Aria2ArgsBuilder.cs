@@ -46,6 +46,10 @@ public sealed class Aria2ArgsBuilder : IAria2ArgsBuilder
             args.Add($"--save-session-interval={appSettings.SaveSessionInterval}");
         }
 
+        // When resuming (-s), also feed the session file as an extra input source.
+        if (appSettings.Resume && !string.IsNullOrEmpty(settings.SessionFile))
+            args.Add($"--input-file={settings.SessionFile}");
+
         if (appSettings.SpeedLimit is { Length: > 0 })
             args.Add($"--max-overall-download-limit={appSettings.SpeedLimit}");
 
