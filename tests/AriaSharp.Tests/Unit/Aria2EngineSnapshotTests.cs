@@ -51,4 +51,17 @@ public class PauseTrackerTests
         Assert.True(tracker.IsPaused);
         Assert.Single(paused);
     }
+
+    [Fact]
+    public void Record_WithNothingActive_StillMarksPausedAndKeepsQueueWaiting()
+    {
+        var tracker = new PauseTracker();
+        tracker.Record([]);
+
+        var (waiting, paused) = tracker.Split([new DownloadItem { Gid = "a", State = DownloadState.Paused }]);
+
+        Assert.True(tracker.IsPaused);
+        Assert.Single(waiting);
+        Assert.Empty(paused);
+    }
 }

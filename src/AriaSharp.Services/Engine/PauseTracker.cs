@@ -9,21 +9,23 @@ internal sealed class PauseTracker
 {
     private readonly Lock _gate = new();
     private readonly HashSet<string> _pausedGids = new(StringComparer.Ordinal);
+    private bool _paused;
 
     public bool IsPaused
     {
         get
         {
             lock (_gate)
-                return _pausedGids.Count > 0;
+                return _paused;
         }
     }
 
-    /// <summary>Adds the gids that were active at pause time. Additive, so pressing pause again keeps the first set.</summary>
+    /// <summary>Marks the session paused and adds the gids that were active. Additive, so pressing pause again keeps the first set; pausing with nothing active still counts as paused.</summary>
     public void Record(IEnumerable<string> activeGids)
     {
         lock (_gate)
         {
+            _paused = true;
             foreach (var gid in activeGids)
                 _pausedGids.Add(gid);
         }
@@ -32,7 +34,10 @@ internal sealed class PauseTracker
     public void Clear()
     {
         lock (_gate)
+        {
+            _paused = false;
             _pausedGids.Clear();
+        }
     }
 
     /// <summary>Items aria2 reports as paused count as Paused only if they were active at pause time; the rest are Waiting.</summary>
