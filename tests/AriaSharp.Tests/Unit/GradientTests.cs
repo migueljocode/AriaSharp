@@ -67,7 +67,7 @@ public partial class GradientTests
         for (var phase = 0.0; phase < 2.0; phase += 0.25)
         {
             var c = Gradient.Soft(Gradient.Violet, x, phase);
-            Assert.InRange(c.R, Gradient.Violet[0].R, Gradient.Violet[^1].R + 1);
+            Assert.InRange(c.R, Gradient.Violet[0].R, Gradient.Violet[^1].R);
         }
     }
 

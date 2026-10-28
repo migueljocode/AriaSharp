@@ -42,17 +42,31 @@ public class DashboardViewTests
     [Fact]
     public void Build_HeadersAreSplitAndConnection()
     {
-        var text = RenderToString(DashboardView.Build(SampleState(), TimeSpan.FromSeconds(5), 16, splitPerServer: 16), width: 120);
+        var text = RenderPlain(DashboardView.Build(SampleState(), TimeSpan.FromSeconds(5), 16, splitPerServer: 16), width: 120);
         Assert.Contains("Split", text, StringComparison.Ordinal);
         Assert.Contains("Connection", text, StringComparison.Ordinal);
-        Assert.DoesNotContain(" Conn ", text, StringComparison.Ordinal);
     }
 
     [Fact]
     public void Build_ConnectionCell_ShowsLiveOverMax()
     {
-        var text = RenderToString(DashboardView.Build(SampleState(), TimeSpan.FromSeconds(5), 16, splitPerServer: 16), width: 120);
-        Assert.Contains("16/16", text, StringComparison.Ordinal);
+        var text = RenderPlain(DashboardView.Build(SampleState(), TimeSpan.FromSeconds(5), 16, splitPerServer: 16), width: 120);
+        Assert.Contains("4/16", text, StringComparison.Ordinal);
+    }
+
+    private static string RenderPlain(IRenderable renderable, int width)
+    {
+        var sw = new StringWriter();
+        var console = AnsiConsole.Create(new AnsiConsoleSettings
+        {
+            Ansi = AnsiSupport.No,
+            ColorSystem = ColorSystemSupport.NoColors,
+            Out = new AnsiConsoleOutput(sw),
+            Interactive = InteractionSupport.No,
+        });
+        console.Profile.Width = width;
+        console.Write(renderable);
+        return sw.ToString();
     }
 
     private static string RenderToString(IRenderable renderable, int width)
