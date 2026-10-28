@@ -60,7 +60,7 @@ internal static class OptionTable
             new Option("yes",       OptionKind.Flag,    "Input & Output", "Assume yes to every prompt (non-interactive).",                                 apply: (o, _) => o.Yes = true),
 
             // ── TRANSFER
-            new Option("jobs",           OptionKind.Integer, "Transfer", "Maximum concurrent downloads.",                     min: 1, max: 16, valueName: "<n>", defaultValue: "2", apply: (o, v) => o.MaxConcurrentDownloads = ParseInt(v, "Jobs", 2, 16),    shortName: 'j'),
+            new Option("jobs",           OptionKind.Integer, "Transfer", "Maximum concurrent downloads.",                     min: 1, max: 16, valueName: "<n>", defaultValue: AppDefaults.MaxConcurrentDownloads.ToString(), apply: (o, v) => o.MaxConcurrentDownloads = ParseInt(v, "Jobs", 1, 16),    shortName: 'j'),
             new Option("connections",    OptionKind.Integer, "Transfer", "Per-server connections; also sets split and per-server.", min: 1, max: 16, valueName: "<n>", defaultValue: "16", apply: (o, v) => { var n = ParseInt(v, "Connections", 1, 16); o.Connections = n; o.Split = n; o.MaxConnectionPerServer = n; }, shortName: 'c'),
             new Option("split",          OptionKind.Integer, "Transfer", "Connections per download.",                 min: 1, max: 16, valueName: "<n>", defaultValue: "16", apply: (o, v) => o.Split = ParseInt(v, "Split", 1, 16)),
             new Option("per-server",     OptionKind.Integer, "Transfer", "Maximum connections per server.",            min: 1, max: 16, valueName: "<n>", defaultValue: "16", apply: (o, v) => o.MaxConnectionPerServer = ParseInt(v, "Per-server", 1, 16)),

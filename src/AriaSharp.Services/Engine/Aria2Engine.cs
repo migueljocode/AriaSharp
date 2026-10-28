@@ -8,6 +8,7 @@ namespace AriaSharp.Services;
 public interface IAria2Engine : IDownloadEngine
 {
     Task<string> GetVersionAsync(CancellationToken ct);
+    Task ForceShutdownAsync(CancellationToken ct);
 }
 
 /// <summary>
@@ -180,6 +181,20 @@ public sealed class Aria2Engine : IAria2Engine
             await SaveSessionCoreAsync(ct);
     }
 
+public async Task ForceShutdownAsync(CancellationToken ct)
+    {
+        if (_rpc is null) return;
+        try
+        {
+            await _rpc.CallAsync("aria2.forceShutdown", null, ct);
+        }
+        catch (HttpRequestException) { }
+        catch (InvalidOperationException) { }
+        catch (TaskCanceledException) { }
+        catch (TimeoutException) { }
+        catch (IOException) { }
+    }
+
     public async Task ShutdownAsync(CancellationToken ct)
     {
         if (_rpc is null) return;
@@ -221,6 +236,12 @@ public sealed class Aria2Engine : IAria2Engine
             if (_rpc is not null)
             {
                 try { await ShutdownAsync(CancellationToken.None); }
+                catch (HttpRequestException) { }
+                catch (InvalidOperationException) { }
+                catch (TaskCanceledException) { }
+                catch (TimeoutException) { }
+                catch (IOException) { }
+                try { await ForceShutdownAsync(CancellationToken.None); }
                 catch (HttpRequestException) { }
                 catch (InvalidOperationException) { }
                 catch (TaskCanceledException) { }
