@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # AriaSharp installer for Linux and macOS.
-#   curl -fsSL https://raw.githubusercontent.com/migueljocode/AriaSharp/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/migueljocode/AriaSharp/main/scripts/install.sh | bash
 # Environment:
 #   ARIASHARP_VERSION      release tag to install (default: latest)
 #   ARIASHARP_INSTALL_DIR  target directory (default: ~/.local/bin)
@@ -15,7 +15,7 @@ detect_rid() {
   case "$(uname -s)" in
     Linux)  os=linux ;;
     Darwin) os=osx ;;
-    *) die "unsupported OS: $(uname -s) (on Windows use install.ps1)" ;;
+    *) die "unsupported OS: $(uname -s) (on Windows use scripts/install.ps1)" ;;
   esac
   case "$(uname -m)" in
     x86_64|amd64)  arch=x64 ;;
@@ -77,7 +77,12 @@ main() {
     *":$dest:"*) ;;
     *) printf '\n%s is not on your PATH. Add it with:\n  export PATH="%s:%s"\n' "$dest" "$dest" "\$PATH" ;;
   esac
-  printf '\nNext: ariasharp --install-deps -y   # installs aria2 if it is missing\n'
+
+  # stdin comes from /dev/null so the child never reads the piped script and never prompts for a password.
+  printf '\nSetting up aria2...\n'
+  "$dest/ariasharp" --install-deps </dev/null \
+    || die "ariasharp is installed, but aria2 setup failed; run: $dest/ariasharp --install-deps"
+  printf '\nDone. Check the setup with: ariasharp --doctor\n'
 }
 
 main "$@"

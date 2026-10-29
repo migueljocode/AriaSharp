@@ -1,5 +1,5 @@
 # AriaSharp installer for Windows (x64).
-#   irm https://raw.githubusercontent.com/migueljocode/AriaSharp/main/install.ps1 | iex
+#   irm https://raw.githubusercontent.com/migueljocode/AriaSharp/main/scripts/install.ps1 | iex
 # Environment:
 #   ARIASHARP_VERSION      release tag to install (default: latest)
 #   ARIASHARP_INSTALL_DIR  target directory (default: %LOCALAPPDATA%\Programs\AriaSharp)
@@ -56,7 +56,14 @@ function Install-AriaSharp {
     }
 
     Write-Host ''
-    Write-Host 'Next: ariasharp --install-deps -y   # installs aria2 if it is missing'
+    Write-Host 'Setting up aria2...'
+    & (Join-Path $dest 'ariasharp.exe') --install-deps
+    if ($LASTEXITCODE -ne 0) {
+        throw "ariasharp is installed, but aria2 setup failed (exit code $LASTEXITCODE). Run: ariasharp --install-deps"
+    }
+
+    Write-Host ''
+    Write-Host 'Done. Check the setup with: ariasharp --doctor'
 }
 
 Install-AriaSharp
