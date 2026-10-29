@@ -12,8 +12,10 @@ function Install-AriaSharp {
     $version = if ($env:ARIASHARP_VERSION) { $env:ARIASHARP_VERSION } else { 'latest' }
     $dest = if ($env:ARIASHARP_INSTALL_DIR) { $env:ARIASHARP_INSTALL_DIR } else { Join-Path $env:LOCALAPPDATA 'Programs\AriaSharp' }
 
-    if ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString() -ne 'X64') {
-        throw 'Unsupported CPU: only Windows x64 builds are published.'
+    # RuntimeInformation::OSArchitecture can be $null on Windows PowerShell 5.1, so use the environment.
+    $arch = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
+    if ($arch -ne 'AMD64') {
+        throw "Unsupported CPU '$arch': only Windows x64 builds are published."
     }
 
     $base = if ($version -eq 'latest') {
@@ -66,4 +68,9 @@ function Install-AriaSharp {
     Write-Host 'Done. Check the setup with: ariasharp --doctor'
 }
 
-Install-AriaSharp
+try { Install-AriaSharp }
+catch {
+    # Under 'irm | iex' PowerShell 5.1 reports the iex call site; print the real line.
+    Write-Host "install.ps1 failed at line $($_.InvocationInfo.ScriptLineNumber): $($_.Exception.Message)" -ForegroundColor Red
+    throw
+}
