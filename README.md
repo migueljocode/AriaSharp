@@ -29,7 +29,7 @@ Prebuilt Native AOT binaries (no .NET runtime needed) are published on the [Rele
 curl -fsSL https://raw.githubusercontent.com/migueljocode/AriaSharp/main/scripts/install.sh | bash
 ```
 
-Installs `ariasharp` to `~/.local/bin` (no sudo) and tells you if that directory is not on your `PATH`.
+Installs `ariasharp` to `~/.local/bin` (no sudo), tells you if that directory is not on your `PATH`, then runs `ariasharp --install-deps` to set up aria2.
 
 ### Windows (PowerShell)
 
@@ -37,7 +37,7 @@ Installs `ariasharp` to `~/.local/bin` (no sudo) and tells you if that directory
 irm https://raw.githubusercontent.com/migueljocode/AriaSharp/main/scripts/install.ps1 | iex
 ```
 
-Installs `ariasharp.exe` to `%LOCALAPPDATA%\Programs\AriaSharp` and adds it to your user `PATH`.
+Installs `ariasharp.exe` to `%LOCALAPPDATA%\Programs\AriaSharp`, adds it to your user `PATH`, then runs `ariasharp --install-deps` to set up aria2.
 
 ### Options
 
@@ -52,9 +52,11 @@ curl -fsSL https://raw.githubusercontent.com/migueljocode/AriaSharp/main/scripts
 
 ### After installing
 
+The installers already set up aria2, so there is nothing else to do. To check the setup, or to retry if the aria2 step failed:
+
 ```bash
-ariasharp --install-deps -y   # installs aria2 if it is missing
 ariasharp --doctor
+ariasharp --install-deps
 ```
 
 ### Verifying a download

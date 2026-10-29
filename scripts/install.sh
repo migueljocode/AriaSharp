@@ -77,7 +77,12 @@ main() {
     *":$dest:"*) ;;
     *) printf '\n%s is not on your PATH. Add it with:\n  export PATH="%s:%s"\n' "$dest" "$dest" "\$PATH" ;;
   esac
-  printf '\nNext: ariasharp --install-deps -y   # installs aria2 if it is missing\n'
+
+  # stdin comes from /dev/null so the child never reads the piped script and never prompts for a password.
+  printf '\nSetting up aria2...\n'
+  "$dest/ariasharp" --install-deps </dev/null \
+    || die "ariasharp is installed, but aria2 setup failed; run: $dest/ariasharp --install-deps"
+  printf '\nDone. Check the setup with: ariasharp --doctor\n'
 }
 
 main "$@"
