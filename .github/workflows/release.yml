@@ -1,0 +1,142 @@
+name: Release
+
+# Manual only: Actions tab -> Release -> Run workflow (from main).
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release tag, e.g. v1.0.0"
+        required: true
+        type: string
+      prerelease:
+        description: "Mark as pre-release"
+        type: boolean
+        default: false
+      dry_run:
+        description: "Build and package only; do not publish a release"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: validate
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check tag format and availability
+        env:
+          TAG: ${{ inputs.version }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]; then
+            echo "::error::version must look like v1.2.3 or v1.2.3-rc.1 (got '$TAG')"
+            exit 1
+          fi
+          if [ "$DRY_RUN" != "true" ] && gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::error::release $TAG already exists"
+            exit 1
+          fi
+
+  build:
+    name: build (${{ matrix.rid }})
+    needs: validate
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { os: ubuntu-latest, rid: linux-x64 }
+          - { os: ubuntu-24.04-arm, rid: linux-arm64 }
+          - { os: macos-latest, rid: osx-arm64 }
+          - { os: macos-15-intel, rid: osx-x64 }
+          - { os: windows-latest, rid: win-x64 }
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Publish AOT
+        run: dotnet publish src/AriaSharp.Console/AriaSharp.Console.csproj -c Release -r ${{ matrix.rid }} -o publish
+
+      - name: Smoke test
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then bin=./publish/ariasharp.exe; else bin=./publish/ariasharp; fi
+          "$bin" --version
+          "$bin" --help > /dev/null
+
+      - name: Package (Linux, macOS)
+        if: runner.os != 'Windows'
+        run: |
+          mkdir dist
+          tar -czf "dist/ariasharp-${{ matrix.rid }}.tar.gz" -C publish ariasharp
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path dist | Out-Null
+          Compress-Archive -Path publish/ariasharp.exe -DestinationPath "dist/ariasharp-${{ matrix.rid }}.zip"
+
+      - name: Report binary size
+        shell: bash
+        run: ls -l publish/ariasharp* dist/
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ariasharp-${{ matrix.rid }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: publish release
+    needs: build
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: ariasharp-*
+          path: dist
+          merge-multiple: true
+
+      - name: Write SHA256SUMS
+        working-directory: dist
+        run: |
+          sha256sum ariasharp-* > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: dist/ariasharp-*
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ inputs.version }}
+          PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          flags=(--target "$GITHUB_SHA" --title "AriaSharp $TAG" --generate-notes)
+          if [ "$PRERELEASE" = "true" ]; then flags+=(--prerelease); fi
+          gh release create "$TAG" dist/* "${flags[@]}"
