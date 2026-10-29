@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # AriaSharp installer for Linux and macOS.
-#   curl -fsSL https://raw.githubusercontent.com/migueljocode/AriaSharp/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/migueljocode/AriaSharp/main/scripts/install.sh | bash
 # Environment:
 #   ARIASHARP_VERSION      release tag to install (default: latest)
 #   ARIASHARP_INSTALL_DIR  target directory (default: ~/.local/bin)
@@ -15,7 +15,7 @@ detect_rid() {
   case "$(uname -s)" in
     Linux)  os=linux ;;
     Darwin) os=osx ;;
-    *) die "unsupported OS: $(uname -s) (on Windows use install.ps1)" ;;
+    *) die "unsupported OS: $(uname -s) (on Windows use scripts/install.ps1)" ;;
   esac
   case "$(uname -m)" in
     x86_64|amd64)  arch=x64 ;;

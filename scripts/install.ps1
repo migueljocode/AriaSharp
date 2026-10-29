@@ -1,5 +1,5 @@
 # AriaSharp installer for Windows (x64).
-#   irm https://raw.githubusercontent.com/migueljocode/AriaSharp/main/install.ps1 | iex
+#   irm https://raw.githubusercontent.com/migueljocode/AriaSharp/main/scripts/install.ps1 | iex
 # Environment:
 #   ARIASHARP_VERSION      release tag to install (default: latest)
 #   ARIASHARP_INSTALL_DIR  target directory (default: %LOCALAPPDATA%\Programs\AriaSharp)

@@ -26,7 +26,7 @@ Prebuilt Native AOT binaries (no .NET runtime needed) are published on the [Rele
 ### Linux and macOS
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/migueljocode/AriaSharp/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/migueljocode/AriaSharp/main/scripts/install.sh | bash
 ```
 
 Installs `ariasharp` to `~/.local/bin` (no sudo) and tells you if that directory is not on your `PATH`.
@@ -34,7 +34,7 @@ Installs `ariasharp` to `~/.local/bin` (no sudo) and tells you if that directory
 ### Windows (PowerShell)
 
 ```powershell
-irm https://raw.githubusercontent.com/migueljocode/AriaSharp/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/migueljocode/AriaSharp/main/scripts/install.ps1 | iex
 ```
 
 Installs `ariasharp.exe` to `%LOCALAPPDATA%\Programs\AriaSharp` and adds it to your user `PATH`.
@@ -47,7 +47,7 @@ Installs `ariasharp.exe` to `%LOCALAPPDATA%\Programs\AriaSharp` and adds it to y
 | `ARIASHARP_INSTALL_DIR` | `~/.local/bin` (Windows: `%LOCALAPPDATA%\Programs\AriaSharp`) | Target directory |
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/migueljocode/AriaSharp/main/install.sh | ARIASHARP_VERSION=v1.0.0 bash
+curl -fsSL https://raw.githubusercontent.com/migueljocode/AriaSharp/main/scripts/install.sh | ARIASHARP_VERSION=v1.0.0 bash
 ```
 
 ### After installing
