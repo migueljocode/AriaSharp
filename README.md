@@ -19,10 +19,58 @@ Cross-platform .NET 10 Native AOT console app that wraps [aria2](https://aria2.g
 | `AriaSharp.Console` | CLI, TUI, composition root |
 | `AriaSharp.Tests` | xUnit suite (~196 tests) |
 
+## Installation
+
+Prebuilt Native AOT binaries (no .NET runtime needed) are published on the [Releases](https://github.com/migueljocode/AriaSharp/releases) page for Linux (x64, arm64; glibc), macOS (Apple silicon, Intel) and Windows (x64).
+
+### Linux and macOS
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/migueljocode/AriaSharp/main/install.sh | bash
+```
+
+Installs `ariasharp` to `~/.local/bin` (no sudo) and tells you if that directory is not on your `PATH`.
+
+### Windows (PowerShell)
+
+```powershell
+irm https://raw.githubusercontent.com/migueljocode/AriaSharp/main/install.ps1 | iex
+```
+
+Installs `ariasharp.exe` to `%LOCALAPPDATA%\Programs\AriaSharp` and adds it to your user `PATH`.
+
+### Options
+
+| Variable | Default | Meaning |
+|----------|---------|---------|
+| `ARIASHARP_VERSION` | `latest` | Release tag to install, e.g. `v1.0.0` |
+| `ARIASHARP_INSTALL_DIR` | `~/.local/bin` (Windows: `%LOCALAPPDATA%\Programs\AriaSharp`) | Target directory |
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/migueljocode/AriaSharp/main/install.sh | ARIASHARP_VERSION=v1.0.0 bash
+```
+
+### After installing
+
+```bash
+ariasharp --install-deps -y   # installs aria2 if it is missing
+ariasharp --doctor
+```
+
+### Verifying a download
+
+Both installers check the archive against the release's `SHA256SUMS`. That file comes from the same release, so it catches corruption, not a compromised release. For provenance, verify the build attestation:
+
+```bash
+gh attestation verify ariasharp-linux-x64.tar.gz --repo migueljocode/AriaSharp
+```
+
+Binaries are not code-signed, so a browser download may trigger Gatekeeper (macOS) or SmartScreen (Windows). On macOS, files fetched with `curl` (as `install.sh` does) are not quarantined.
+
 ## Requirements
 
-- [.NET 10 SDK](https://dotnet.microsoft.com/download) (see `global.json`)
 - aria2 1.37.0 (auto-installable via `--install-deps` / `-y`)
+- [.NET 10 SDK](https://dotnet.microsoft.com/download) only to build from source (see `global.json`)
 
 ## Build / test
 
