@@ -9,6 +9,21 @@
     <PublishAot>true</PublishAot>
     <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
+  <!-- Size-first settings, applied only by `dotnet publish` so build and test keep the normal Release config.
+       UseSystemResourceKeys is deliberately not set: the app prints ex.Message to the user, which would show resource keys. -->
+  <PropertyGroup Condition="'$(_IsPublishing)' == 'true'">
+    <OptimizationPreference>Size</OptimizationPreference>
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+    <StripSymbols>true</StripSymbols>
+    <DebuggerSupport>false</DebuggerSupport>
+    <MetadataUpdaterSupport>false</MetadataUpdaterSupport>
+    <EventSourceSupport>false</EventSourceSupport>
+    <MetricsSupport>false</MetricsSupport>
+    <HttpActivityPropagationSupport>false</HttpActivityPropagationSupport>
+    <Http3Support>false</Http3Support>
+    <StackTraceSupport>false</StackTraceSupport>
+  </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\AriaSharp.Services\AriaSharp.Services.csproj" />
     <PackageReference Include="Spectre.Console" />

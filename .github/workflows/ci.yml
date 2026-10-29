@@ -53,6 +53,17 @@ jobs:
       - name: Publish AOT
         run: dotnet publish src/AriaSharp.Console/AriaSharp.Console.csproj -c Release -r ${{ matrix.rid }}
 
+      - name: Report binary size
+        shell: bash
+        run: |
+          dir=./src/AriaSharp.Console/bin/Release/net10.0/${{ matrix.rid }}/publish
+          if [ "${{ runner.os }}" = "Windows" ]; then bin="$dir/ariasharp.exe"; else bin="$dir/ariasharp"; fi
+          line="ariasharp ${{ matrix.rid }}: $(wc -c < "$bin") bytes"
+          echo "$line"
+          echo "$line" >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=Binary size::$line"
+          ls -l "$dir"
+
       - name: Smoke test --version
         shell: bash
         run: |
