@@ -96,3 +96,24 @@ jobs:
           echo "$out"
           test "$status" -eq 0
           echo "$out" | grep -q 'HTTPS: yes'
+
+  installer-windows:
+    name: install.ps1 (${{ matrix.shell }})
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shell: [powershell, pwsh]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run scripts/install.ps1 the way users do (irm | iex)
+        shell: ${{ matrix.shell }}
+        env:
+          ARIASHARP_INSTALL_DIR: ${{ runner.temp }}\ariasharp
+        run: |
+          $PSVersionTable.PSVersion
+          Get-Content scripts/install.ps1 -Raw | Invoke-Expression
+          & (Join-Path $env:ARIASHARP_INSTALL_DIR 'ariasharp.exe') --version
+          if ($LASTEXITCODE -ne 0) { throw "ariasharp --version failed ($LASTEXITCODE)" }
